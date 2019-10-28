@@ -13,4 +13,8 @@ open install.sh and set following variables:
 
 ### Step 2
 
-run install.sh
+run `install.sh`
+
+### Step 3
+
+run `sudo install_rules.sh`
