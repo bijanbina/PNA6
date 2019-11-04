@@ -1,7 +1,7 @@
 /*
  * Xilinx AXI DMA Driver
  *
- * Authors: 
+ * Authors:
  *    Fabrizio Spada - fabrizio.spada@mail.polimi.it
  *    Gianluca Durelli - durelli@elet.polimi.it
  *    Politecnico di Milano
@@ -46,9 +46,9 @@
 #define DRIVER_NAME "pnadmc_pdrv"
 #define MODULE_NAME "pnadmc"
 
-#define DMA_LENGTH	16384
+#define DMA_LENGTH	8192*16
 
-static struct class *cl;	// Global variable for the device class 
+static struct class *cl;	// Global variable for the device class
 
 struct pnadmc_device
 {
@@ -78,7 +78,7 @@ static struct pnadmc_device *get_elem_from_list_by_inode(struct inode *i)
     		break;
     	}
   	}
-  	return obj_dev;	
+  	return obj_dev;
 }
 // static void dmaHalt(void){
 // 	unsigned long mm2s_halt = ioread32(virt_bus_addr + MM2S_DMASR) & 0x1;
@@ -119,7 +119,7 @@ static int dmaSynchMM2S(struct pnadmc_device *obj_dev)
 {
 	long long counter = 0;
 	unsigned int counter2 = 0;
-	
+
 	//printk(KERN_ERR "<%s> SYNC virtual address = 0x%x \n",
 	//				 MODULE_NAME, obj_dev->virt_bus_addr);
 	unsigned int mm2s_status = ioread32(obj_dev->virt_bus_addr + MM2S_DMASR);
@@ -145,9 +145,9 @@ static int dmaSynchMM2S(struct pnadmc_device *obj_dev)
 			//return 1;
 		}
 	}
-	
+
 	//printk(KERN_ERR "<%s> dmaSynchS2MM() completed \n");
-	
+
 	return 0;
 }
 
@@ -157,7 +157,7 @@ static int dmaSynchS2MM(struct pnadmc_device *obj_dev)
 	unsigned int s2mm_status = ioread32(obj_dev->virt_bus_addr + S2MM_DMASR);
 	long long counter = 0;
 	unsigned int counter2 = 0;
-	
+
 	//printk(KERN_ERR "<%s> S2MM_Status = 0x%x virt_bus_addr = 0x%x \n",
 	//                 MODULE_NAME, s2mm_status, obj_dev->virt_bus_addr);
 
@@ -182,9 +182,9 @@ static int dmaSynchS2MM(struct pnadmc_device *obj_dev)
 			//return 1;
 		}
 	}
-	
+
 	//printk(KERN_ERR "<%s> dmaSynchS2MM() completed \n");
-	
+
 	return 0;
 }
 
@@ -195,7 +195,7 @@ static int pnadmc_open(struct inode *i, struct file *f)
 	if (!request_mem_region(obj_dev->bus_addr, obj_dev->bus_size, MODULE_NAME))
 	{
 		return -1;
-	}	
+	}
 	obj_dev->virt_bus_addr = (char *) ioremap_nocache(obj_dev->bus_addr, obj_dev->bus_size);
 	return 0;
 }
@@ -278,7 +278,7 @@ static ssize_t pnadmc_write(struct file *f, const char __user * buf,
 	// printk(KERN_INFO "%X\n", ioread32(virt_bus_addr + MM2S_DMASR));
 	// printk(KERN_INFO "%X\n", ioread32(virt_bus_addr + MM2S_DMACR));
 	// printk(KERN_INFO "%X\n", ioread32(virt_bus_addr + S2MM_DMASR));
-	// printk(KERN_INFO "%X\n", ioread32(virt_bus_addr + S2MM_DMACR));	
+	// printk(KERN_INFO "%X\n", ioread32(virt_bus_addr + S2MM_DMACR));
 	// printk(KERN_INFO "%X\n", bus_addr);
 	// printk(KERN_INFO "%lu\n", bus_size);
 
@@ -303,7 +303,7 @@ static int pnadmc_pdrv_probe(struct platform_device *pdev)
     obj_dev->bus_addr = pdev->resource[0].start;
     obj_dev->bus_size = pdev->resource[0].end - pdev->resource[0].start + 1;
 	obj_dev->dev_name = pdev->name + 9;
-	
+
 	printk(KERN_INFO "<%s> init: registered\n", obj_dev->dev_name);
 	if (alloc_chrdev_region(&(obj_dev->dev_num), 0, 1, obj_dev->dev_name) < 0) {
 		return -1;
@@ -428,5 +428,3 @@ static void __exit pnadmc_pdrv_exit(void)
 
 module_init(pnadmc_pdrv_init);
 module_exit(pnadmc_pdrv_exit);
-
-
