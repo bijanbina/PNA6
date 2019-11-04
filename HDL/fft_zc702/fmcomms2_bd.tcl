@@ -219,9 +219,18 @@ ad_cpu_interrupt ps-13 mb-12 axi_ad9361_adc_dma/irq
 ad_cpu_interrupt ps-12 mb-13 axi_ad9361_dac_dma/irq
 
 # Constant
-ad_ip_instance xlconstant fft_constant
-ad_ip_parameter fft_constant CONFIG.CONST_WIDTH 8
-ad_ip_parameter fft_constant CONFIG.CONST_VAL 1
+#ad_ip_instance xlconstant fft_constant
+#ad_ip_parameter fft_constant CONFIG.CONST_WIDTH 8
+#ad_ip_parameter fft_constant CONFIG.CONST_VAL 1
+
+# GPIO FFT
+ad_ip_instance axi_gpio gpio_fft
+ad_ip_parameter gpio_fft CONFIG.C_GPIO_WIDTH 8
+ad_ip_parameter gpio_fft CONFIG.C_ALL_OUTPUTS 1
+ad_ip_parameter gpio_fft CONFIG.C_DOUT_DEFAULT  0x00000001
+ad_connect $sys_cpu_clk gpio_fft/s_axi_aclk
+ad_connect $sys_cpu_resetn gpio_fft/s_axi_aresetn
+ad_cpu_interconnect 0x41200000 gpio_fft
 
 # FFT DMA
 ad_ip_instance axi_dma adc_dma_fft
@@ -251,7 +260,8 @@ add_files -norecurse /home/bijan/Projects/ADI/hdl/library/edge_detect/edge_detec
 create_bd_cell -type module -reference edge_detect fft_edge_detect
 ad_ip_parameter fft_edge_detect CONFIG.N 16
 ad_connect $sys_cpu_clk fft_edge_detect/clk
-ad_connect fft_edge_detect/din fft_constant/dout
+# ad_connect fft_edge_detect/din fft_constant/dout
+ad_connect fft_edge_detect/din gpio_fft/gpio_io_o
 
 # FFT
 # report_property [get_ips ip_instance_name]
@@ -263,11 +273,12 @@ ad_ip_parameter adc_fft CONFIG.output_ordering natural_order
 ad_ip_parameter adc_fft CONFIG.ovflo false
 ad_ip_parameter adc_fft CONFIG.phase_factor_width 16
 ad_ip_parameter adc_fft CONFIG.rounding_modes convergent_rounding
-ad_ip_parameter adc_fft CONFIG.run_time_configurable_transform_length false
+ad_ip_parameter adc_fft CONFIG.run_time_configurable_transform_length true
 ad_ip_parameter adc_fft CONFIG.scaling_options block_floating_point
 ad_ip_parameter adc_fft CONFIG.throttle_scheme nonrealtime
-ad_ip_parameter adc_fft CONFIG.transform_length 1024
+ad_ip_parameter adc_fft CONFIG.transform_length 65536
 ad_ip_parameter adc_fft CONFIG.target_clock_frequency 100
+ad_ip_parameter adc_fft CONFIG.number_of_stages_using_block_ram_for_data_and_phase_factors 9
 
 ad_connect adc_fft/S_AXIS_DATA adc_dma_fft/M_AXIS_MM2S
 ad_connect adc_fft/s_axis_config_tdata fft_edge_detect/din
