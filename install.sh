@@ -109,22 +109,26 @@ if [ "$response" = "y" ]; then
 		sed -i 's/EXTRA_USERS_PARAMS = "	\\/# EXTRA_USERS_PARAMS = "	\\/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend"
 		sed -i 's/	usermod -P analog root;"/#	usermod -P analog root;"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend"
 	fi
-	CHECK_PRE=$(grep "file://pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi \\" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
+	CHECK_PRE=$(grep "file://pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
 	if [ -z "$CHECK_PRE" ]; then
-		WRITE_LN=$(grep -i -n 'file://pl-delete-nodes-vc707_fmcjesdadc1.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+		WRITE_LN=$(grep -i -n "file://pl-delete-nodes-vc707_fmcjesdadc1.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
 		WRITE_LN=$(($WRITE_LN+1))
 		sed -i "$WRITE_LN"'i\ \ \ \ file://pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	fi
 	CHECK_PRE=$(grep "zynq-zc702-adv7511-ad9361-fmcomms2-3" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
 	if [ -z "$CHECK_PRE" ]; then
-		WRITE_LN=$(grep -i -n 'zynq-adrv9361-z7035-box \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+		WRITE_LN=$(grep -i -n 'zynq-adrv9361-z7035-box \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
 		WRITE_LN=$(($WRITE_LN+1))
 		sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ \ \ \ \ zynq-zc702-adv7511-ad9361-fmcomms2-3 \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	fi
+	
 	#FIXME: fix echo bug
-	sed -i 's/KERNEL_DTB = "zynq-zed-adv7511-ad9361-fmcomms2-3"/KERNEL_DTB =  "zynq-zc702-adv7511-ad9361-fmcomms2-3"' 
+	sed -i 's/KERNEL_DTB = "zynq-zed-adv7511-ad9361-fmcomms2-3"/KERNEL_DTB = "zynq-zc702-adv7511-ad9361-fmcomms2-3"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+	
+	cd "$CURRENT_DIR" 
+	cp -R Meta-ADI/* "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
 fi
 
 printf "Create Petalinux project?[y/N]: "
@@ -133,9 +137,9 @@ read response
 if [ "$response" = "y" ]; then
 	cd "$PETALINUX_INSTALL_DIR"
 	source settings.sh
-#	petalinux-create --type project --template zynq --name fft_zc702_linux
+	petalinux-create --type project --template zynq --name fft_zc702_linux
 	cd fft_zc702_linux
-#	petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
 	
 	CHECK_PRE=$(grep "$META_ADI_PROJECT" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config")
 	if [ -z "$CHECK_PRE" ]; then
@@ -157,6 +161,10 @@ if [ "$response" = "y" ]; then
 	fi
 	
 	cd "$CURRENT_DIR"
+	DIR="$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules"
+	if [ ! -d "$DIR" ]; then
+		mkdir "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules"
+	fi
 	cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-apps/pna-iio/"
 	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules/pnadmc/"
 	
