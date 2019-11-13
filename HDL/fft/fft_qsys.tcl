@@ -1,5 +1,5 @@
 
-# pna6
+# fft
 
 # ad9361 core
 

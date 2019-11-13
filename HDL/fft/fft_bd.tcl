@@ -1,5 +1,5 @@
 
-# fmcomms2
+# fft
 
 create_bd_port -dir I rx_clk_in_p
 create_bd_port -dir I rx_clk_in_n
@@ -256,7 +256,7 @@ ad_cpu_interrupt ps-8 mb-8 adc_dma_fft/s2mm_introut
 ad_cpu_interrupt ps-9 mb-9 adc_dma_fft/mm2s_introut
 
 # Edge Detect
-add_files -norecurse /home/bijan/Projects/ADI/hdl/library/edge_detect/edge_detect.v
+add_files -norecurse ../../../library/edge_detect/edge_detect.v
 create_bd_cell -type module -reference edge_detect fft_edge_detect
 ad_ip_parameter fft_edge_detect CONFIG.N 16
 ad_connect $sys_cpu_clk fft_edge_detect/clk
@@ -276,9 +276,9 @@ ad_ip_parameter adc_fft CONFIG.rounding_modes convergent_rounding
 ad_ip_parameter adc_fft CONFIG.run_time_configurable_transform_length true
 ad_ip_parameter adc_fft CONFIG.scaling_options block_floating_point
 ad_ip_parameter adc_fft CONFIG.throttle_scheme nonrealtime
-ad_ip_parameter adc_fft CONFIG.transform_length 65536
+ad_ip_parameter adc_fft CONFIG.transform_length 8192
 ad_ip_parameter adc_fft CONFIG.target_clock_frequency 100
-ad_ip_parameter adc_fft CONFIG.number_of_stages_using_block_ram_for_data_and_phase_factors 9
+ad_ip_parameter adc_fft CONFIG.number_of_stages_using_block_ram_for_data_and_phase_factors 7
 
 ad_connect adc_fft/S_AXIS_DATA adc_dma_fft/M_AXIS_MM2S
 ad_connect adc_fft/s_axis_config_tdata fft_edge_detect/din

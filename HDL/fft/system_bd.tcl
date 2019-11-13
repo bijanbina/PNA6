@@ -1,6 +1,6 @@
 
-source $ad_hdl_dir/projects/common/pna6/pna6_system_bd.tcl
-source ../common/pna6_bd.tcl
+source $ad_hdl_dir/projects/common/zc702/zc702_system_bd.tcl
+source ../common/fft_bd.tcl
 
 #system ID
 ad_ip_parameter axi_sysid_0 CONFIG.ROM_ADDR_BITS 9

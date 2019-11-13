@@ -5,7 +5,7 @@
 
 PROJECT_NAME := fft_zc702
 
-M_DEPS += ../common/fmcomms2_bd.tcl
+M_DEPS += ../common/fft_bd.tcl
 M_DEPS += ../../common/zc702/zc702_system_constr.xdc
 M_DEPS += ../../common/zc702/zc702_system_bd.tcl
 M_DEPS += ../../../library/xilinx/common/ad_iobuf.v
