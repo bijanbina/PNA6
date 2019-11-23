@@ -140,6 +140,7 @@ if [ "$response" = "y" ]; then
 	petalinux-create --type project --template zynq --name fft_zc702_linux
 	cd fft_zc702_linux
 	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+#	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
 	
 	CHECK_PRE=$(grep "$META_ADI_PROJECT" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config")
 	if [ -z "$CHECK_PRE" ]; then
