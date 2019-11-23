@@ -18,6 +18,8 @@ extern struct iio_buffer *capture_buffer;
 extern const char *rx_freq_name, *tx_freq_name;
 extern int32_t rx1_buffer [FFT_LENGTH];
 
+int dds_sample_size = FFT_LENGTH;
+int span_number = 1;
 int8_t dac_buf[16384];
 
 int main (int argc, char **argv)
@@ -110,6 +112,40 @@ int main (int argc, char **argv)
 				printf("rx_bandwidth: %lld \r\n", bandwidth);
 			}
 		}
+		else if( strcmp(token, "vga_gain")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				long long vga_gain;
+				iio_channel_attr_read_longlong(tx_dev_ch0, "hardware_gain_tx1", &vga_gain);
+				printf("vga_gain_tx1: %lld \r\n", vga_gain);
+			}
+			else
+			{
+				size_t sz = NULL;
+				long long vga_gain = atoll(token, &sz, 10);
+				iio_channel_attr_write_longlong(tx_dev_ch0, "hardware_gain_tx1", vga_gain);
+				printf("vga_gain_tx1: %lld \r\n", vga_gain);
+			}
+		}
+		else if( strcmp(token, "lna_gain")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				long long lna_gain;
+				iio_channel_attr_read_longlong(rx_dev_ch0, "hardware_gain_rx1", &lna_gain);
+				printf("lna_gain_rx1: %lld \r\n", lna_gain);
+			}
+			else
+			{
+				size_t sz = NULL;
+				long long lna_gain = atoll(token, &sz, 10);
+				iio_channel_attr_write_longlong(rx_dev_ch0, "hardware_gain_rx1", lna_gain);
+				printf("lna_gain_rx1: %lld \r\n", lna_gain);
+			}
+		}
 		else if( strcmp(token, "gain_control_mode")==0 )
 		{
 			token = strtok(NULL, delim);
@@ -140,6 +176,19 @@ int main (int argc, char **argv)
 				long long sampling_frequency = get_frequency(token);
 				iio_channel_attr_write_longlong(tx_dev_ch0, "sampling_frequency", sampling_frequency);
 				printf("tx_sampling_frequency: %lld \r\n", sampling_frequency);
+			}
+		}
+		else if( strcmp(token, "tx_sample_size")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("tx_sample_size: %d \r\n", dds_sample_size);
+			}
+			else
+			{
+				dds_sample_size = atoi(token);
+				printf("tx_sample_size: %d \r\n", dds_sample_size);
 			}
 		}
 		else if( strcmp(token, "rx_sample_rate")==0 )
@@ -237,6 +286,51 @@ int main (int argc, char **argv)
 				;
 			}
 		}
+		else if( strcmp(token, "rx_fir_en")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				bool fir_en;
+				iio_channel_attr_read_bool(rx_dev_ch0, "filter_fir_en", &fir_en);
+				printf("rx fir enable: %d \r\n", fir_en);
+			}
+			else
+			{
+				bool fir_en = atoi(token);
+				iio_channel_attr_write_bool(rx_dev_ch0, "filter_fir_en", fir_en);
+				printf("rx fir enable: %d \r\n", fir_en);
+			}
+		}
+		else if( strcmp(token, "tx_fir_en")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				bool fir_en;
+				iio_channel_attr_read_bool(tx_dev_ch0, "filter_fir_en", &fir_en);
+				printf("tx fir enable: %d \r\n", fir_en);
+			}
+			else
+			{
+				bool fir_en = atoi(token);
+				iio_channel_attr_write_bool(tx_dev_ch0, "filter_fir_en", fir_en);
+				printf("tx fir enable: %d \r\n", fir_en);
+			}
+		}
+		else if( strcmp(token, "span")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("span: %d \r\n", span_number);
+			}
+			else
+			{
+				span_number = atoi(token);
+				printf("span: %d \r\n", span_number);
+			}
+		}
 		else if(strcmp(token,"test") == 0)
 		{
 			int i;
@@ -250,14 +344,18 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"adc") == 0)
 		{
-			int i;
-			int window_size = FFT_LENGTH/1024.0;
+			int min_size = 1024;
+			if(fft_size < 1024)
+			{
+				min_size = fft_size;
+			}
+			int window_size = fft_size/min_size;
 			double avg_adc_window;
 			int32_t rx_buffer_i;
 			int16_t rx_buffer_i_16;
 			unsigned char uart_tx_buffer[2*FFT_LENGTH];
 			fill_rx_buffer();
-			for( i=0; i<1024; i++ )
+			for(int i=0; i<min_size; i++ )
 			{
 				avg_adc_window = 0;
 				for(int j=0; j<window_size; j++)
@@ -276,16 +374,22 @@ int main (int argc, char **argv)
 				// printf("%c%c\r\n",first_byte, second_byte);
 				// printf("%d : %d\r\n", i, rx_buffer_i);
 			}
-			fwrite(uart_tx_buffer, 1, 2*1024, stdout);
+			fwrite(uart_tx_buffer, 1, 2*min_size, stdout);
 			printf("\r\n");
 		}
 		else if(strcmp(token,"fft") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			int i;
-			int window_size = FFT_LENGTH/1024.0;
+			int min_size = 1024;
+			if(fft_size*span_number < 1024)
+			{
+				min_size = fft_size*span_number;
+			}
+			int window_size = (fft_size*span_number)/min_size;
+			int span_part = min_size/span_number;
 			double avg_fft_window;
 			int32_t fft_abs32;
+			long long freq;
 			unsigned char uart_tx_buffer[4*FFT_LENGTH];
 
 			//printf("Debug Flag #1\r\n");
@@ -293,58 +397,38 @@ int main (int argc, char **argv)
 			//printf("Debug Flag #2\r\n");
 			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
 			//printf("Debug Flag #3\r\n");
-			for( i=0; i<1024; i++ )
+			iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq); //rx_freq
+			for(int s=0; s<span_number; s++ )
 			{
-				avg_fft_window = 0;
-				for(int j=0; j<window_size; j++)
+				for(int i=0; i<span_part; i++ )
 				{
-					avg_fft_window += fft_abs[window_size*i+j];
+					avg_fft_window = 0;
+					for(int j=0; j<window_size; j++)
+					{
+						avg_fft_window += fft_abs[window_size*i+j];
+					}
+					avg_fft_window = avg_fft_window/window_size;
+					fft_abs32 = floor(avg_fft_window);
+					//printf( "%d: %d\r\n", i, fft_abs[i] );
+					char first_byte = fft_abs32%256;
+					char second_byte = fft_abs32/256;
+					uart_tx_buffer[s*span_part+2*i] = first_byte;
+					uart_tx_buffer[s*span_part+2*i+1] = second_byte;
+					// uart_tx_buffer[4*i+2] = '\r';
+					// uart_tx_buffer[4*i+3] = '\r\n';
+					// printf("%c%c",first_byte, second_byte);
+					//printf("%d : %c%c\r\n",i ,fft_out_abs[0], fft_out_abs[1]);
 				}
-				avg_fft_window = avg_fft_window/window_size;
-				fft_abs32 = floor(avg_fft_window);
-				//printf( "%d: %d\r\n", i, fft_abs[i] );
-				char first_byte = fft_abs32%256;
-				char second_byte = fft_abs32/256;
-				uart_tx_buffer[2*i] = first_byte;
-				uart_tx_buffer[2*i+1] = second_byte;
-				// uart_tx_buffer[4*i+2] = '\r';
-				// uart_tx_buffer[4*i+3] = '\r\n';
-				// printf("%c%c",first_byte, second_byte);
-				//printf("%d : %c%c\r\n",i ,fft_out_abs[0], fft_out_abs[1]);
+				if( s == span_number-1)
+				{
+					break;
+				}
+				freq = freq + MAX_BW;
+				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
 			}
-			fwrite(uart_tx_buffer, 1, 2*1024, stdout);
-			printf("\r\n");
-			//printf("Debug Flag #4\r\n");
-		}
-		else if(strcmp(token,"fft_debug") == 0)
-		{
-			int i; unsigned char uart_tx_buffer[4*FFT_LENGTH];
-			fill_rx_buffer();calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 1);
-			for( i=0; i<fft_size; i++ )
-			{
-				char* fft_out_abs = (char *) &fft_abs[i];
-				char first_byte = fft_abs[i]%256;
-				char second_byte = fft_abs[i]/256;
-				uart_tx_buffer[2*i] = first_byte;
-				uart_tx_buffer[2*i+1] = second_byte;
-			}
-			fwrite(uart_tx_buffer, 1, 2*fft_size, stdout);printf("\r\n");
-		}
-		else if(strcmp(token,"fft2") == 0)
-		{
-			int i;
-			unsigned char uart_tx_buffer[4*FFT_LENGTH];
-
-			fill_rx_buffer();
-			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
-			for( i=0; i<fft_size; i++ )
-			{
-				char first_byte = fft_phase[i]%256;
-				char second_byte = fft_phase[i]/256;
-				uart_tx_buffer[2*i] = first_byte;
-				uart_tx_buffer[2*i+1] = second_byte;
-			}
-			fwrite(uart_tx_buffer, 1, 2*fft_size, stdout);
+			freq = freq - (span_number-1)*MAX_BW;
+			iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
+			fwrite(uart_tx_buffer, 1, 2*min_size, stdout);
 			printf("\r\n");
 			//printf("Debug Flag #4\r\n");
 		}
@@ -356,12 +440,9 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
-			double size_div = atof(token);
-			token = strtok(NULL, delim);
 			double amplitude = atof(token);
-			int amplitude_int = amplitude*2047*16;
-			int sample_count = FFT_LENGTH/size_div;
-			int period_sample_count = sample_count/period_num;
+			int amplitude_int = amplitude*DAC_MAX_VAL;
+			int period_sample_count = dds_sample_size/period_num;
 
 			for (int i=0 ; i<period_num ; i++)
 			{
@@ -383,23 +464,35 @@ int main (int argc, char **argv)
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(pulse_int/256);     // MSB
 				}
 			}
+			create_dds_buffer(dac_buf, dds_sample_size);
+		}
+		else if (strcmp(token, "sin")==0 )
+		{
+			int s_size = iio_device_get_sample_size(iio_dac);
+			token = strtok(NULL, delim);
+			int channel_num = atoi(token);
+			token = strtok(NULL, delim);
+			double period_num = atof(token);
+			token = strtok(NULL, delim);
+			double amplitude = atof(token);
+			int amplitude_int = amplitude*DAC_MAX_VAL;
+			int period_sample_count = dds_sample_size/period_num;
 
-			if (dds_buffer)
+			for (int i=0 ; i<period_num ; i++)
 			{
-				iio_buffer_destroy ( dds_buffer );
+				double sinous;
+				for(int j=0; j<period_sample_count; j++)
+				{
+					double x = j*2*PI;
+					x = x/period_sample_count;
+					sinous = sin(x);
+					int16_t sin_int = (int16_t)(sinous);
+
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
+				}
 			}
-
-			dds_buffer = iio_device_create_buffer(iio_dac, sample_count, true);
-
-			if (!dds_buffer)
-			{
-				fprintf(stderr, "Unable to create buffer: %s\r\n", strerror(errno));
-			}
-
-			memcpy(iio_buffer_start(dds_buffer), dac_buf,
-					iio_buffer_end(dds_buffer) - iio_buffer_start(dds_buffer));
-
-			iio_buffer_push(dds_buffer);
+			create_dds_buffer(dac_buf, dds_sample_size);
 		}
 		else if (strcmp(token, "sinc")==0 )
 		{
@@ -414,22 +507,18 @@ int main (int argc, char **argv)
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
 			double dds_freq = atof(token);
-			token = strtok(NULL, delim);
-			double size_div = atof(token);
-			int size = FFT_LENGTH/size_div;
-			int sample_count = size;
 
-			for (int i=0 ; i<sample_count ; i++)
+			for (int i=0 ; i<dds_sample_size ; i++)
 			{
-				double x = i-sample_count/2;
+				double x = i-dds_sample_size/2;
 				double sinc;
 				if ( x==0 )
 				{
-					sinc = 2047*16;
+					sinc = DAC_MAX_VAL;
 				}
 				else
 				{
-					sinc = sin(x/dds_freq)/(x/dds_freq)*2047*16;
+					sinc = sin(x/dds_freq)/(x/dds_freq)*DAC_MAX_VAL;
 				}
 				int16_t sinc_int = (int16_t)(sinc);
 
@@ -442,90 +531,13 @@ int main (int argc, char **argv)
 
 			printf("Channel Num = %d\r\n", channel_num );
 			printf("DDS Freq = %f\r\n", dds_freq);
-			printf("Sample Count= %d\r\n", sample_count);
+			printf("Sample Count= %d\r\n", dds_sample_size);
 			printf("Sample Size = %d\r\n", s_size );
-			for ( int i=sample_count/2-5 ; i<sample_count/2+5 ; i++)
+			for ( int i=dds_sample_size/2-5 ; i<dds_sample_size/2+5 ; i++)
 			{
-				printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-sample_count/2);
+				printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
 			}
-
-			if (dds_buffer)
-			{
-				iio_buffer_destroy ( dds_buffer );
-			}
-
-			dds_buffer = iio_device_create_buffer(iio_dac, sample_count, true);
-
-			if (!dds_buffer)
-			{
-				fprintf(stderr, "Unable to create buffer: %s\r\n", strerror(errno));
-			}
-
-			memcpy(iio_buffer_start(dds_buffer), dac_buf,
-					iio_buffer_end(dds_buffer) - iio_buffer_start(dds_buffer));
-
-			iio_buffer_push(dds_buffer);
-		}
-		else if (strcmp(token, "dma")==0 )
-		{
-			//pna-iio dma 100 1024
-			token = strtok(NULL, delim);
-			int sin_freq_in = atoi(token); //default 100
-			token = strtok(NULL, delim);
-			int data_size = atoi(token); //default: 1024
-			token = strtok(NULL, delim);
-			int16_t zohdi_arg = atoi(token);
-			//double sin_freq = sin_freq_in/10.0;
-			int32_t *bufferIn, *bufferOut_DMA;
-			//packet size = 32
-			//data length = 16384
-			unsigned long DATA = 1*data_size; //16bit(I)+16bit(Q) = 32bit data
-
-			bufferIn = (char *) malloc(sizeof(uint32_t) * DATA);
-		    bufferOut_DMA = (char *) malloc(sizeof(uint32_t) * DATA);
-
-			int i;
-
-			for(i=0; i<DATA; i++)
-			{
-
-				double sin_in = i;
-				double sin_out = sin(sin_in/sin_freq_in);
-				if(i==1)
-				{
-					bufferIn[1] = zohdi_arg;
-				}
-				else
-				{
-					int32_t sin_scaled = 0;
-					bufferIn[i] = sin_scaled;
-				}
-			}
-			printf ("Debug Flag #6\r\n");
-		    memset(bufferOut_DMA, 0, sizeof(int32_t) * DATA);
-			memCpy_DMA((char *)bufferIn, (char *)bufferOut_DMA, DATA, sizeof(int32_t));
-			printf ("Debug Flag #7\r\n");
-
-			int *fft_output = (int *)bufferOut_DMA;
-			int16_t fft_abs[8192];
-			int16_t fft_phase[8192];
-
-			for (i=0; i<DATA; i++)
-			{
-				fft_abs[i] = (fft_output[i] & 0xffff0000) >> 16;
-				fft_phase[i] = fft_output[i] & 0x0000ffff;
-			}
-
-			for (i=0 ; i<DATA; i++)
-			{
-				if ( i%4==0 )
-				{
-					printf("O[%4d] = %4d<%4d "    , i  , fft_abs[i]  , fft_phase[i]);
-					printf("O[%4d] = %4d<%4d "    , i+1, fft_abs[i+1], fft_phase[i+1]);
-					printf("O[%4d] = %4d<%4d "    , i+2, fft_abs[i+2], fft_phase[i+2]);
-					printf("O[%4d] = %4d<%4d \r\n", i+3, fft_abs[i+3], fft_phase[i+3]);
-				}
-			}
+			create_dds_buffer(dac_buf, dds_sample_size);
 		}
 		else if( strcmp(token, "exit")==0 )
 		{

@@ -186,5 +186,15 @@ if [ "$response" = "y" ]; then
 	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules/pnadmc/"
 	
 	cd "$PETALINUX_INSTALL_DIR/fft_zc702_linux"
+
+	# add support for offline build
+	printf "Add support for offline build?[y/N]: "
+	read response
+
+	if [ "$response" = "y" ]; then
+		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+	fi
+	
 	petalinux-build
 fi
