@@ -1,0 +1,7 @@
+#! /bin/bash
+
+export XILINX_INSTALL_DIR="/Vivado"
+export PETALINUX_INSTALL_DIR="/Petalinux"
+export XILINX_VERSION="2018.3"
+export ADI_HDL_PROJECT="/home/user/Projects/ADI/hdl"
+export META_ADI_PROJECT="/home/user/Projects/ADI/meta-adi"

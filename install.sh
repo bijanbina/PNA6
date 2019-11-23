@@ -1,10 +1,7 @@
 #! /bin/bash
 
-XILINX_INSTALL_DIR="/mnt/hdd/Vivado"
-PETALINUX_INSTALL_DIR="/mnt/hdd/PetaLinux"
-XILINX_VERSION="2018.3"
-ADI_HDL_PROJECT="/home/bijan/Projects/ADI/hdl"
-META_ADI_PROJECT="/home/bijan/Projects/ADI/meta-adi"
+source setup_variables.sh
+
 CURRENT_DIR=$(pwd)
 
 printf "Install PNA6 board files in Vivado?[y/N]: "
