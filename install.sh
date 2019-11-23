@@ -1,10 +1,10 @@
 #! /bin/bash
 
-XILINX_INSTALL_DIR="/mnt/hdd1/Vivado"
-PETALINUX_INSTALL_DIR="/mnt/hdd2/Petalinux"
+XILINX_INSTALL_DIR="/mnt/hdd/Vivado"
+PETALINUX_INSTALL_DIR="/mnt/hdd/PetaLinux"
 XILINX_VERSION="2018.3"
-ADI_HDL_PROJECT="/home/esi/Projects/ADI/hdl"
-META_ADI_PROJECT="/home/esi/Projects/ADI/meta-adi"
+ADI_HDL_PROJECT="/home/bijan/Projects/ADI/hdl"
+META_ADI_PROJECT="/home/bijan/Projects/ADI/meta-adi"
 CURRENT_DIR=$(pwd)
 
 printf "Install PNA6 board files in Vivado?[y/N]: "
@@ -32,14 +32,14 @@ printf "Add PNA6 Project to Analog Device HDL Repository?[y/N]: "
 read response
 
 if [ "$response" = "y" ]; then
-	DIR="$ADI_HDL_PROJECT/projects/pna6"
+	DIR="$ADI_HDL_PROJECT/projects/ddrless"
 	if [ ! -d "$DIR" ]; then
-		mkdir "$ADI_HDL_PROJECT/projects/pna6"
+		mkdir "$ADI_HDL_PROJECT/projects/ddrless"
 	fi
 
 	cp -R HDL/pna6 "$ADI_HDL_PROJECT/projects/common/pna6"
-	cp -R HDL/ddrless_pna6 "$ADI_HDL_PROJECT/projects/pna6/ddrless_pna6"
-	cp -R HDL/common "$ADI_HDL_PROJECT/projects/pna6/common"
+	cp -R HDL/ddrless_pna6 "$ADI_HDL_PROJECT/projects/ddrless/pna6"
+	cp -R HDL/common "$ADI_HDL_PROJECT/projects/ddrless/common"
 
 	CHECK_PRE=$(grep 'pna6' "$ADI_HDL_PROJECT/projects/scripts/adi_project_xilinx.tcl")
 	#echo "check2 : $CHECK_PRE"

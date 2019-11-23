@@ -68,7 +68,30 @@ module system_top (
   input                   spi_miso,
   
   output                  uart_tx,
-  input                   uart_rx);
+  input                   uart_rx,
+  
+  output                  led_r,
+  output                  led_g,
+  output                  led_b,
+  output                  led_3,
+  output                  led_4,
+  
+  output                  p1_sw,
+  output                  p1_cp_sw,
+  output                  tx_a1_sw,
+  output                  tx_b1_sw,
+  output                  p2_sw,
+  output                  p2_cp_sw,
+  output                  tx_a2_sw,
+  output                  tx_b2_sw,
+  output                  lna_sw,
+  output                  cpl_sw,
+  output                  reg_12v_sw,
+  output                  reg_5v_sw,
+  output                  att_sck,
+  output                  att_mosi,
+  output                  att_le1,
+  output                  att_le2);
   // internal signals
 
   wire    [63:0]  gpio_i;
@@ -125,7 +148,10 @@ module system_top (
     .up_enable (gpio_o[47]),
     .up_txnrx (gpio_o[48]),
     .uart_tx (uart_tx),
-    .uart_rx (uart_rx));
+    .uart_rx (uart_rx),
+    .gpio_led ({led_r, led_g, led_b, led_3, led_4}),
+    .gpio_sw ({p1_sw, p1_cp_sw, tx_a1_sw, tx_b1_sw, p2_sw, p2_cp_sw, tx_a2_sw, tx_b2_sw, lna_sw, cpl_sw, reg_12v_sw, reg_5v_sw}),
+    .gpio_att({att_sck, att_mosi, att_le1, att_le2}));
 
 endmodule
 
