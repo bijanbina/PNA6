@@ -202,3 +202,29 @@ ad_mem_hp2_interconnect $sys_cpu_clk axi_ad9361_dac_dma/m_src_axi
 ad_cpu_interrupt ps-13 mb-12 axi_ad9361_adc_dma/irq
 ad_cpu_interrupt ps-12 mb-13 axi_ad9361_dac_dma/irq
 
+# gpio led
+ad_ip_instance axi_gpio gpio_led
+ad_ip_parameter gpio_led CONFIG.C_GPIO_WIDTH 5
+ad_ip_parameter gpio_led CONFIG.C_ALL_OUTPUTS 1
+ad_ip_parameter gpio_led CONFIG.C_DOUT_DEFAULT  0x0000001F
+ad_connect $sys_cpu_clk gpio_led/s_axi_aclk
+ad_connect $sys_cpu_resetn gpio_led/s_axi_aresetn
+ad_cpu_interconnect 0x41200000 gpio_led
+
+# gpio sw
+ad_ip_instance axi_gpio gpio_sw
+ad_ip_parameter gpio_sw CONFIG.C_GPIO_WIDTH 12
+ad_ip_parameter gpio_sw CONFIG.C_ALL_OUTPUTS 1
+ad_ip_parameter gpio_sw CONFIG.C_DOUT_DEFAULT  0x00000000
+ad_connect $sys_cpu_clk gpio_sw/s_axi_aclk
+ad_connect $sys_cpu_resetn gpio_sw/s_axi_aresetn
+ad_cpu_interconnect 0x41210000 gpio_sw
+
+# gpio attenuator
+ad_ip_instance axi_gpio gpio_att
+ad_ip_parameter gpio_att CONFIG.C_GPIO_WIDTH 4
+ad_ip_parameter gpio_att CONFIG.C_ALL_OUTPUTS 1
+ad_ip_parameter gpio_att CONFIG.C_DOUT_DEFAULT  0x00000000
+ad_connect $sys_cpu_clk gpio_att/s_axi_aclk
+ad_connect $sys_cpu_resetn gpio_att/s_axi_aresetn
+ad_cpu_interconnect 0x41220000 gpio_att
