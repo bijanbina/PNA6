@@ -15,7 +15,10 @@
 #include <sys/time.h>
 
 #define HANNING_ENBW 1.50
-#define FFT_LENGTH 8192
+#define FFT_LENGTH 1024 //FFT output on UART size (should be 1024 FIX)
+#define DAC_MAX_VAL 2047*16
+#define MAX_BW 56E6
+#define PI 3.14159265
 #define THIS_DRIVER "AD936X"
 #define PHY_DEVICE "ad9361-phy"
 #define DDS_DEVICE "cf-ad9361-dds-core-lpc"
@@ -68,5 +71,6 @@ bool is_output_device(const struct iio_device *dev);
 void dds_init(void);
 void fmcomms2_init(void);
 long long get_frequency(char *token);
+void create_dds_buffer(int8_t *data, int sample_size);
 
 #endif //__BASE_IIO_H__

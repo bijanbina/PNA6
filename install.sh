@@ -1,10 +1,7 @@
 #! /bin/bash
 
-XILINX_INSTALL_DIR="/mnt/hdd/Vivado"
-PETALINUX_INSTALL_DIR="/mnt/hdd/PetaLinux"
-XILINX_VERSION="2018.3"
-ADI_HDL_PROJECT="/home/bijan/Projects/ADI/hdl"
-META_ADI_PROJECT="/home/bijan/Projects/ADI/meta-adi"
+source setup_variables.sh
+
 CURRENT_DIR=$(pwd)
 
 printf "Install PNA6 board files in Vivado?[y/N]: "
@@ -126,6 +123,7 @@ if [ "$response" = "y" ]; then
 	sed -i 's/KERNEL_DTB = "zynq-zed-adv7511-ad9361-fmcomms2-3"/KERNEL_DTB = "zynq-zc702-adv7511-ad9361-fmcomms2-3"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+	sed -i 's/SRCREV = "${AUTOREV}"/SRCREV = "6184afd426f0eb2d0fa588da8fe2e21975b18c6f"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 	
 	cd "$CURRENT_DIR" 
 	cp -R Meta-ADI/* "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
@@ -141,6 +139,24 @@ if [ "$response" = "y" ]; then
 	cd fft_zc702_linux
 	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
 #	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
+
+	CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config")
+	if [ -z "$CHECK_PRE" ]; then
+		sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(grep -i -n '# CONFIG_peekpoke is not set' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config" | awk -F : '{printf $1}')
+		WRITE_LN=$(($WRITE_LN+1))
+		sed -i "$WRITE_LN"'iCONFIG_pna-iio=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(($WRITE_LN+2))
+		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(($WRITE_LN+1))
+		sed -i "$WRITE_LN"'i# modules' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(($WRITE_LN+1))
+		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(($WRITE_LN+1))
+		sed -i "$WRITE_LN"'iCONFIG_pnadmc=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(($WRITE_LN+1))
+		sed -i "$WRITE_LN"'iCONFIG_pnadmm=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+	fi
 	
 	CHECK_PRE=$(grep "$META_ADI_PROJECT" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config")
 	if [ -z "$CHECK_PRE" ]; then
@@ -170,5 +186,15 @@ if [ "$response" = "y" ]; then
 	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules/pnadmc/"
 	
 	cd "$PETALINUX_INSTALL_DIR/fft_zc702_linux"
+
+	# add support for offline build
+	printf "Add support for offline build?[y/N]: "
+	read response
+
+	if [ "$response" = "y" ]; then
+		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+	fi
+	
 	petalinux-build
 fi

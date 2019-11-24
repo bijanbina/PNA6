@@ -6,10 +6,12 @@
 
 ### Step 1
 
-open install.sh and set following variables:
+Rename `setup_variables.template` to `setup_variables.sh` and set following variables:
 - XILINX_INSTALL_DIR : xilinx install directory
+- PETALINUX_INSTALL_DIR : PetaLinux install directory
 - XILINX_VERSION : xilinx version
 - ADI_HDL_PROJECT : clone the ADI HDL project from [here](https://github.com/analogdevicesinc/hdl.git)
+- META_ADI_PROJECT : clone the ADI HDL project from [here](https://github.com/analogdevicesinc/meta-adi.git)
 
 ### Step 2
 

@@ -46,7 +46,7 @@
 #define DRIVER_NAME "pnadmc_pdrv"
 #define MODULE_NAME "pnadmc"
 
-#define DMA_LENGTH	8192*16
+#define DMA_LENGTH	8192*32
 
 static struct class *cl;	// Global variable for the device class
 

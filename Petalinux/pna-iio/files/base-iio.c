@@ -552,3 +552,23 @@ long long get_frequency(char *token)
 	}
 	return frequency;
 }
+
+void create_dds_buffer(int8_t *data, int sample_size)
+{
+	if (dds_buffer)
+	{
+		iio_buffer_destroy ( dds_buffer );
+	}
+
+	dds_buffer = iio_device_create_buffer(iio_dac, sample_size, true);
+
+	if (!dds_buffer)
+	{
+		fprintf(stderr, "Unable to create buffer: %s\r\n", strerror(errno));
+	}
+
+	memcpy(iio_buffer_start(dds_buffer), dac_buf,
+			iio_buffer_end(dds_buffer) - iio_buffer_start(dds_buffer));
+
+	iio_buffer_push(dds_buffer);
+}
