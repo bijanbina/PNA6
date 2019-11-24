@@ -20,6 +20,10 @@ create_bd_port -dir O txnrx
 create_bd_port -dir I up_enable
 create_bd_port -dir I up_txnrx
 
+create_bd_port -dir O -from 4 -to 0 gpio_led
+create_bd_port -dir O -from 11 -to 0 gpio_sw
+create_bd_port -dir O -from 3 -to 0 gpio_att
+
 # ad9361 core
 
 ad_ip_instance axi_ad9361 axi_ad9361
@@ -210,6 +214,7 @@ ad_ip_parameter gpio_led CONFIG.C_DOUT_DEFAULT  0x0000001F
 ad_connect $sys_cpu_clk gpio_led/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_led/s_axi_aresetn
 ad_cpu_interconnect 0x41200000 gpio_led
+ad_connect gpio_led/gpio_io_o gpio_led
 
 # gpio sw
 ad_ip_instance axi_gpio gpio_sw
@@ -219,6 +224,7 @@ ad_ip_parameter gpio_sw CONFIG.C_DOUT_DEFAULT  0x00000000
 ad_connect $sys_cpu_clk gpio_sw/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_sw/s_axi_aresetn
 ad_cpu_interconnect 0x41210000 gpio_sw
+ad_connect gpio_sw/gpio_io_o gpio_sw
 
 # gpio attenuator
 ad_ip_instance axi_gpio gpio_att
@@ -228,3 +234,4 @@ ad_ip_parameter gpio_att CONFIG.C_DOUT_DEFAULT  0x00000000
 ad_connect $sys_cpu_clk gpio_att/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_att/s_axi_aresetn
 ad_cpu_interconnect 0x41220000 gpio_att
+ad_connect gpio_att/gpio_io_o gpio_att
