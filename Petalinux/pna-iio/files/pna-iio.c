@@ -377,7 +377,7 @@ int main (int argc, char **argv)
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 		}
-		else if(strcmp(token,"fft2") == 0)
+		else if(strcmp(token,"fft_span") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
 			int uart_size = 1024;
@@ -432,7 +432,7 @@ int main (int argc, char **argv)
 			printf("\r\n");
 			//printf("Debug Flag #4\r\n");
 		}
-		else if(strcmp(token,"fft") == 0)
+		else if(strcmp(token,"fft_win") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
 			int uart_size = FFT_LENGTH;
@@ -455,6 +455,29 @@ int main (int argc, char **argv)
 				}
 				avg_fft_window = avg_fft_window/window_size;
 				fft_abs32 = floor(avg_fft_window);
+				char first_byte = fft_abs32%256;
+				char second_byte = fft_abs32/256;
+				uart_tx_buffer[2*i] = first_byte;
+				uart_tx_buffer[2*i+1] = second_byte;
+			}
+			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			printf("\r\n");
+		}
+		else if(strcmp(token,"fft") == 0)
+		{
+			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
+			int uart_size = FFT_LENGTH;
+			int32_t fft_abs32;
+			unsigned char uart_tx_buffer[4*FFT_LENGTH];
+
+			//printf("Debug Flag #1\r\n");
+			fill_rx_buffer();
+			//printf("Debug Flag #2\r\n");
+			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
+			//printf("Debug Flag #3\r\n");
+			for( int i=0; i<uart_size; i++ )
+			{
+				fft_abs32 = fft_abs[window_size*i+j];
 				char first_byte = fft_abs32%256;
 				char second_byte = fft_abs32/256;
 				uart_tx_buffer[2*i] = first_byte;
