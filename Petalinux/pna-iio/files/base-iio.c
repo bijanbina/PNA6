@@ -34,6 +34,7 @@ struct iio_buffer *capture_buffer;
 const char *rx_freq_name, *tx_freq_name;
 
 uint32_t rx1_buffer [FFT_LENGTH];
+int8_t dac_buf[16384];
 int rx1_indx=0;
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long elems, size_t size)
