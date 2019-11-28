@@ -5,6 +5,8 @@ source setup_variables.sh
 printf "Copy PetaLinux Files from git?[y/N]: "
 read response
 
+git pull origin master
+
 if [ "$response" = "y" ]; then
 	cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/"
 	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/"
