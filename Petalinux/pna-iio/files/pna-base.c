@@ -1,4 +1,4 @@
-#include "base-iio.h"
+#include "pna-base.h"
 
 bool is_2rx_2tx;
 bool has_udc_driver;
@@ -151,7 +151,7 @@ void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase, int i
 
 	int32_t *bufferOut = (char *) malloc(sizeof(uint32_t) * fft_size);
 
-    memset(bufferOut, 0, sizeof(int32_t) * fft_size);
+  memset(bufferOut, 0, sizeof(int32_t) * fft_size);
 	memCpy_DMA((char *)bufferIn, (char *)bufferOut, fft_size, sizeof(int32_t));
 
 	uint32_t *fft_output = (uint32_t *)bufferOut;
@@ -572,4 +572,24 @@ void create_dds_buffer(int8_t *data, int sample_size)
 			iio_buffer_end(dds_buffer) - iio_buffer_start(dds_buffer));
 
 	iio_buffer_push(dds_buffer);
+}
+
+void gpio_fft(int gpio_value)
+{
+	int gl_gpio_base = 1007;
+	int nchannel = open_gpio_channel(gl_gpio_base);
+	int cntr = 0;
+	// signal(SIGTERM, signal_handler); /* catch kill signal */
+	// signal(SIGHUP, signal_handler); /* catch hang up signal */
+	// signal(SIGQUIT, signal_handler); /* catch quit signal */
+	// signal(SIGINT, signal_handler); /* catch a CTRL-c signal */
+	set_gpio_direction(gl_gpio_base, nchannel, "out");
+	printf("direction changed: \r\n");
+	while(gpio_value>0)
+  {
+      gpio_value = gpio_value >> 1;
+      cntr++;
+  }
+	printf("value going to be set: \r\n");
+	set_gpio_value(gl_gpio_base, nchannel, cntr - 1 + 256);
 }

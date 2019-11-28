@@ -1,7 +1,7 @@
 APP = pna-iio
 
 # Add any other object files to this list below
-APP_OBJS = base-iio.o pna-iio.o 
+APP_OBJS = pna-gpio.o pna-base.o pna-iio.o
 
 PKG_CONFIG ?= pkg-config
 
@@ -18,6 +18,6 @@ $(APP): $(APP_OBJS)
 
 clean:
 	-rm -f $(APP) *.elf *.gdb *.o
-	
+
 # .c.o:
 #    ${CC} ${CFLAGS} -c $<

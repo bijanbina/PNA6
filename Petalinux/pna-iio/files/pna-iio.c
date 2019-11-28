@@ -1,4 +1,4 @@
-#include "base-iio.h"
+#include "pna-base.h"
 
 extern struct iio_context *ctx;
 extern struct iio_device *dev, *dds, *cap, *udc_rx, *udc_tx;
@@ -115,35 +115,42 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "vga_gain")==0 )
 		{
 			token = strtok(NULL, delim);
+			// char buf[100];
 			if(token==NULL)
 			{
+				// int ret = iio_channel_attr_read(tx_dev_ch0, "hardwaregain", buf, sizeof(buf));
 				long long vga_gain;
-				iio_channel_attr_read_longlong(tx_dev_ch0, "hardware_gain_tx1", &vga_gain);
+				iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
 				printf("vga_gain_tx1: %lld \r\n", vga_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
-				long long vga_gain = strtoll(token, &sz, 10);
-				iio_channel_attr_write_longlong(tx_dev_ch0, "hardware_gain_tx1", vga_gain);
+				long long vga_gain = atof(token);
+				iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
 				printf("vga_gain_tx1: %lld \r\n", vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
 		{
 			token = strtok(NULL, delim);
+			char buf[100];
 			if(token==NULL)
 			{
 				long long lna_gain;
-				iio_channel_attr_read_longlong(rx_dev_ch0, "hardware_gain_rx1", &lna_gain);
+				// iio_channel_attr_read_longlong(rx_dev_ch0, "hardware_gain_rx1", buf, sizeof(buf));
+				// printf("lna_gain_rx1: %s \r\n", lna_gain);
+				iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
 				printf("lna_gain_rx1: %lld \r\n", lna_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
-				iio_channel_attr_write_longlong(rx_dev_ch0, "hardware_gain_rx1", lna_gain);
+				iio_channel_attr_write_longlong(rx_dev_ch0, "hardwaregain", lna_gain);
 				printf("lna_gain_rx1: %lld \r\n", lna_gain);
+				// int ret = iio_channel_attr_write_longlong(rx_dev_ch0, "hardware_gain_rx1", token);
+				// printf("lna_gain_rx1: %s - return value: %d \r\n", token, ret);
 			}
 		}
 		else if( strcmp(token, "gain_control_mode")==0 )
@@ -176,6 +183,26 @@ int main (int argc, char **argv)
 				long long sampling_frequency = get_frequency(token);
 				iio_channel_attr_write_longlong(tx_dev_ch0, "sampling_frequency", sampling_frequency);
 				printf("tx_sampling_frequency: %lld \r\n", sampling_frequency);
+			}
+		}
+		else if( strcmp(token, "rx_sample_size")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("rx_sample_size: %d \r\n", fft_size);
+			}
+			else
+			{
+				FILE * gpio_file;
+				fft_size = atoi(token);
+				free(fft_abs);
+				free(fft_phase);
+				fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
+				fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
+				printf("fft size changing: %d \r\n", fft_size);
+				gpio_fft(fft_size);
+				printf("rx_sample_size changed to: %d \r\n", fft_size);
 			}
 		}
 		else if( strcmp(token, "tx_sample_size")==0 )
@@ -425,14 +452,16 @@ int main (int argc, char **argv)
 				}
 				freq = freq + MAX_BW;
 				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
+				usleep(100);
 			}
 			freq = freq - (span_number-1)*MAX_BW;
 			iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
+			usleep(100);
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 			//printf("Debug Flag #4\r\n");
 		}
-		else if(strcmp(token,"fft_win") == 0)
+		else if(strcmp(token,"fft") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
 			int uart_size = FFT_LENGTH;
@@ -463,7 +492,7 @@ int main (int argc, char **argv)
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 		}
-		else if(strcmp(token,"fft") == 0)
+		else if(strcmp(token,"fft2") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
 			int uart_size = FFT_LENGTH;
@@ -477,7 +506,7 @@ int main (int argc, char **argv)
 			//printf("Debug Flag #3\r\n");
 			for( int i=0; i<uart_size; i++ )
 			{
-				fft_abs32 = fft_abs[window_size*i+j];
+				fft_abs32 = fft_abs[i];
 				char first_byte = fft_abs32%256;
 				char second_byte = fft_abs32/256;
 				uart_tx_buffer[2*i] = first_byte;
@@ -529,7 +558,7 @@ int main (int argc, char **argv)
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
 			double amplitude = atof(token);
-			int amplitude_int = amplitude*DAC_MAX_VAL;
+			int amplitude_int = amplitude*DAC_MAX_VAL/2;
 			int period_sample_count = dds_sample_size/period_num;
 
 			for (int i=0 ; i<period_num ; i++)
@@ -539,7 +568,7 @@ int main (int argc, char **argv)
 				{
 					double x = j*2*PI;
 					x = x/period_sample_count;
-					sinous = sin(x);
+					sinous = sin(x)*amplitude_int;
 					int16_t sin_int = (int16_t)(sinous);
 
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB

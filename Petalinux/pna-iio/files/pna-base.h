@@ -2,17 +2,10 @@
 #define __BASE_IIO_H__
 
 #include <iio.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #include <math.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
+#include <time.h>
 #include <sys/time.h>
+#include "pna-gpio.h"
 
 #define HANNING_ENBW 1.50
 #define FFT_LENGTH 1024 //FFT output on UART size (should be 1024 FIX)
