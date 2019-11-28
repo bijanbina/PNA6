@@ -42,13 +42,10 @@
 /******************************************************************************/
 #include "config.h"
 #include "ad9361_api.h"
+#include "sleep.h"
 #include "parameters.h"
 #include "platform.h"
-#ifdef CONSOLE_COMMANDS
-#include "command.h"
-#include "console.h"
-#include <sleep.h>
-#endif
+#include "util.h"
 #ifdef XILINX_PLATFORM
 #include <xil_cache.h>
 #endif
@@ -57,22 +54,23 @@
 #include "dac_core.h"
 #endif
 
+
 /******************************************************************************/
 /************************ Variables Definitions *******************************/
 /******************************************************************************/
-#ifdef CONSOLE_COMMANDS
-extern command	  	cmd_list[];
-extern char			cmd_no;
-extern cmd_function	cmd_functions[11];
-unsigned char		cmd				 =  0;
-double				param[5]		 = {0, 0, 0, 0, 0};
-char				param_no		 =  0;
-int					cmd_type		 = -1;
-char				invalid_cmd		 =  0;
-char				received_cmd[30] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-										0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-										0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#endif
+//#ifdef CONSOLE_COMMANDS
+//extern command	  	cmd_list[];
+//extern char			cmd_no;
+//extern cmd_function	cmd_functions[11];
+//unsigned char		cmd				 =  0;
+//double				param[5]		 = {0, 0, 0, 0, 0};
+//char				param_no		 =  0;
+//int					cmd_type		 = -1;
+//char				invalid_cmd		 =  0;
+//char				received_cmd[30] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//										0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//										0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//#endif
 
 AD9361_InitParam default_init_param = {
 	/* Device selection */
@@ -261,11 +259,7 @@ AD9361_InitParam default_init_param = {
 	4,		//rx_data_delay *** adi,rx-data-delay
 	7,		//tx_fb_clock_delay *** adi,tx-fb-clock-delay
 	0,		//tx_data_delay *** adi,tx-data-delay
-#ifdef ALTERA_PLATFORM
-	300,	//lvds_bias_mV *** adi,lvds-bias-mV
-#else
 	150,	//lvds_bias_mV *** adi,lvds-bias-mV
-#endif
 	1,		//lvds_rx_onchip_termination_enable *** adi,lvds-rx-onchip-termination-enable
 	0,		//rx1rx2_phase_inversion_en *** adi,rx1-rx2-phase-inversion-enable
 	0xFF,	//lvds_invert1_control *** adi,lvds-invert1-control
@@ -315,59 +309,7 @@ AD9361_InitParam default_init_param = {
 	NULL	//(*ad9361_rfpll_ext_set_rate)()
 };
 
-AD9361_RXFIRConfig rx_fir_config = {	// BPF PASSBAND 3/20 fs to 1/4 fs
-	3, // rx
-	0, // rx_gain
-	1, // rx_dec
-	{-4, -6, -37, 35, 186, 86, -284, -315,
-	 107, 219, -4, 271, 558, -307, -1182, -356,
-	 658, 157, 207, 1648, 790, -2525, -2553, 748,
-	 865, -476, 3737, 6560, -3583, -14731, -5278, 14819,
-	 14819, -5278, -14731, -3583, 6560, 3737, -476, 865,
-	 748, -2553, -2525, 790, 1648, 207, 157, 658,
-	 -356, -1182, -307, 558, 271, -4, 219, 107,
-	 -315, -284, 86, 186, 35, -37, -6, -4,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0}, // rx_coef[128]
-	 64, // rx_coef_size
-	 {0, 0, 0, 0, 0, 0}, //rx_path_clks[6]
-	 0 // rx_bandwidth
-};
-
-AD9361_TXFIRConfig tx_fir_config = {	// BPF PASSBAND 3/20 fs to 1/4 fs
-	3, // tx
-	-6, // tx_gain
-	1, // tx_int
-	{-4, -6, -37, 35, 186, 86, -284, -315,
-	 107, 219, -4, 271, 558, -307, -1182, -356,
-	 658, 157, 207, 1648, 790, -2525, -2553, 748,
-	 865, -476, 3737, 6560, -3583, -14731, -5278, 14819,
-	 14819, -5278, -14731, -3583, 6560, 3737, -476, 865,
-	 748, -2553, -2525, 790, 1648, 207, 157, 658,
-	 -356, -1182, -307, 558, 271, -4, 219, 107,
-	 -315, -284, 86, 186, 35, -37, -6, -4,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0}, // tx_coef[128]
-	 64, // tx_coef_size
-	 {0, 0, 0, 0, 0, 0}, // tx_path_clks[6]
-	 0 // tx_bandwidth
-};
 struct ad9361_rf_phy *ad9361_phy;
-#ifdef FMCOMMS5
-struct ad9361_rf_phy *ad9361_phy_b;
-#endif
 
 /***************************************************************************//**
  * @brief main
@@ -378,99 +320,28 @@ int main(void)
 	Xil_ICacheEnable();
 	Xil_DCacheEnable();
 #endif
-#ifdef ALTERA_PLATFORM
-	if (altera_bridge_init()) {
-		printf("Altera Bridge Init Error!\n");
-		return -1;
-	}
-#endif
 
 	// NOTE: The user has to choose the GPIO numbers according to desired
 	// carrier board.
 	default_init_param.gpio_resetb = GPIO_RESET_PIN;
-#ifdef FMCOMMS5
-	default_init_param.gpio_sync = GPIO_SYNC_PIN;
-	default_init_param.gpio_cal_sw1 = GPIO_CAL_SW1_PIN;
-	default_init_param.gpio_cal_sw2 = GPIO_CAL_SW2_PIN;
-	default_init_param.rx1rx2_phase_inversion_en = 1;
-#else
 	default_init_param.gpio_sync = -1;
 	default_init_param.gpio_cal_sw1 = -1;
 	default_init_param.gpio_cal_sw2 = -1;
-#endif
 
-#ifdef LINUX_PLATFORM
-	gpio_init(default_init_param.gpio_resetb);
-#else
 	gpio_init(GPIO_DEVICE_ID);
-#endif
+
 	gpio_direction(default_init_param.gpio_resetb, 1);
 
 	spi_init(SPI_DEVICE_ID, 1, 0);
 
-	if (AD9364_DEVICE)
-		default_init_param.dev_sel = ID_AD9364;
-	if (AD9363A_DEVICE)
-		default_init_param.dev_sel = ID_AD9363A;
-
-#if defined FMCOMMS5 || defined ADI_RF_SOM || defined ADI_RF_SOM_CMOS
-	default_init_param.xo_disable_use_ext_refclk_enable = 1;
-#endif
-
-#ifdef ADI_RF_SOM_CMOS
-	default_init_param.swap_ports_enable = 1;
-	default_init_param.lvds_mode_enable = 0;
-	default_init_param.lvds_rx_onchip_termination_enable = 0;
-	default_init_param.full_port_enable = 1;
-	default_init_param.digital_interface_tune_fir_disable = 1;
-#endif
-
 	ad9361_init(&ad9361_phy, &default_init_param);
-
-	ad9361_set_tx_fir_config(ad9361_phy, tx_fir_config);
-	ad9361_set_rx_fir_config(ad9361_phy, rx_fir_config);
-
-#ifdef FMCOMMS5
-#ifdef LINUX_PLATFORM
-	gpio_init(default_init_param.gpio_sync);
-#endif
-	gpio_direction(default_init_param.gpio_sync, 1);
-	default_init_param.id_no = 1;
-	default_init_param.gpio_resetb = GPIO_RESET_PIN_2;
-#ifdef LINUX_PLATFORM
-	gpio_init(default_init_param.gpio_resetb);
-#endif
-	default_init_param.gpio_sync = -1;
-	default_init_param.gpio_cal_sw1 = -1;
-	default_init_param.gpio_cal_sw2 = -1;
-	default_init_param.rx_synthesizer_frequency_hz = 2300000000UL;
-	default_init_param.tx_synthesizer_frequency_hz = 2300000000UL;
-	gpio_direction(default_init_param.gpio_resetb, 1);
-	ad9361_init(&ad9361_phy_b, &default_init_param);
-
-	ad9361_set_tx_fir_config(ad9361_phy_b, tx_fir_config);
-	ad9361_set_rx_fir_config(ad9361_phy_b, rx_fir_config);
-#endif
 
 #ifndef AXI_ADC_NOT_PRESENT
 #if defined XILINX_PLATFORM || defined LINUX_PLATFORM || defined ALTERA_PLATFORM
-#ifdef DAC_DMA_EXAMPLE
-#ifdef FMCOMMS5
-	dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
-#endif
-	dac_init(ad9361_phy, DATA_SEL_DMA, 1);
-#else
-#ifdef FMCOMMS5
-	dac_init(ad9361_phy_b, DATA_SEL_DDS, 0);
-#endif
 	dac_init(ad9361_phy, DATA_SEL_DDS, 1);
 #endif
 #endif
-#endif
 
-#ifdef FMCOMMS5
-	ad9361_do_mcs(ad9361_phy, ad9361_phy_b);
-#endif
 
 #ifndef AXI_ADC_NOT_PRESENT
 #if (defined XILINX_PLATFORM || defined ALTERA_PLATFORM) && \
@@ -481,186 +352,39 @@ int main(void)
     // of the cache line.
 	mdelay(1000);
 	adc_capture(16384, ADC_DDR_BASEADDR);
+	uint16_t* buf = (uint16_t*) ADC_DDR_BASEADDR;
+	for(int i=0; i<100; i++)
+	{
+		printf("buf[%d]=%d\n",i,buf[i*4+1]);
+	}
 #ifdef XILINX_PLATFORM
-#ifdef FMCOMMS5
-	Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384 * 16);
-#else
 	Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR,
 			ad9361_phy->pdata->rx2tx2 ? 16384 * 8 : 16384 * 4);
 #endif
 #endif
 #endif
-#endif
 
-#ifdef CONSOLE_COMMANDS
-	get_help(NULL, 0);
-
-	int lo_offset = -100;
-	uint64_t lo_freq_hz;
-	while(1)
-	{
-		lo_offset += 2;
-		if(lo_offset > 100)
-		{
-			lo_offset = -100;
-		}
-
-		lo_freq_hz = 2400 + lo_offset;
+#ifdef TX_LO_FREQ_SWEEP
+	int freq = 2400;
+	int count = 1;
+	while(1) {
+		freq = freq + count;
+		uint64_t lo_freq_hz;
+		lo_freq_hz = freq;
 		lo_freq_hz *= 1000000;
-		ad9361_set_tx_lo_freq(ad9361_phy, lo_freq_hz);
-		usleep(50*1000);
-//		invalid_cmd = 0;
-//		for(cmd = 0; cmd < cmd_no; cmd++)
-//		{
-//			param_no = 0;
-//			cmd_type = console_check_commands(received_cmd, cmd_list[cmd].name,
-//											  param, &param_no);
-//			if(cmd_type == UNKNOWN_CMD)
-//			{
-//				invalid_cmd++;
-//			}
-//			else
-//			{
-//				cmd_list[cmd].function(param, param_no);
-//			}
-//		}
-//		if(invalid_cmd == cmd_no)
-//		{
-//			console_print("Invalid command!\n");
-//		}
-	}
-#endif
 
-	printf("Done.\n");
-
-#ifdef TDD_SWITCH_STATE_EXAMPLE
-	uint32_t ensm_mode;
-	if (!ad9361_phy->pdata->fdd) {
-		if (ad9361_phy->pdata->ensm_pin_ctrl) {
-			gpio_direction(GPIO_ENABLE_PIN, 1);
-			gpio_direction(GPIO_TXNRX_PIN, 1);
-			gpio_set_value(GPIO_ENABLE_PIN, 0);
-			gpio_set_value(GPIO_TXNRX_PIN, 0);
-			udelay(10);
-			ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-			printf("TXNRX control - Alert: %s\n",
-					ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-			mdelay(1000);
-
-			if (ad9361_phy->pdata->ensm_pin_pulse_mode) {
-				while(1) {
-					gpio_set_value(GPIO_TXNRX_PIN, 0);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX Pulse control - RX: %s\n",
-							ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX Pulse control - Alert: %s\n",
-							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_TXNRX_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX Pulse control - TX: %s\n",
-							ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX Pulse control - Alert: %s\n",
-							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-					mdelay(1000);
-				}
-			} else {
-
-				while(1) {
-					gpio_set_value(GPIO_TXNRX_PIN, 0);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX control - RX: %s\n",
-							ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					udelay(10);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX control - Alert: %s\n",
-							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_TXNRX_PIN, 1);
-					udelay(10);
-					gpio_set_value(GPIO_ENABLE_PIN, 1);
-					udelay(10);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX control - TX: %s\n",
-							ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
-					mdelay(1000);
-
-					gpio_set_value(GPIO_ENABLE_PIN, 0);
-					udelay(10);
-					ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-					printf("TXNRX control - Alert: %s\n",
-							ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-					mdelay(1000);
-				}
-			}
-		} else {
-			while(1) {
-				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_RX);
-				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-				printf("SPI control - RX: %s\n",
-						ensm_mode == ENSM_MODE_RX ? "OK" : "Error");
-				mdelay(1000);
-
-				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_ALERT);
-				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-				printf("SPI control - Alert: %s\n",
-						ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-				mdelay(1000);
-
-				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_TX);
-				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-				printf("SPI control - TX: %s\n",
-						ensm_mode == ENSM_MODE_TX ? "OK" : "Error");
-				mdelay(1000);
-
-				ad9361_set_en_state_machine_mode(ad9361_phy, ENSM_MODE_ALERT);
-				ad9361_get_en_state_machine_mode(ad9361_phy, &ensm_mode);
-				printf("SPI control - Alert: %s\n",
-						ensm_mode == ENSM_MODE_ALERT ? "OK" : "Error");
-				mdelay(1000);
-			}
-		}
+	    clk_set_rate(ad9361_phy, ad9361_phy->ref_clk_scale[TX_RFPLL], ad9361_to_clk(lo_freq_hz));
+		usleep(90000);
+		if( freq==2410 )
+			count = -1;
+		if( freq==2390 )
+			count = 1;
 	}
 #endif
 
 #ifdef XILINX_PLATFORM
 	Xil_DCacheDisable();
 	Xil_ICacheDisable();
-#endif
-
-#ifdef ALTERA_PLATFORM
-	if (altera_bridge_uninit()) {
-		printf("Altera Bridge Uninit Error!\n");
-		return -1;
-	}
 #endif
 
 	return 0;

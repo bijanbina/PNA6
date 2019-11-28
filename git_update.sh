@@ -14,8 +14,8 @@ printf "Copy SDK Files to git?[y/N]: "
 read response
 
 if [ "$response" = "y" ]; then
-	cp -R "$SDK_PROJECT/*.h" SDK/
-	cp -R "$SDK_PROJECT/*.c" SDK/
+	cp -R $SDK_PROJECT/*.h SDK/
+	cp -R $SDK_PROJECT/*.c SDK/
 fi
 
 git status

@@ -379,7 +379,7 @@ static int32_t ad9361_dig_tune_delay(struct ad9361_rf_phy *phy,
 		ad9361_dig_tune_verbose_print(phy, field, tx, -1, -1);
 		dev_err(&phy->spi->dev, "%s: Tuning %s FAILED!", __func__,
 			tx ? "TX" : "RX");
-		return 0;
+		return -EIO;
 	} else if (flags & BE_VERBOSE) {
 		if (c1 > c0)
 			ad9361_dig_tune_verbose_print(phy, field, tx, (s1 + c1 / 2), -1);
