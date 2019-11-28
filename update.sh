@@ -36,8 +36,13 @@ while true; do
 	read response
 
 	if [ "$response" = "y" ]; then
-		petalinux-package --prebuilt --fpga images/linux/system.bit --force
-		petalinux-boot --jtag --prebuilt 3 -v
-		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+		petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+		
+		printf "Is bitfile program failed?[y/N]: "
+		read response
+		
+		if [ "$response" = "y" ]; then
+			petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+		fi
 	fi
 done
