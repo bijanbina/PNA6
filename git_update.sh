@@ -2,8 +2,21 @@
 
 source setup_variables.sh
 
-cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/" Petalinux/
-cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/" Petalinux/
+printf "Copy PetaLinux Files to git?[y/N]: "
+read response
+
+if [ "$response" = "y" ]; then
+	cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/" Petalinux/
+	cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/" Petalinux/
+fi
+
+printf "Copy SDK Files to git?[y/N]: "
+read response
+
+if [ "$response" = "y" ]; then
+	cp -R "$SDK_PROJECT/*.h" SDK/
+	cp -R "$SDK_PROJECT/*.c" SDK/
+fi
 
 git status
 
