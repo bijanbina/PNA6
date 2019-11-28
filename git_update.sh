@@ -10,5 +10,5 @@ git status
 printf "Enter git commit comment: "
 read response
 
-git commit -a -m response
+git commit -a -m "$response"
 git push origin master
