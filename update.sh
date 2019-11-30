@@ -2,7 +2,12 @@
 
 source setup_variables.sh
 
-git pull origin master
+printf "Pull from git?[y/N]: "
+read response
+
+if [ "$response" = "y" ]; then
+	git pull origin master
+fi
 
 printf "Copy PetaLinux Files from git?[y/N]: "
 read response
@@ -20,29 +25,34 @@ if [ "$response" = "y" ]; then
 	cp -R SDK/*.h "$SDK_PROJECT/"
 fi
 
-cd "$PETALINUX_INSTALL_DIR"
-source settings.sh
+printf "Change dir to petalinux & Source setting.sh?[y/N]: "
+read response
 
-cd "$PETALINUX_PROJECT"
+if [ "$response" = "y" ]; then
+	cd "$PETALINUX_INSTALL_DIR"
+	source settings.sh
 
-while true; do
-	printf "Build $PETALINUX_PROJECT?[y/N]: "
-	read response
-	if [ "$response" = "y" ]; then
-		petalinux-build
-	fi
+	cd "$PETALINUX_PROJECT"
 
-	printf "Package & boot on board?[y/N]: "
-	read response
-
-	if [ "$response" = "y" ]; then
-		petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
-		
-		printf "Is bitfile program failed?[y/N]: "
+	while true; do
+		printf "Build $PETALINUX_PROJECT?[y/N]: "
 		read response
-		
 		if [ "$response" = "y" ]; then
-			petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+			petalinux-build
 		fi
-	fi
-done
+
+		printf "Package & boot on board?[y/N]: "
+		read response
+
+		if [ "$response" = "y" ]; then
+			petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+		
+			printf "Is bitfile program failed?[y/N]: "
+			read response
+		
+			if [ "$response" = "y" ]; then
+				petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+			fi
+		fi
+	done
+fi

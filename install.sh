@@ -126,7 +126,8 @@ if [ "$response" = "y" ]; then
 	sed -i 's/SRCREV = "${AUTOREV}"/SRCREV = "6184afd426f0eb2d0fa588da8fe2e21975b18c6f"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 	
 	cd "$CURRENT_DIR" 
-	cp -R Meta-ADI/* "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
+	cp Meta-ADI/pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
+#	file "zynq-zc702-adv7511-ad9361-fmcomms2-3.dts" is not necessary
 fi
 
 printf "Create Petalinux project?[y/N]: "
@@ -142,8 +143,8 @@ if [ "$response" = "y" ]; then
 
 	CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config")
 	if [ -z "$CHECK_PRE" ]; then
-		sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
 		WRITE_LN=$(grep -i -n '# CONFIG_peekpoke is not set' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config" | awk -F : '{printf $1}')
+		sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
 		sed -i "$WRITE_LN"'iCONFIG_pna-iio=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+2))
@@ -192,8 +193,11 @@ if [ "$response" = "y" ]; then
 	read response
 
 	if [ "$response" = "y" ]; then
-		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
-		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		echo 'BB_NO_NETWORK = "1"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
+		cp -R Meta-ADI/fru-tools/ "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+		cp -R Meta-ADI/libad9361/ "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 	fi
 	
 	petalinux-build
