@@ -145,7 +145,7 @@ if [ "$response" = "y" ]; then
 	source settings.sh
 	petalinux-create --type project --template zynq --name $PETALINUX_PROJECT
 	cd $PETALINUX_PROJECT
-	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+	petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
 #	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
 
 	CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config")
@@ -175,6 +175,8 @@ if [ "$response" = "y" ]; then
 		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_1="'"$META_ADI_PROJECT"'/meta-adi-xilinx"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 		WRITE_LN=$(($WRITE_LN+1))
 		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_2=""' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
+		sed -i 's/CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200=y/# CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200 is not set' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
+		sed -i 's/# CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_921600 is not set/CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 	fi
 	
 	CHECK_PRE=$(grep 'IMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend")
@@ -216,7 +218,6 @@ if [ "$response" = "y" ]; then
 	CHECK_PRE=$(grep 'CONFIG_DEBUG_GPIO=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg")
 	echo $CHECK_PRE
 	if [ -z "$CHECK_PRE" ]; then
-		echo "tu if umade :D!"
 		echo 'CONFIG_DEBUG_GPIO=y' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg"
 		echo 'CONFIG_GPIO_XILINX=y' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg"
 	fi
