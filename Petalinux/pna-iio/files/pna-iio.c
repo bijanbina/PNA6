@@ -19,7 +19,8 @@ extern const char *rx_freq_name, *tx_freq_name;
 extern int32_t rx1_buffer [FFT_LENGTH];
 
 int dds_sample_size = FFT_LENGTH;
-int span_number = 1;
+// int span_number = 1;
+long long span = MAX_BW;
 extern int8_t dac_buf[16384];
 
 int main (int argc, char **argv)
@@ -27,21 +28,24 @@ int main (int argc, char **argv)
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
-	unsigned long fft_size = FFT_LENGTH; //16bit(I)+16bit(Q) = 32bit data
+	unsigned int fft_size = FFT_LENGTH; //16bit(I)+16bit(Q) = 32bit data
 	int i;
 	int16_t *fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 	int16_t *fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 
 	ctx = iio_create_default_context();
+	// printf("flag3\r\n");
 	if (ctx)
 	{
 		// init_device_list();
 		fmcomms2_init();
+		// printf("flag4\r\n");
 		dds_init();
+		// printf("flag5\r\n");
 	}
-
-	init_rx_channel();
-
+	// printf("flag1\r\n");
+	init_rx_channel(fft_size);
+	// printf("flag2\r\n");
 	if( argc>1 )
 	{
 		if( strcmp(argv[1], "-v")==0 )
@@ -194,14 +198,13 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				FILE * gpio_file;
 				fft_size = atoi(token);
 				free(fft_abs);
 				free(fft_phase);
 				fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 				fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
-				printf("fft size changing: %d \r\n", fft_size);
 				gpio_fft(fft_size);
+				init_rx_channel(fft_size);
 				printf("rx_sample_size changed to: %d \r\n", fft_size);
 			}
 		}
@@ -350,12 +353,12 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("span: %d \r\n", span_number);
+				printf("span: %lld \r\n", span);
 			}
 			else
 			{
-				span_number = atoi(token);
-				printf("span: %d \r\n", span_number);
+				span = get_frequency(token);
+				printf("span: %lld \r\n", span);
 			}
 		}
 		else if(strcmp(token,"test") == 0)
@@ -381,7 +384,7 @@ int main (int argc, char **argv)
 			int32_t rx_buffer_i;
 			int16_t rx_buffer_i_16;
 			unsigned char uart_tx_buffer[2*FFT_LENGTH];
-			fill_rx_buffer();
+			fill_rx_buffer(fft_size);
 			for(int i=0; i<uart_size; i++ )
 			{
 				avg_adc_window = 0;
@@ -407,56 +410,75 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"fft_span") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			int uart_size = 1024;
-			if(fft_size*span_number < 1024)
+			int uart_size = FFT_LENGTH;
+			if(fft_size*span/MAX_BW < FFT_LENGTH)
 			{
-				uart_size = fft_size*span_number;
+				uart_size = fft_size*span/MAX_BW;
 			}
-			int window_size = (fft_size*span_number)/uart_size;
-			int span_part = uart_size/span_number;
+			// if(fft_size*span_number < 1024)
+			// {
+			// 	uart_size = fft_size*span_number;
+			// }
+			// int window_size = (fft_size*span_number)/uart_size;
+			// int span_part = uart_size/span_number;
+			double window_size = (double)span*fft_size/MAX_BW/uart_size;
+			int removed_span = fft_size*(MAX_BW - span)/MAX_BW/2;
+			int16_t *fft_spanned = (int16_t *) malloc(sizeof(uint16_t) * (fft_size-2*removed_span));
+			int window_size_int, sample_cntr = 0;
 			double avg_fft_window;
 			int32_t fft_abs32;
-			long long freq;
+			// long long freq;
 			unsigned char uart_tx_buffer[4*FFT_LENGTH];
 
-			//printf("Debug Flag #1\r\n");
-			fill_rx_buffer();
-			//printf("Debug Flag #2\r\n");
-			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
-			//printf("Debug Flag #3\r\n");
-			iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq); //rx_freq
-			for(int s=0; s<span_number; s++ )
-			{
-				for(int i=0; i<span_part; i++ )
+			// printf("us %d - ws %f - rs %d \r\n", uart_size, window_size, removed_span);
+
+			fill_rx_buffer(fft_size);
+			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0, fft_size);
+			// iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq); //rx_freq
+			// for(int s=0; s<span_number; s++ )
+			// {
+				// for(int i=0; i<span_part; i++ )
+				for(int i=0; i<fft_size/2-removed_span; i++)
+				{
+					fft_spanned[i] = fft_abs[fft_size/2 + removed_span + i];
+					fft_spanned[i+fft_size/2-removed_span] = fft_abs[i];
+				}
+
+				for(int i=0; i<uart_size; i++)
 				{
 					avg_fft_window = 0;
-					for(int j=0; j<window_size; j++)
+					window_size_int = floor(window_size*(i+1) - sample_cntr);
+					if(sample_cntr + window_size_int > fft_size)
 					{
-						avg_fft_window += fft_abs[window_size*i+j];
+						window_size_int = fft_size - sample_cntr;
 					}
-					avg_fft_window = avg_fft_window/window_size;
+					// printf("%d: wsi %4d - sc %4d \r\n", i, window_size_int, sample_cntr);
+					for(int j=0; j<window_size_int; j++)
+					{
+						avg_fft_window += fft_spanned[sample_cntr+j];
+					}
+					sample_cntr += window_size_int;
+					avg_fft_window = avg_fft_window/window_size_int;
 					fft_abs32 = floor(avg_fft_window);
 					//printf( "%d: %d\r\n", i, fft_abs[i] );
 					char first_byte = fft_abs32%256;
 					char second_byte = fft_abs32/256;
-					uart_tx_buffer[s*span_part+2*i] = first_byte;
-					uart_tx_buffer[s*span_part+2*i+1] = second_byte;
-					// uart_tx_buffer[4*i+2] = '\r';
-					// uart_tx_buffer[4*i+3] = '\r\n';
-					// printf("%c%c",first_byte, second_byte);
-					//printf("%d : %c%c\r\n",i ,fft_out_abs[0], fft_out_abs[1]);
+					uart_tx_buffer[2*i] = first_byte;
+					uart_tx_buffer[2*i+1] = second_byte;
+					// uart_tx_buffer[s*span_part+2*i] = first_byte;
+					// uart_tx_buffer[s*span_part+2*i+1] = second_byte;
 				}
-				if( s == span_number-1)
-				{
-					break;
-				}
-				freq = freq + MAX_BW;
-				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
-				usleep(100);
-			}
-			freq = freq - (span_number-1)*MAX_BW;
-			iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
-			usleep(100);
+				// if( s == span_number-1)
+				// {
+				// 	break;
+				// }
+				// freq = freq + MAX_BW;
+				// iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
+				// usleep(100);
+			// }
+			// freq = freq - (span_number-1)*MAX_BW;
+			// iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq); //rx_freq
+			// usleep(100);
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 			//printf("Debug Flag #4\r\n");
@@ -465,15 +487,19 @@ int main (int argc, char **argv)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
 			int uart_size = FFT_LENGTH;
+			if(fft_size < FFT_LENGTH)
+			{
+				uart_size = fft_size;
+			}
 			int window_size = fft_size/FFT_LENGTH;
 			double avg_fft_window;
 			int32_t fft_abs32;
 			unsigned char uart_tx_buffer[4*FFT_LENGTH];
 
 			//printf("Debug Flag #1\r\n");
-			fill_rx_buffer();
+			fill_rx_buffer(fft_size);
 			//printf("Debug Flag #2\r\n");
-			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
+			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0, fft_size);
 			//printf("Debug Flag #3\r\n");
 			for( int i=0; i<uart_size; i++ )
 			{
@@ -500,9 +526,9 @@ int main (int argc, char **argv)
 			unsigned char uart_tx_buffer[4*FFT_LENGTH];
 
 			//printf("Debug Flag #1\r\n");
-			fill_rx_buffer();
+			fill_rx_buffer(fft_size);
 			//printf("Debug Flag #2\r\n");
-			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0);
+			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 0, fft_size);
 			//printf("Debug Flag #3\r\n");
 			for( int i=0; i<uart_size; i++ )
 			{

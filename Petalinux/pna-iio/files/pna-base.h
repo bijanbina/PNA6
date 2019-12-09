@@ -52,12 +52,13 @@ unsigned long memCpy_DMA(char *bufferIn, char *bufferOut,
 double read_sampling_frequency(const struct iio_device *dev);
 ssize_t demux_sample(const struct iio_channel *chn,
 					 void *sample, size_t size, void *d);
-void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase, int is_debug);
-void init_rx_channel();
-void fill_rx_buffer();
+void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
+	                int is_debug, unsigned int fft_size);
+void init_rx_channel(unsigned int fft_size);
+void fill_rx_buffer(unsigned int fft_size);
 bool device_type_get(const struct iio_device *dev, int type);
 void device_set_rx_sampling_freq(struct iio_device *dev,
-								 long long freq_hz);
+								                 long long freq_hz);
 long long device_get_rx_sampling_freq(struct iio_device *dev);
 bool is_input_device(const struct iio_device *dev);
 bool is_output_device(const struct iio_device *dev);
@@ -65,5 +66,6 @@ void dds_init(void);
 void fmcomms2_init(void);
 long long get_frequency(char *token);
 void create_dds_buffer(int8_t *data, int sample_size);
+void create_adc_buffer(unsigned int fft_size);
 
 #endif //__BASE_IIO_H__

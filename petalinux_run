@@ -1,0 +1,49 @@
+#! /bin/bash
+
+source setup_variables.sh
+
+CURRENT_DIR=$(pwd)
+# printf "Change dir to petalinux & Source setting.sh?[y/N]: "
+# read response
+
+# if [ "$response" = "y" ]; then
+cd "$PETALINUX_INSTALL_DIR"
+printf "Source PetaLinux Setting?[y/N]: "
+read response
+if [ "$response" = "y" ]; then
+	source settings.sh
+fi
+cd "$PETALINUX_PROJECT"
+
+while true; do
+	echo "-------------------------------------"
+	printf "1 - Build $PETALINUX_PROJECT\n2 - Package & boot on board\n3 - Reboot if bitfile program failed\n4 - Remote Package and boot\n"
+	echo "-------------------------------------"
+	read response
+	if [ "$response" = "1" ]; then
+		petalinux-build
+	elif [ "$response" = "2" ]; then
+		petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+	elif [ "$response" = "3" ]; then
+		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
+	elif [ "$response" = "4" ]; then
+		printf "USB-IP attach?[y/N]: "
+		read response
+		if [ "$response" = "y" ]; then
+			printf "Probe VHCI-HCD?[y/N]: "
+			read response
+			if [ "$response" = "y" ]; then
+				sudo modprobe vhci-hcd
+			fi
+			/usr/lib/linux-tools/4.15.0-23-generic/usbip list -r 192.168.1.122
+			sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-5
+		fi
+		cd "$CURRENT_DIR"
+		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
+		xsdb -eval "source Petalinux/zc702.tcl"
+	else
+		exit 0
+	fi
+	
+done
+# fi

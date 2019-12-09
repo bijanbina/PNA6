@@ -134,71 +134,94 @@ printf "Create Petalinux project?[y/N]: "
 read response
 
 if [ "$response" = "y" ]; then
+	printf "Enter Petalinux project name?[$PETALINUX_PROJECT]: "
+	read response
+	
+	if [ -n "$response" ]; then
+		PETALINUX_PROJECT="$response"
+	fi
+	
 	cd "$PETALINUX_INSTALL_DIR"
 	source settings.sh
-	petalinux-create --type project --template zynq --name fft_zc702_linux
-	cd fft_zc702_linux
+	petalinux-create --type project --template zynq --name $PETALINUX_PROJECT
+	cd $PETALINUX_PROJECT
 	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
 #	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
 
-	CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config")
+	CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config")
 	if [ -z "$CHECK_PRE" ]; then
-		WRITE_LN=$(grep -i -n '# CONFIG_peekpoke is not set' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config" | awk -F : '{printf $1}')
-		sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		WRITE_LN=$(grep -i -n '# CONFIG_peekpoke is not set' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config" | awk -F : '{printf $1}')
+		sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iCONFIG_pna-iio=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'iCONFIG_pna-iio=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+2))
-		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'i# modules' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'i# modules' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iCONFIG_pnadmc=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'iCONFIG_pnadmc=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iCONFIG_pnadmm=y' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/rootfs_config"
+		sed -i "$WRITE_LN"'iCONFIG_pnadmm=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 	fi
 	
-	CHECK_PRE=$(grep "$META_ADI_PROJECT" "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config")
+	CHECK_PRE=$(grep "$META_ADI_PROJECT" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config")
 	if [ -z "$CHECK_PRE" ]; then
-		WRITE_LN=$(grep -i -n 'CONFIG_USER_LAYER_0=""' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config" | awk -F : '{printf $1}')
-		sed -i 's/CONFIG_USER_LAYER_0=""/ /' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config"
-		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_0="'"$META_ADI_PROJECT"'/meta-adi-core"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config"
+		WRITE_LN=$(grep -i -n 'CONFIG_USER_LAYER_0=""' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config" | awk -F : '{printf $1}')
+		sed -i 's/CONFIG_USER_LAYER_0=""/ /' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
+		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_0="'"$META_ADI_PROJECT"'/meta-adi-core"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_1="'"$META_ADI_PROJECT"'/meta-adi-xilinx"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config"
+		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_1="'"$META_ADI_PROJECT"'/meta-adi-xilinx"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_2=""' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/configs/config"
+		sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_2=""' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 	fi
 	
-	CHECK_PRE=$(grep 'IMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend")
+	CHECK_PRE=$(grep 'IMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend")
 	if [ -z "$CHECK_PRE" ]; then
-		WRITE_LN=$(grep -i -n 'IMAGE_INSTALL_append = " gpio-demo"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend" | awk -F : '{printf $1}')
-		sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
+		WRITE_LN=$(grep -i -n 'IMAGE_INSTALL_append = " gpio-demo"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend" | awk -F : '{printf $1}')
+		sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pnadmc"' "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
+		sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pnadmc"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
 	fi
 	
 	cd "$CURRENT_DIR"
-	DIR="$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules"
+	DIR="$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
 	if [ ! -d "$DIR" ]; then
-		mkdir "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules"
+		mkdir "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
 	fi
-	cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-apps/pna-iio/"
-	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/fft_zc702_linux/project-spec/meta-user/recipes-modules/pnadmc/"
-	
-	cd "$PETALINUX_INSTALL_DIR/fft_zc702_linux"
+	cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/"
+	cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/"
 
 	# add support for offline build
 	printf "Add support for offline build?[y/N]: "
 	read response
 
 	if [ "$response" = "y" ]; then
-		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
-		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
-		echo 'BB_NO_NETWORK = "1"' >> "$PETALINUX_INSTALL_DIR/fft_zc702_linux/build/conf/local.conf"
-		cp -R Meta-ADI/fru-tools/ "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
-		cp -R Meta-ADI/libad9361/ "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
+		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
+		echo 'BB_NO_NETWORK = "1"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
+		echo 'BB_GENERATE_MIRROR_TARBALLS = "1"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
+		
+		printf "Modify Meta-ADI to support offline?[y/N]: "
+		read response
+		
+		if [ "$response" = "y" ]; then
+			cp -R Meta-ADI/fru-tools "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+			cp -R Meta-ADI/libad9361 "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+			cp -R Meta-ADI/jesd-status "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+		fi
 	fi
 	
+	CHECK_PRE=$(grep 'CONFIG_DEBUG_GPIO=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg")
+	echo $CHECK_PRE
+	if [ -z "$CHECK_PRE" ]; then
+		echo "tu if umade :D!"
+		echo 'CONFIG_DEBUG_GPIO=y' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg"
+		echo 'CONFIG_GPIO_XILINX=y' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-plnx-generated/recipes-kernel/linux/configs/plnx_kernel.cfg"
+	fi
+	
+	cd "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT"
+	petalinux-config --oldconfig
 	petalinux-build
 fi

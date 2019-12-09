@@ -33,8 +33,8 @@ struct iio_buffer *dds_buffer;
 struct iio_buffer *capture_buffer;
 const char *rx_freq_name, *tx_freq_name;
 
-uint32_t rx1_buffer [FFT_LENGTH];
-int8_t dac_buf[16384];
+uint32_t rx1_buffer [16*FFT_LENGTH];
+int8_t dac_buf[16*FFT_LENGTH];
 int rx1_indx=0;
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long elems, size_t size)
@@ -144,9 +144,9 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	return size;
 }
 
-void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase, int is_debug)
+void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
+	                int is_debug, unsigned int fft_size)
 {
-	unsigned long fft_size = FFT_LENGTH; //16bit(I)+16bit(Q) = 32bit data
 	int i;
 
 	int32_t *bufferOut = (char *) malloc(sizeof(uint32_t) * fft_size);
@@ -182,7 +182,7 @@ void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase, int i
 
 }
 
-void init_rx_channel()
+void init_rx_channel(unsigned int fft_size)
 {
 	unsigned int i, j;
 	double freq;
@@ -213,13 +213,12 @@ void init_rx_channel()
 			iio_channel_set_data(chn, info);
 		}
 	}
+	// printf("flag6\r\n");
 
 	dev_info = iio_device_get_data(dev);
-	unsigned int nb_channels = iio_device_get_channels_count(dev);
-	unsigned int sample_size, sample_count = FFT_LENGTH;
 	unsigned int sampling_rate = 5000000;
 	// printf("Debug flag #1 \n");
-
+	// printf("flag7\r\n");
 
 	//##### initialize capture buffer and channels
 	device_set_rx_sampling_freq(dev, sampling_rate);
@@ -233,59 +232,46 @@ void init_rx_channel()
 	{
 		// printf("rate=%d, sampling rate=%d\n", rate, sampling_rate);
 	}
+	// printf("flag8\r\n");
 
 	dev_info = iio_device_get_data(cap);
-	dev_info->sample_count = FFT_LENGTH;
-	dev_info->adc_freq = rate;
-	if (dev_info->adc_freq >= 1000000)
-	{
-		dev_info->adc_scale = 'M';
-		dev_info->adc_freq /= 1000000.0;
-	}
-	else if (dev_info->adc_freq >= 1000)
-	{
-		dev_info->adc_scale = 'k';
-		dev_info->adc_freq /= 1000.0;
-	}
-	else if (dev_info->adc_freq >= 0)
-	{
-		dev_info->adc_scale = ' ';
-	}
-	else
-	{
-		dev_info->adc_scale = '?';
-		dev_info->adc_freq = 0.0;
-	}
-
+	dev_info->sample_count = fft_size;
+	// dev_info->adc_freq = rate;
+	// if (dev_info->adc_freq >= 1000000)
+	// {
+	// 	dev_info->adc_scale = 'M';
+	// 	dev_info->adc_freq /= 1000000.0;
+	// }
+	// else if (dev_info->adc_freq >= 1000)
+	// {
+	// 	dev_info->adc_scale = 'k';
+	// 	dev_info->adc_freq /= 1000.0;
+	// }
+	// else if (dev_info->adc_freq >= 0)
+	// {
+	// 	dev_info->adc_scale = ' ';
+	// }
+	// else
+	// {
+	// 	dev_info->adc_scale = '?';
+	// 	dev_info->adc_freq = 0.0;
+	// }
+	// printf("flag9\r\n");
 	for (i = 0; i < iio_device_get_channels_count(cap); i++)
 	{
 		chn = iio_device_get_channel(cap, i);
 		info = iio_channel_get_data(chn);
 
 		iio_channel_enable(chn);
-		info->data_ref = (float *) malloc(FFT_LENGTH);
+		info->data_ref = (float *) malloc(fft_size);
 	}
-
-	capture_buffer = iio_device_create_buffer(cap, FFT_LENGTH, false);
-	if (!capture_buffer)
-	{
-		printf("Could not create iio buffer in capture device\n");
-		return;
-	}
-
-	//printf("hello=0x%x\n", capture_buffer);
-	//printf("entered fill_rx_buffer\n");
-	/* Reset the data offset for all channels */
-	for (i = 0; i < iio_device_get_channels_count(cap); i++)
-	{
-		chn = iio_device_get_channel(cap, i);
-		info = iio_channel_get_data(chn);
-		info->offset = 0;
-	}
+	// printf("flag10\r\n");
+	create_adc_buffer(fft_size);
+	// printf("flag11\r\n");
 	//printf("refill_rx_buffer\n");
 }
 
-void fill_rx_buffer()
+void fill_rx_buffer(unsigned int fft_size)
 {
 	// unsigned int i;
 	// struct iio_channel *chn;
@@ -296,7 +282,7 @@ void fill_rx_buffer()
 	//printf("ret=%d\n", ret);
 	if (ret < 0)
 	{
-		printf("Error while refilling iio buffer: \n");
+		printf("Error while refilling iio buffer, return=%d \n", ret);
 	}
 	else
 	{
@@ -305,7 +291,7 @@ void fill_rx_buffer()
 		buffer_step = iio_buffer_step(capture_buffer);
 		//printf("buffer step=%d\n", buffer_step);
 		//printf("capture_buffer=%x\n", capture_buffer);
-		if ((unsigned)ret >= FFT_LENGTH)
+		if ((unsigned)ret >= fft_size)
 		{
 			int16_t *adc_data = (int16_t *) iio_buffer_start(capture_buffer);
 			/*for (i = 0; i < ret; i++)
@@ -439,10 +425,6 @@ void dds_init(void)
 		// manager->hw_reported_alignment = true;
 }
 
-
-
-
-
 void fmcomms2_init(void)
 {
 	ctx = iio_create_default_context();
@@ -574,6 +556,29 @@ void create_dds_buffer(int8_t *data, int sample_size)
 	iio_buffer_push(dds_buffer);
 }
 
+void create_adc_buffer(unsigned int fft_size)
+{
+	struct iio_channel *chn;
+	struct extra_info *info;
+
+	capture_buffer = iio_device_create_buffer(cap, fft_size, false);
+	if (!capture_buffer)
+	{
+		printf("Could not create iio buffer in capture device\n");
+		return;
+	}
+
+	//printf("hello=0x%x\n", capture_buffer);
+	//printf("entered fill_rx_buffer\n");
+	/* Reset the data offset for all channels */
+	for (int i = 0; i < iio_device_get_channels_count(cap); i++)
+	{
+		chn = iio_device_get_channel(cap, i);
+		info = iio_channel_get_data(chn);
+		info->offset = 0;
+	}
+}
+
 void gpio_fft(int gpio_value)
 {
 	int gl_gpio_base = 1007;
@@ -584,12 +589,10 @@ void gpio_fft(int gpio_value)
 	// signal(SIGQUIT, signal_handler); /* catch quit signal */
 	// signal(SIGINT, signal_handler); /* catch a CTRL-c signal */
 	set_gpio_direction(gl_gpio_base, nchannel, "out");
-	printf("direction changed: \r\n");
 	while(gpio_value>0)
   {
       gpio_value = gpio_value >> 1;
       cntr++;
   }
-	printf("value going to be set: \r\n");
 	set_gpio_value(gl_gpio_base, nchannel, cntr - 1 + 256);
 }
