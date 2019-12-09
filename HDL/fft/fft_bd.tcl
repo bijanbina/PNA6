@@ -225,9 +225,9 @@ ad_cpu_interrupt ps-12 mb-13 axi_ad9361_dac_dma/irq
 
 # GPIO FFT
 ad_ip_instance axi_gpio gpio_fft
-ad_ip_parameter gpio_fft CONFIG.C_GPIO_WIDTH 8
+ad_ip_parameter gpio_fft CONFIG.C_GPIO_WIDTH 16
 ad_ip_parameter gpio_fft CONFIG.C_ALL_OUTPUTS 1
-ad_ip_parameter gpio_fft CONFIG.C_DOUT_DEFAULT  0x00000001
+ad_ip_parameter gpio_fft CONFIG.C_DOUT_DEFAULT  0x0000010A
 ad_connect $sys_cpu_clk gpio_fft/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_fft/s_axi_aresetn
 ad_cpu_interconnect 0x41200000 gpio_fft
@@ -285,3 +285,6 @@ ad_connect adc_fft/s_axis_config_tdata fft_edge_detect/din
 ad_connect adc_fft/s_axis_config_tvalid fft_edge_detect/edge_detected
 ad_connect $sys_cpu_clk adc_fft/aclk
 ad_connect adc_fft/M_AXIS_DATA adc_dma_fft/S_AXIS_S2MM
+
+# PS7-UART
+ad_ip_parameter sys_ps7 CONFIG.PCW_UART1_BAUD_RATE 921600

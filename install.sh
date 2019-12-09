@@ -208,7 +208,7 @@ if [ "$response" = "y" ]; then
 		
 		if [ "$response" = "y" ]; then
 			cp -R Meta-ADI/fru-tools "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
-			cp -R Meta-ADI/libad9361 "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
+			cp -R Meta-ADI/libad9361-iio "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 			cp -R Meta-ADI/jesd-status "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 		fi
 	fi

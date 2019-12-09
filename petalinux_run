@@ -8,11 +8,7 @@ CURRENT_DIR=$(pwd)
 
 # if [ "$response" = "y" ]; then
 cd "$PETALINUX_INSTALL_DIR"
-printf "Source PetaLinux Setting?[y/N]: "
-read response
-if [ "$response" = "y" ]; then
-	source settings.sh
-fi
+source settings.sh
 cd "$PETALINUX_PROJECT"
 
 while true; do
@@ -39,8 +35,10 @@ while true; do
 			sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-5
 		fi
 		cd "$CURRENT_DIR"
+		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/"
+		cd "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/"
 		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
-		xsdb -eval "source Petalinux/zc702.tcl"
+		xsdb -eval "source zc702.tcl"
 	else
 		exit 0
 	fi
