@@ -16,23 +16,29 @@ extern struct iio_buffer *dds_buffer;
 extern struct iio_buffer *capture_buffer;
 
 extern const char *rx_freq_name, *tx_freq_name;
-extern int32_t rx1_buffer [FFT_LENGTH];
+extern int32_t rx1_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 coefficeint should be removed carefully
 
-int dds_sample_size = FFT_LENGTH;
+int dds_sample_size;
 // int span_number = 1;
 long long span = MAX_BW;
 extern int8_t dac_buf[16384];
+extern int fd_dma;
 
 int main (int argc, char **argv)
 {
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
-	unsigned int fft_size = FFT_LENGTH; //16bit(I)+16bit(Q) = 32bit data
+	unsigned int fft_size; //16bit(I)+16bit(Q) = 32bit data
+	fft_size = atoi(argv[1]);
+	dds_sample_size = fft_size;
+	printf("fft_size=%d\n", fft_size );
 	int i;
 	int16_t *fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 	int16_t *fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 
+	init_all_gpio();
+	gpio_fft_reset();
 	ctx = iio_create_default_context();
 	// printf("flag3\r\n");
 	if (ctx)
@@ -71,7 +77,11 @@ int main (int argc, char **argv)
 			return 0;
 		}
 	}
+	///////////////// FIXME: in case of open failure an error should be report
+	fd_dma = open("/dev/dma", O_RDWR);
 
+	gpio_fft(fft_size);
+	///////////////// FIXME
 	while(1)
 	{
 		printf(">>");
@@ -79,7 +89,7 @@ int main (int argc, char **argv)
 		gets(buffer);
 		if(strcmp(buffer,"")==0)
 		{
-			return 0;
+			break;
 		}
 		//printf("buffer = %s\r\n", buffer);
 		token = strtok(buffer, delim);
@@ -125,14 +135,14 @@ int main (int argc, char **argv)
 				// int ret = iio_channel_attr_read(tx_dev_ch0, "hardwaregain", buf, sizeof(buf));
 				long long vga_gain;
 				iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
-				printf("vga_gain_tx1: %lld \r\n", vga_gain);
+				printf("vga_gain: %lld \r\n", vga_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
 				long long vga_gain = atof(token);
 				iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
-				printf("vga_gain_tx1: %lld \r\n", vga_gain);
+				printf("vga_gain: %lld \r\n", vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
@@ -145,14 +155,14 @@ int main (int argc, char **argv)
 				// iio_channel_attr_read_longlong(rx_dev_ch0, "hardware_gain_rx1", buf, sizeof(buf));
 				// printf("lna_gain_rx1: %s \r\n", lna_gain);
 				iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
-				printf("lna_gain_rx1: %lld \r\n", lna_gain);
+				printf("lna_gain: %lld \r\n", lna_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
 				iio_channel_attr_write_longlong(rx_dev_ch0, "hardwaregain", lna_gain);
-				printf("lna_gain_rx1: %lld \r\n", lna_gain);
+				printf("lna_gain: %lld \r\n", lna_gain);
 				// int ret = iio_channel_attr_write_longlong(rx_dev_ch0, "hardware_gain_rx1", token);
 				// printf("lna_gain_rx1: %s - return value: %d \r\n", token, ret);
 			}
@@ -165,12 +175,12 @@ int main (int argc, char **argv)
 			{
 				int ret = iio_channel_attr_read(
 						rx_dev_ch0, "gain_control_mode", buf, sizeof(buf));
-				printf("gain_control_mode: %s - return value = %d \r\n", buf, ret);
+				printf("gain_control_mode: %s \r\n", buf, ret);
 			}
 			else
 			{
 				int ret = iio_channel_attr_write(rx_dev_ch0, "gain_control_mode", token);
-				printf("gain_control_mode: %s - return value = %d \r\n", token, ret);
+				printf("gain_control_mode: %s \r\n", token, ret);
 			}
 		}
 		else if( strcmp(token, "tx_sample_rate")==0 )
@@ -180,13 +190,13 @@ int main (int argc, char **argv)
 			{
 				long long sampling_frequency;
 				iio_channel_attr_read_longlong(tx_dev_ch0, "sampling_frequency", &sampling_frequency);
-				printf("tx_sampling_frequency: %lld \r\n", sampling_frequency);
+				printf("tx_sample_rate: %lld \r\n", sampling_frequency);
 			}
 			else
 			{
 				long long sampling_frequency = get_frequency(token);
 				iio_channel_attr_write_longlong(tx_dev_ch0, "sampling_frequency", sampling_frequency);
-				printf("tx_sampling_frequency: %lld \r\n", sampling_frequency);
+				printf("tx_sample_rate: %lld \r\n", sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "rx_sample_size")==0 )
@@ -205,7 +215,7 @@ int main (int argc, char **argv)
 				fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 				gpio_fft(fft_size);
 				init_rx_channel(fft_size);
-				printf("rx_sample_size changed to: %d \r\n", fft_size);
+				printf("rx_sample_size: %d \r\n", fft_size);
 			}
 		}
 		else if( strcmp(token, "tx_sample_size")==0 )
@@ -228,13 +238,13 @@ int main (int argc, char **argv)
 			{
 				long long sampling_frequency;
 				iio_channel_attr_read_longlong(rx_dev_ch0, "sampling_frequency", &sampling_frequency);
-				printf("rx_sampling_frequency: %lld \r\n", sampling_frequency);
+				printf("rx_sample_rate: %lld \r\n", sampling_frequency);
 			}
 			else
 			{
 				long long sampling_frequency = get_frequency(token);
 				iio_channel_attr_write_longlong(rx_dev_ch0, "sampling_frequency", sampling_frequency);
-				printf("rx_sampling_frequency: %lld \r\n", sampling_frequency);
+				printf("rx_sample_rate: %lld \r\n", sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "tx_freq")==0 )
@@ -244,13 +254,13 @@ int main (int argc, char **argv)
 			{
 				long long freq;
 				iio_channel_attr_read_longlong(tx_alt_dev_ch1, tx_freq_name, &freq);
-				printf("tx frequency: %lld \r\n", freq);
+				printf("tx_freq: %lld \r\n", freq);
 			}
 			else
 			{
 				long long freq = get_frequency(token);
 				iio_channel_attr_write_longlong(tx_alt_dev_ch1, tx_freq_name, freq);
-				printf("tx frequency: %lld \r\n", freq);
+				printf("tx_freq: %lld \r\n", freq);
 			}
 		}
 		else if( strcmp(token, "rx_freq")==0 )
@@ -260,13 +270,13 @@ int main (int argc, char **argv)
 			{
 				long long freq;
 				iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq);
-				printf("rx frequency: %lld \r\n", freq);
+				printf("rx_freq: %lld \r\n", freq);
 			}
 			else
 			{
 				long long freq = get_frequency(token);
 				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
-				printf("rx frequency: %lld \r\n", freq);
+				printf("rx_freq: %lld \r\n", freq);
 			}
 		}
 		else if( strcmp(token, "rx_port")==0 )
@@ -276,14 +286,14 @@ int main (int argc, char **argv)
 			{
 				char rx_port[100];
 				iio_channel_attr_read(iio_device_find_channel(dev, "voltage0", false), "rf_port_select", rx_port, 100);
-				printf("rx port: %s\r\n", rx_port);
+				printf("rx_port: %s\r\n", rx_port);
 			}
 			else
 			{
 				char *rx_port = token;
 				iio_channel_attr_write(iio_device_find_channel(dev, "voltage0", false),
 			   		"rf_port_select", rx_port);
-				printf("rx port : %s \r\n", rx_port);
+				printf("rx_port: %s \r\n", rx_port);
 			}
 		}
 		else if( strcmp(token, "tx_port")==0 )
@@ -293,14 +303,14 @@ int main (int argc, char **argv)
 			{
 				char tx_port[100];
 				iio_channel_attr_read(iio_device_find_channel(dev, "voltage0", true), "rf_port_select", tx_port, 100);
-				printf("tx port: %s \r\n", tx_port);
+				printf("tx_port: %s \r\n", tx_port);
 			}
 			else
 			{
 				char *tx_port = token;
 				iio_channel_attr_write(iio_device_find_channel(dev, "voltage0", true),
 				   "rf_port_select", tx_port);
-				printf("tx port : %s \r\n", tx_port);
+				printf("tx_port: %s \r\n", tx_port);
 			}
 		}
 		else if( strcmp(token, "sample_size")==0 )
@@ -309,7 +319,7 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				int sample_size = iio_device_get_sample_size(iio_dac);
-				printf("sample size: %d \r\n", sample_size);
+				printf("sample_size: %d \r\n", sample_size);
 			}
 			else
 			{
@@ -323,13 +333,13 @@ int main (int argc, char **argv)
 			{
 				bool fir_en;
 				iio_channel_attr_read_bool(rx_dev_ch0, "filter_fir_en", &fir_en);
-				printf("rx fir enable: %d \r\n", fir_en);
+				printf("rx_fir_en: %d \r\n", fir_en);
 			}
 			else
 			{
 				bool fir_en = atoi(token);
 				iio_channel_attr_write_bool(rx_dev_ch0, "filter_fir_en", fir_en);
-				printf("rx fir enable: %d \r\n", fir_en);
+				printf("rx_fir_en: %d \r\n", fir_en);
 			}
 		}
 		else if( strcmp(token, "tx_fir_en")==0 )
@@ -339,13 +349,13 @@ int main (int argc, char **argv)
 			{
 				bool fir_en;
 				iio_channel_attr_read_bool(tx_dev_ch0, "filter_fir_en", &fir_en);
-				printf("tx fir enable: %d \r\n", fir_en);
+				printf("tx_fir_en: %d \r\n", fir_en);
 			}
 			else
 			{
 				bool fir_en = atoi(token);
 				iio_channel_attr_write_bool(tx_dev_ch0, "filter_fir_en", fir_en);
-				printf("tx fir enable: %d \r\n", fir_en);
+				printf("tx_fir_en: %d \r\n", fir_en);
 			}
 		}
 		else if( strcmp(token, "span")==0 )
@@ -372,6 +382,11 @@ int main (int argc, char **argv)
 			}
 			printf("\r\n");
 		}
+		else if(strcmp(token,"freset") == 0)
+		{
+			gpio_fft_reset();
+			printf("\r\n");
+		}
 		else if(strcmp(token,"adc") == 0)
 		{
 			int uart_size = 1024;
@@ -383,7 +398,7 @@ int main (int argc, char **argv)
 			double avg_adc_window;
 			int32_t rx_buffer_i;
 			int16_t rx_buffer_i_16;
-			unsigned char uart_tx_buffer[2*FFT_LENGTH];
+			unsigned char uart_tx_buffer[2*UART_LENGTH];
 			fill_rx_buffer(fft_size);
 			for(int i=0; i<uart_size; i++ )
 			{
@@ -410,8 +425,8 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"fft_span") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			int uart_size = FFT_LENGTH;
-			if(fft_size*span/MAX_BW < FFT_LENGTH)
+			int uart_size = UART_LENGTH;
+			if(fft_size*span/MAX_BW < UART_LENGTH)
 			{
 				uart_size = fft_size*span/MAX_BW;
 			}
@@ -428,7 +443,7 @@ int main (int argc, char **argv)
 			double avg_fft_window;
 			int32_t fft_abs32;
 			// long long freq;
-			unsigned char uart_tx_buffer[4*FFT_LENGTH];
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
 
 			// printf("us %d - ws %f - rs %d \r\n", uart_size, window_size, removed_span);
 
@@ -486,15 +501,15 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"fft") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			int uart_size = FFT_LENGTH;
-			if(fft_size < FFT_LENGTH)
+			int uart_size = UART_LENGTH;
+			if(fft_size < UART_LENGTH)
 			{
 				uart_size = fft_size;
 			}
-			int window_size = fft_size/FFT_LENGTH;
+			int window_size = fft_size/UART_LENGTH;
 			double avg_fft_window;
 			int32_t fft_abs32;
-			unsigned char uart_tx_buffer[4*FFT_LENGTH];
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
 
 			//printf("Debug Flag #1\r\n");
 			fill_rx_buffer(fft_size);
@@ -521,9 +536,9 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"fft2") == 0)
 		{
 			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			int uart_size = FFT_LENGTH;
+			int uart_size = UART_LENGTH;
 			int32_t fft_abs32;
-			unsigned char uart_tx_buffer[4*FFT_LENGTH];
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
 
 			//printf("Debug Flag #1\r\n");
 			fill_rx_buffer(fft_size);
@@ -541,14 +556,89 @@ int main (int argc, char **argv)
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 		}
+		else if(strcmp(token,"fft3") == 0)
+		{
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
+
+			printf("Debug Flag #1\r\n");
+			fill_rx_buffer(fft_size);
+			printf("Debug Flag #2\r\n");
+			calc_fft_dma(rx1_buffer, fft_abs, fft_phase, 1, fft_size);
+			printf("Debug Flag #3\r\n");
+			for( int i=0; i<20; i++ )
+			{
+				printf("fft_%d=%d\n", i, fft_abs[i]);
+			}
+			printf("\r\n");
+		}
+		else if(strcmp(token,"fft4") == 0)
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("fft4: \r\n"
+								"Usage: fft4 [r0/w1] [bytes]\r\n"
+								"without enough arguments get out your D*CK from my A*S\r\n");
+				continue;
+			}
+			int rwfunc = atoi(token);
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("fft4: \r\n"
+								"Usage: fft4 [r0/w1] [bytes]\r\n"
+								"without enough arguments get out your D*CK from my A*S\r\n");
+				continue;
+			}
+			int num_bytes = atoi(token);
+			uint32_t uart_tx_buffer[MAX_FFT_LENGTH*2];
+			for(int k=0; k<MAX_FFT_LENGTH*2; k++)
+			{
+				uart_tx_buffer[k] = k;
+			}
+			printf("fft_status#1 = %d\r\n", gpio_fft_status());
+			if(rwfunc)
+			{
+				printf("write %d bytes to dma.\r\n", write_DMA(
+							(char *)uart_tx_buffer, num_bytes));
+			}
+			else
+			{
+				printf("read %d bytes from dma.\r\n", read_DMA(
+							(char *)uart_tx_buffer, num_bytes));
+			}
+			printf("fft_status#2 = %d\r\n", gpio_fft_status());
+			printf("\r\n");
+		}
 		else if (strcmp(token, "pulse")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
+								"Usage: pulse [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
+								"Usage: pulse [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
+								"Usage: pulse [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			double amplitude = atof(token);
 			int amplitude_int = amplitude*DAC_MAX_VAL;
 			int period_sample_count = dds_sample_size/period_num;
@@ -579,10 +669,31 @@ int main (int argc, char **argv)
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
+								"Usage: sin [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
+								"Usage: sin [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
+								"Usage: sin [port#] [period] [amplitude]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			double amplitude = atof(token);
 			int amplitude_int = amplitude*DAC_MAX_VAL/2;
 			int period_sample_count = dds_sample_size/period_num;
@@ -613,8 +724,22 @@ int main (int argc, char **argv)
 			//echo 61400000 > /sys/bus/iio/devices/iio\:device0/out_voltage_sampling_frequency;pna-iio bandwidth 56000000;pna-iio sinc 1 0.9 1
 			int s_size = iio_device_get_sample_size(iio_dac);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("sinc: Generate sinc signal with port and sinc-frequency arguments\r\n"
+								"Usage: sinc [port#] [sinc-frequency]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("sinc: Generate sinc signal with port and sinc-frequency arguments\r\n"
+								"Usage: sinc [port#] [sinc-frequency]\r\n"
+								"without enough arguments nothing will be changed\r\n");
+				continue;
+			}
 			double dds_freq = atof(token);
 
 			for (int i=0 ; i<dds_sample_size ; i++)
@@ -650,8 +775,10 @@ int main (int argc, char **argv)
 		}
 		else if( strcmp(token, "exit")==0 )
 		{
+			close(fd_dma);
 			return 0;
 		}
 	}
+	close(fd_dma);
 	return 0;
 }

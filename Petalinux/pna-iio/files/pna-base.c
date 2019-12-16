@@ -30,39 +30,61 @@ struct iio_channel *iio_ch;
 unsigned dds_tones_count;
 const char *dds_name;
 struct iio_buffer *dds_buffer;
-struct iio_buffer *capture_buffer;
+struct iio_buffer *capture_buffer = NULL;
 const char *rx_freq_name, *tx_freq_name;
 
-uint32_t rx1_buffer [16*FFT_LENGTH];
-int8_t dac_buf[16*FFT_LENGTH];
+int32_t rx1_buffer [2*MAX_FFT_LENGTH];
+int8_t dac_buf[2*MAX_FFT_LENGTH];
 int rx1_indx=0;
+int fd_dma; //file descriptor DMA driver
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long elems, size_t size)
 {
-	int fd;
-
-	fd = open("/dev/dma", O_RDWR);
-	// printf ("Debug Flag #2\r\n");
-
 	unsigned long byteToMove = 0;
 
 	byteToMove = size * elems;
 	// printf("memcpy len = %d \r\n", byteToMove);
 
 	int write_return = 0;
-	write_return = write(fd, bufferIn, byteToMove);
-	// printf ("write_return=%d \r\n", write_return);
+	// printf("fft_status#1 = %d\r\n", gpio_fft_status());
+	write_return = write(fd_dma, bufferIn, byteToMove);
+	// printf("fft_status#2 = %d\r\n", gpio_fft_status());
+	// printf("write_return=%d \r\n", write_return);
 
 	//printf ("j = %d , byteToMove = %d \r\n", j, byteToMove);
 	int read_return = 0;
-	read_return = read(fd, bufferOut, byteToMove);
-	// printf ("read_return=%d \r\n", read_return);
+	read_return = read(fd_dma, bufferOut, byteToMove);
+	// printf("fft_status#3 = %d\r\n", gpio_fft_status());
+	// printf("read_return=%d \r\n", read_return);
 
 	//byteMoved += byteToMove;
 
 	// printf ("Debug Flag #5\r\n");
-	close(fd);
 	return elems * size;
+}
+
+unsigned long write_DMA(char *bufferIn, size_t size)
+{
+	printf("write_DMA called!\r\n");
+	for(int i=0; i<10; i++)
+	{
+		printf("write_dma[%d]: %d\r\n", i, bufferIn[i]);
+	}
+	printf("write_DMA print finished!\r\n");
+	int write_bytes = write(fd_dma, bufferIn, size);
+	return write_bytes;
+}
+
+unsigned long read_DMA(char *bufferOut, size_t size)
+{
+	printf("read_DMA called!\r\n");
+	int read_bytes = read(fd_dma, bufferOut, size);
+	for(int i=0; i<10; i++)
+	{
+		printf("read_dma[%d]: %d\r\n", i, bufferOut[i]);
+	}
+	printf("read_DMA print finished!\r\n");
+	return read_bytes;
 }
 
 double read_sampling_frequency(const struct iio_device *dev)
@@ -152,7 +174,16 @@ void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 	int32_t *bufferOut = (char *) malloc(sizeof(uint32_t) * fft_size);
 
   memset(bufferOut, 0, sizeof(int32_t) * fft_size);
+
+	if(is_debug)
+	{
+		printf("calc_fft_dma #1 \r\n");
+	}
 	memCpy_DMA((char *)bufferIn, (char *)bufferOut, fft_size, sizeof(int32_t));
+	if(is_debug)
+	{
+		printf("calc_fft_dma #2 \r\n");
+	}
 
 	uint32_t *fft_output = (uint32_t *)bufferOut;
 
@@ -166,11 +197,11 @@ void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 		double fft_im_double = fft_im;
 		double fft_mag = sqrt( pow(fft_re_double,2) + pow(fft_im_double,2) );
 		//double fft_mag = sqrt( pow(fft_re,2) + pow(fft_im,2) );
-		if(is_debug)
-		{
-			printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
-					"im_d %6.1lf - mag %6.1lf - o %6d\n", i, fft_re_16, fft_im_16, fft_re, fft_im, fft_re_double, fft_im_double, fft_mag, fft_output[i]);
-		}
+		// if(is_debug)
+		// {
+		// 	printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
+		// 			"im_d %6.1lf - mag %6.1lf - o %6d\n", i, fft_re_16, fft_im_16, fft_re, fft_im, fft_re_double, fft_im_double, fft_mag, fft_output[i]);
+		// }
 		fft_abs[i] = floor(fft_mag/sqrt(2.0)); //RE
 		fft_phase[i] = fft_output[i] & 0x0000ffff;       //IM
 		// if(i < 100)
@@ -179,7 +210,7 @@ void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 		// }
 
 	}
-
+	free(bufferOut);
 }
 
 void init_rx_channel(unsigned int fft_size)
@@ -198,6 +229,7 @@ void init_rx_channel(unsigned int fft_size)
 	{
 		struct iio_device *dev_temp = iio_context_get_device(ctx, i);
 		unsigned int channel_count = iio_device_get_channels_count(dev_temp);
+///////////////////////// FIXME ////////////////////////////
 		struct extra_dev_info *dev_info_temp = calloc(1, sizeof(*dev_info_temp));
 		iio_device_set_data(dev_temp, dev_info_temp);
 		dev_info_temp->input_device = is_input_device(dev_temp);
@@ -229,8 +261,9 @@ void init_rx_channel(unsigned int fft_size)
 			"in \n", sampling_rate);
 	}
 	else
-	{
-		// printf("rate=%d, sampling rate=%d\n", rate, sampling_rate);
+	{;
+		// printf("INIT_RX_CHANNEL: rate=%d, sampling rate=%d\n",
+		//  			 rate, sampling_rate);
 	}
 	// printf("flag8\r\n");
 
@@ -289,9 +322,9 @@ void fill_rx_buffer(unsigned int fft_size)
 		unsigned int buffer_step;
 		/* Demux captured data */
 		buffer_step = iio_buffer_step(capture_buffer);
-		//printf("buffer step=%d\n", buffer_step);
-		//printf("capture_buffer=%x\n", capture_buffer);
-		if ((unsigned)ret >= fft_size)
+		// printf("buffer step=%d,ret=%d\r\n", buffer_step, ret);
+		// printf("capture_buffer=%x\r\n", capture_buffer);
+		if ((unsigned)ret >= buffer_step*fft_size)
 		{
 			int16_t *adc_data = (int16_t *) iio_buffer_start(capture_buffer);
 			/*for (i = 0; i < ret; i++)
@@ -300,6 +333,11 @@ void fill_rx_buffer(unsigned int fft_size)
 			}*/
 			iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
 			rx1_indx = 0;
+		}
+		else
+		{
+			printf("error capture from adc failed, "
+						"buffer step=%d, ret=%d\r\n", buffer_step, ret);
 		}
 	}
 	//printf("exit fill_rx_buffer capture_buffer=%x\n", capture_buffer);
@@ -556,11 +594,16 @@ void create_dds_buffer(int8_t *data, int sample_size)
 	iio_buffer_push(dds_buffer);
 }
 
-void create_adc_buffer(unsigned int fft_size)
+void create_adc_buffer(unsigned int fft_size) //, uint8_t is_init
 {
 	struct iio_channel *chn;
 	struct extra_info *info;
 
+	if(capture_buffer)
+	{
+		// printf("Destroy capture buffer\n");
+		iio_buffer_destroy(capture_buffer);
+	}
 	capture_buffer = iio_device_create_buffer(cap, fft_size, false);
 	if (!capture_buffer)
 	{
@@ -581,18 +624,61 @@ void create_adc_buffer(unsigned int fft_size)
 
 void gpio_fft(int gpio_value)
 {
-	int gl_gpio_base = 1007;
-	int nchannel = open_gpio_channel(gl_gpio_base);
+	int gl_gpio_base = GPIO_BASE_CFFT;
+	int nchannel = GPIO_NCHANNEL_CFFT;
 	int cntr = 0;
-	// signal(SIGTERM, signal_handler); /* catch kill signal */
-	// signal(SIGHUP, signal_handler); /* catch hang up signal */
-	// signal(SIGQUIT, signal_handler); /* catch quit signal */
-	// signal(SIGINT, signal_handler); /* catch a CTRL-c signal */
-	set_gpio_direction(gl_gpio_base, nchannel, "out");
+
 	while(gpio_value>0)
   {
       gpio_value = gpio_value >> 1;
       cntr++;
   }
 	set_gpio_value(gl_gpio_base, nchannel, cntr - 1 + 256);
+	usleep(10);
+	gpio_fft_valid();
+}
+
+uint8_t gpio_fft_status()
+{
+	int gl_gpio_base = GPIO_BASE_STATUS;
+	int nchannel = GPIO_NCHANNEL_STATUS;
+
+	return get_gpio_value(gl_gpio_base, nchannel);
+}
+
+void gpio_fft_reset()
+{
+	int gl_gpio_base = GPIO_BASE_RESET;
+	int nchannel = GPIO_NCHANNEL_RESET;
+
+	set_gpio_value(gl_gpio_base, nchannel, 0);
+	usleep(10);
+	set_gpio_value(gl_gpio_base, nchannel, 1);
+}
+
+void gpio_fft_valid()
+{
+	int gl_gpio_base = GPIO_BASE_VALID;
+	int nchannel = GPIO_NCHANNEL_VALID;
+
+	set_gpio_value(gl_gpio_base, nchannel, 1);
+	usleep(10);
+	set_gpio_value(gl_gpio_base, nchannel, 0);
+}
+
+void init_all_gpio()
+{
+	int gpio_base_reset = GPIO_BASE_RESET, nchannel_reset;
+	int gpio_base_valid = GPIO_BASE_VALID, nchannel_valid;
+	int gpio_base_cfft = GPIO_BASE_CFFT, nchannel_cfft;
+	int gpio_base_status = GPIO_BASE_STATUS, nchannel_status;
+
+	// nchannel_reset = open_gpio_channel(gpio_base_reset);
+	// set_gpio_direction(gpio_base_reset, nchannel_reset, "out");
+	nchannel_valid = open_gpio_channel(gpio_base_valid);
+	set_gpio_direction(gpio_base_valid, nchannel_valid, "out");
+	nchannel_cfft = open_gpio_channel(gpio_base_cfft);
+	set_gpio_direction(gpio_base_cfft, nchannel_cfft, "out");
+	nchannel_status = open_gpio_channel(gpio_base_status);
+	set_gpio_direction(gpio_base_status, nchannel_status, "in");
 }

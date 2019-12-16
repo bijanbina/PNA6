@@ -8,7 +8,8 @@
 #include "pna-gpio.h"
 
 #define HANNING_ENBW 1.50
-#define FFT_LENGTH 1024 //FFT output on UART size (should be 1024 FIX)
+#define MAX_FFT_LENGTH 8192 //FFT output on UART size (should be 1024 FIX)
+#define UART_LENGTH 1024
 #define DAC_MAX_VAL 2047*16
 #define MAX_BW 56E6
 #define PI 3.14159265
@@ -49,6 +50,8 @@ struct extra_info
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut,
 						 unsigned long elems, size_t size);
+unsigned long write_DMA(char *bufferIn, size_t size);
+unsigned long read_DMA(char *bufferOut, size_t size);
 double read_sampling_frequency(const struct iio_device *dev);
 ssize_t demux_sample(const struct iio_channel *chn,
 					 void *sample, size_t size, void *d);
@@ -67,5 +70,9 @@ void fmcomms2_init(void);
 long long get_frequency(char *token);
 void create_dds_buffer(int8_t *data, int sample_size);
 void create_adc_buffer(unsigned int fft_size);
+uint8_t gpio_fft_status();
+void gpio_fft_reset();
+void init_all_gpio();
+void gpio_fft_valid();
 
 #endif //__BASE_IIO_H__

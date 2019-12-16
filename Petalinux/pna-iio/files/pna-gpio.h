@@ -9,6 +9,14 @@
 #include <fcntl.h>
 
 #define GPIO_ROOT "/sys/class/gpio"
+#define GPIO_BASE_CFFT 998
+#define GPIO_NCHANNEL_CFFT 16
+#define GPIO_BASE_RESET GPIO_BASE_CFFT + GPIO_NCHANNEL_CFFT
+#define GPIO_NCHANNEL_RESET 1
+#define GPIO_BASE_VALID 1015
+#define GPIO_NCHANNEL_VALID 1
+#define GPIO_BASE_STATUS 1016
+#define GPIO_NCHANNEL_STATUS 7
 
 int open_gpio_channel(int gpio_base);
 int close_gpio_channel(int gpio_base);
