@@ -34,7 +34,7 @@ struct iio_buffer *capture_buffer = NULL;
 const char *rx_freq_name, *tx_freq_name;
 
 int32_t rx1_buffer [2*MAX_FFT_LENGTH];
-int8_t dac_buf[2*MAX_FFT_LENGTH];
+int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
 int rx1_indx=0;
 int fd_dma; //file descriptor DMA driver
 
@@ -253,18 +253,18 @@ void init_rx_channel(unsigned int fft_size)
 	// printf("flag7\r\n");
 
 	//##### initialize capture buffer and channels
-	device_set_rx_sampling_freq(dev, sampling_rate);
-	rate = device_get_rx_sampling_freq(cap);
-	if (rate != sampling_rate)
-	{
-		printf("Failed to set the rx sampling rate to %lld"
-			"in \n", sampling_rate);
-	}
-	else
-	{;
-		// printf("INIT_RX_CHANNEL: rate=%d, sampling rate=%d\n",
-		//  			 rate, sampling_rate);
-	}
+	// device_set_rx_sampling_freq(dev, sampling_rate);
+	// rate = device_get_rx_sampling_freq(cap);
+	// if (rate != sampling_rate)
+	// {
+	// 	printf("Failed to set the rx sampling rate to %lld"
+	// 		"in \n", sampling_rate);
+	// }
+	// else
+	// {
+	// 	printf("INIT_RX_CHANNEL: rate=%d, sampling rate=%d\n",
+	//  			 rate, sampling_rate);
+	// }
 	// printf("flag8\r\n");
 
 	dev_info = iio_device_get_data(cap);

@@ -21,7 +21,7 @@ extern int32_t rx1_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 coefficeint should be
 int dds_sample_size;
 // int span_number = 1;
 long long span = MAX_BW;
-extern int8_t dac_buf[16384];
+extern int8_t dac_buf[65536];
 extern int fd_dma;
 
 int main (int argc, char **argv)
@@ -29,10 +29,10 @@ int main (int argc, char **argv)
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
-	unsigned int fft_size; //16bit(I)+16bit(Q) = 32bit data
-	fft_size = atoi(argv[1]);
+	unsigned int fft_size = 1024; //16bit(I)+16bit(Q) = 32bit data
+	// fft_size = atoi(argv[1]);
 	dds_sample_size = fft_size;
-	printf("fft_size=%d\n", fft_size );
+	// printf("fft_size=%d\n", fft_size );
 	int i;
 	int16_t *fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
 	int16_t *fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
@@ -129,24 +129,50 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "vga_gain")==0 )
 		{
 			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"vga_gain: arguments are not enough.\r\n"
+								"Read/Write vga_gain with port and value arguments.\r\n"
+								"Usage:\r\n    vga_gain [port#] [value]\r\n");
+				continue;
+			}
+			int channel_num = atoi(token);
+			token = strtok(NULL, delim);
 			// char buf[100];
 			if(token==NULL)
 			{
 				// int ret = iio_channel_attr_read(tx_dev_ch0, "hardwaregain", buf, sizeof(buf));
 				long long vga_gain;
-				iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
+				if(channel_num)
+					iio_channel_attr_read_longlong(tx_dev_ch1, "hardwaregain", &vga_gain);
+				else
+					iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
 				printf("vga_gain: %lld \r\n", vga_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
 				long long vga_gain = atof(token);
-				iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
+				if(channel_num)
+					iio_channel_attr_write_longlong(tx_dev_ch1, "hardwaregain", vga_gain);
+				else
+					iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
 				printf("vga_gain: %lld \r\n", vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
 		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"lna_gain: arguments are not enough.\r\n"
+								"Read/Write lna_gain with port and value arguments.\r\n"
+								"Usage:\r\n    lna_gain [port#] [value]\r\n");
+				continue;
+			}
+			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
 			char buf[100];
 			if(token==NULL)
@@ -154,14 +180,20 @@ int main (int argc, char **argv)
 				long long lna_gain;
 				// iio_channel_attr_read_longlong(rx_dev_ch0, "hardware_gain_rx1", buf, sizeof(buf));
 				// printf("lna_gain_rx1: %s \r\n", lna_gain);
-				iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
+				if(channel_num)
+					iio_channel_attr_read_longlong(rx_dev_ch1, "hardwaregain", &lna_gain);
+				else
+					iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
 				printf("lna_gain: %lld \r\n", lna_gain);
 			}
 			else
 			{
 				size_t sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
-				iio_channel_attr_write_longlong(rx_dev_ch0, "hardwaregain", lna_gain);
+				if(channel_num)
+					iio_channel_attr_write_longlong(rx_dev_ch1, "hardwaregain", lna_gain);
+				else
+					iio_channel_attr_write_longlong(rx_dev_ch0, "hardwaregain", lna_gain);
 				printf("lna_gain: %lld \r\n", lna_gain);
 				// int ret = iio_channel_attr_write_longlong(rx_dev_ch0, "hardware_gain_rx1", token);
 				// printf("lna_gain_rx1: %s - return value: %d \r\n", token, ret);
@@ -170,16 +202,32 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "gain_control_mode")==0 )
 		{
 			token = strtok(NULL, delim);
-			char buf[1024];
 			if(token==NULL)
 			{
-				int ret = iio_channel_attr_read(
-						rx_dev_ch0, "gain_control_mode", buf, sizeof(buf));
+				printf("---------------------------------------------------------------\r\n"
+								"gain_control_mode: arguments are not enough.\r\n"
+								"Read/Write gain_control_mode with port and value arguments.\r\n"
+								"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
+				continue;
+			}
+			int channel_num = atoi(token);
+			token = strtok(NULL, delim);
+			char buf[1024];
+			int ret;
+			if(token==NULL)
+			{
+				if(channel_num)
+					ret = iio_channel_attr_read(rx_dev_ch1, "gain_control_mode", buf, sizeof(buf));
+				else
+					ret = iio_channel_attr_read(rx_dev_ch0, "gain_control_mode", buf, sizeof(buf));
 				printf("gain_control_mode: %s \r\n", buf, ret);
 			}
 			else
 			{
-				int ret = iio_channel_attr_write(rx_dev_ch0, "gain_control_mode", token);
+				if(channel_num)
+					ret = iio_channel_attr_write(rx_dev_ch1, "gain_control_mode", token);
+				else
+					ret = iio_channel_attr_write(rx_dev_ch0, "gain_control_mode", token);
 				printf("gain_control_mode: %s \r\n", token, ret);
 			}
 		}
@@ -576,18 +624,18 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("fft4: \r\n"
-								"Usage: fft4 [r0/w1] [bytes]\r\n"
-								"without enough arguments get out your D*CK from my A*S\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"fft4: There is not enough arguments\r\n"
+								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
 				continue;
 			}
 			int rwfunc = atoi(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("fft4: \r\n"
-								"Usage: fft4 [r0/w1] [bytes]\r\n"
-								"without enough arguments get out your D*CK from my A*S\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"fft4: There is not enough arguments\r\n"
+								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
 				continue;
 			}
 			int num_bytes = atoi(token);
@@ -616,27 +664,30 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
-								"Usage: pulse [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"Pulse: arguments are not enough.\r\n"
+								"Generate pulse signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
-								"Usage: pulse [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"Pulse: arguments are not enough.\r\n"
+								"Generate pulse signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("pulse: Generate pulse signal with port, period and amplitude arguments\r\n"
-								"Usage: pulse [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"Pulse: arguments are not enough.\r\n"
+								"Generate pulse signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			double amplitude = atof(token);
@@ -671,27 +722,30 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
-								"Usage: sin [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"sin: arguments are not enough.\r\n"
+								"Generate sinous signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
-								"Usage: sin [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"sin: arguments are not enough.\r\n"
+								"Generate sinous signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			double period_num = atof(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("sin: Generate sinous signal with port, period and amplitude arguments\r\n"
-								"Usage: sin [port#] [period] [amplitude]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"sin: arguments are not enough.\r\n"
+								"Generate sinous signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
 				continue;
 			}
 			double amplitude = atof(token);
@@ -726,22 +780,23 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("sinc: Generate sinc signal with port and sinc-frequency arguments\r\n"
-								"Usage: sinc [port#] [sinc-frequency]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"sinc: arguments are not enough.\r\n"
+								"Generate sinc signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
 				continue;
 			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("sinc: Generate sinc signal with port and sinc-frequency arguments\r\n"
-								"Usage: sinc [port#] [sinc-frequency]\r\n"
-								"without enough arguments nothing will be changed\r\n");
+				printf("---------------------------------------------------------------\r\n"
+								"sinc: arguments are not enough.\r\n"
+								"Generate sinc signal with port, period and amplitude arguments.\r\n"
+								"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
 				continue;
 			}
 			double dds_freq = atof(token);
-
 			for (int i=0 ; i<dds_sample_size ; i++)
 			{
 				double x = i-dds_sample_size/2;
