@@ -38,11 +38,8 @@ int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
 int rx1_indx=0;
 int fd_dma; //file descriptor DMA driver
 
-unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long elems, size_t size)
+unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMove)
 {
-	unsigned long byteToMove = 0;
-
-	byteToMove = size * elems;
 	// printf("memcpy len = %d \r\n", byteToMove);
 
 	int write_return = 0;
@@ -51,16 +48,14 @@ unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long elems, s
 	// printf("fft_status#2 = %d\r\n", gpio_fft_status());
 	// printf("write_return=%d \r\n", write_return);
 
-	//printf ("j = %d , byteToMove = %d \r\n", j, byteToMove);
+	// printf ("byteToMove = %d \r\n", byteToMove);
 	int read_return = 0;
 	read_return = read(fd_dma, bufferOut, byteToMove);
 	// printf("fft_status#3 = %d\r\n", gpio_fft_status());
 	// printf("read_return=%d \r\n", read_return);
 
-	//byteMoved += byteToMove;
-
 	// printf ("Debug Flag #5\r\n");
-	return elems * size;
+	return byteToMove;
 }
 
 unsigned long write_DMA(char *bufferIn, size_t size)
@@ -164,53 +159,6 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	rx1_indx++;
 
 	return size;
-}
-
-void calc_fft_dma(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
-	                int is_debug, unsigned int fft_size)
-{
-	int i;
-
-	int32_t *bufferOut = (char *) malloc(sizeof(uint32_t) * fft_size);
-
-  memset(bufferOut, 0, sizeof(int32_t) * fft_size);
-
-	if(is_debug)
-	{
-		printf("calc_fft_dma #1 \r\n");
-	}
-	memCpy_DMA((char *)bufferIn, (char *)bufferOut, fft_size, sizeof(int32_t));
-	if(is_debug)
-	{
-		printf("calc_fft_dma #2 \r\n");
-	}
-
-	uint32_t *fft_output = (uint32_t *)bufferOut;
-
-	for (i=0 ; i<fft_size; i++)
-	{
-		int16_t fft_re_16 = fft_output[i] & 0x0000ffff;
-		int16_t fft_im_16 = (fft_output[i] & 0xffff0000) >> 16;
-		int32_t fft_re = fft_re_16;
-		int32_t fft_im = fft_im_16;
-		double fft_re_double = fft_re;
-		double fft_im_double = fft_im;
-		double fft_mag = sqrt( pow(fft_re_double,2) + pow(fft_im_double,2) );
-		//double fft_mag = sqrt( pow(fft_re,2) + pow(fft_im,2) );
-		// if(is_debug)
-		// {
-		// 	printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
-		// 			"im_d %6.1lf - mag %6.1lf - o %6d\n", i, fft_re_16, fft_im_16, fft_re, fft_im, fft_re_double, fft_im_double, fft_mag, fft_output[i]);
-		// }
-		fft_abs[i] = floor(fft_mag/sqrt(2.0)); //RE
-		fft_phase[i] = fft_output[i] & 0x0000ffff;       //IM
-		// if(i < 100)
-		// {
-		// 	fft_abs[i] = 100;
-		// }
-
-	}
-	free(bufferOut);
 }
 
 void init_rx_channel(unsigned int fft_size)
@@ -326,7 +274,11 @@ void fill_rx_buffer(unsigned int fft_size)
 		// printf("capture_buffer=%x\r\n", capture_buffer);
 		if ((unsigned)ret >= buffer_step*fft_size)
 		{
+#ifdef FFT_24_BIT
+			int32_t *adc_data = (int32_t *) iio_buffer_start(capture_buffer);
+#elif FFT_16_BIT
 			int16_t *adc_data = (int16_t *) iio_buffer_start(capture_buffer);
+#endif
 			/*for (i = 0; i < ret; i++)
 			{
 				printf("adc_data[%d]=%d\n", i, adc_data[i]);
@@ -550,7 +502,7 @@ void fmcomms2_init(void)
 long long get_frequency(char *token)
 {
 	int token_len = strlen(token);
-	size_t sz = NULL;
+	char *sz = NULL;
 	long long frequency;
 	switch (token[token_len-1]) {
 		case 'k':
@@ -654,6 +606,7 @@ void gpio_fft_reset()
 	set_gpio_value(gl_gpio_base, nchannel, 0);
 	usleep(10);
 	set_gpio_value(gl_gpio_base, nchannel, 1);
+	usleep(10);
 }
 
 void gpio_fft_valid()
@@ -664,6 +617,7 @@ void gpio_fft_valid()
 	set_gpio_value(gl_gpio_base, nchannel, 1);
 	usleep(10);
 	set_gpio_value(gl_gpio_base, nchannel, 0);
+	usleep(10);
 }
 
 void init_all_gpio()

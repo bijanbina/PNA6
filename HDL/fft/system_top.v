@@ -60,7 +60,7 @@ module system_top (
   inout                   fixed_io_ps_porb,
   inout                   fixed_io_ps_srstb,
 
-  inout       [11:0]      gpio_bd,
+  inout       [12:0]      gpio_bd,
 
   output                  hdmi_out_clk,
   output                  hdmi_vsync,
@@ -104,7 +104,6 @@ module system_top (
 
   output                  spi_udc_csn_tx,
   output                  spi_udc_csn_rx,
-  output                  spi_udc_sclk,
   output                  spi_udc_data);
 
   // internal signals
@@ -112,10 +111,18 @@ module system_top (
   wire    [63:0]  gpio_i;
   wire    [63:0]  gpio_o;
   wire    [63:0]  gpio_t;
-
+  
+  wire            e_led_i;
+  wire            e_led_o;
+  wire            e_led_t;
+  
   wire            tdd_sync_t;
   wire            tdd_sync_o;
   wire            tdd_sync_i;
+  
+  wire    [15:0]  gpio_fft_led_i;
+  wire    [15:0]  gpio_fft_led_o;
+  wire    [15:0]  gpio_fft_led_t;
 
   // instantiations
 
@@ -132,10 +139,10 @@ module system_top (
               gpio_status})); // 39:32
 
   ad_iobuf #(.DATA_WIDTH(12)) i_gpio_bd (
-    .dio_t ({gpio_t[15:12], gpio_t[7:0]}),
-    .dio_i ({gpio_o[15:12], gpio_o[7:0]}),
-    .dio_o ({gpio_i[15:12], gpio_i[7:0]}),
-    .dio_p ({gpio_bd[7:4], gpio_bd[11:8], gpio_bd[3:0]}));
+    .dio_t ({gpio_t[15:13], gpio_fft_led_t[4:0], gpio_t[3:0]}),
+    .dio_i ({gpio_o[15:13], gpio_fft_led_o[4:0], gpio_o[3:0]}),
+    .dio_o ({gpio_i[15:13], gpio_fft_led_i[4:0], gpio_i[3:0]}),
+    .dio_p ({gpio_bd[7:5], gpio_bd[12:8], gpio_bd[3:0]}));
 
   assign gpio_i[63:51] = gpio_o[63:51];
   assign gpio_i[48:47] = gpio_o[48:47];
@@ -200,7 +207,7 @@ module system_top (
     .tdd_sync_o (),
     .tdd_sync_t (),
     .spi1_clk_i (1'b0),
-    .spi1_clk_o (spi_udc_sclk),
+    .spi1_clk_o (),
     .spi1_csn_i (1'b1),
     .spi1_csn_0_o (spi_udc_csn_tx),
     .spi1_csn_1_o (spi_udc_csn_rx),
@@ -211,9 +218,16 @@ module system_top (
     .enable (enable),
     .txnrx (txnrx),
     .up_enable (gpio_o[47]),
-    .up_txnrx (gpio_o[48]));
+    .up_txnrx (gpio_o[48]),
+    .e_led_i(e_led_i),
+    .e_led_o(e_led_o),
+    .e_led_t(e_led_t),
+    .gpio_fft_led_i(gpio_fft_led_i),
+    .gpio_fft_led_o(gpio_fft_led_o),
+    .gpio_fft_led_t(gpio_fft_led_t));
 
 endmodule
 
 // ***************************************************************************
 // ***************************************************************************
+

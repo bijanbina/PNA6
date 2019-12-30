@@ -12,6 +12,8 @@ SRC_URI = "file://pna-iio.c \
            file://pna-base.h \
            file://pna-gpio.c \
            file://pna-gpio.h \
+           file://pna-fft.c \
+           file://pna-fft.h \
            file://Makefile \
         "
 DEPENDS = " libiio libxml2"

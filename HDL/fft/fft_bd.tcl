@@ -225,66 +225,113 @@ ad_cpu_interrupt ps-12 mb-13 axi_ad9361_dac_dma/irq
 
 # GPIO FFT
 ad_ip_instance axi_gpio gpio_fft
-ad_ip_parameter gpio_fft CONFIG.C_GPIO_WIDTH 16
-ad_ip_parameter gpio_fft CONFIG.C_ALL_OUTPUTS 1
-ad_ip_parameter gpio_fft CONFIG.C_DOUT_DEFAULT  0x0000010A
+ad_ip_parameter gpio_fft CONFIG.C_GPIO_WIDTH 17 #############################################
+ad_ip_parameter gpio_fft CONFIG.C_ALL_OUTPUTS 0 #################################################
+ad_ip_parameter gpio_fft CONFIG.C_DOUT_DEFAULT  0x0000010A ################################33
 ad_connect $sys_cpu_clk gpio_fft/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_fft/s_axi_aresetn
+ad_connect gpio_fft/gpio_io_o fft_config/Din #############################################
+ad_connect gpio_fft/gpio_io_i fft_config/Din #############################################
+ad_connect gpio_fft/gpio_io_o fft_reset/Din #############################################
 ad_cpu_interconnect 0x41200000 gpio_fft
 
+# FFT Config Valid                        #######################################################
+ad_ip_instance axi_gpio fft_config_valid
+ad_ip_parameter fft_config_valid CONFIG.C_GPIO_WIDTH 1
+ad_ip_parameter fft_config_valid CONFIG.C_ALL_OUTPUTS 1
+ad_ip_parameter fft_config_valid CONFIG.C_DOUT_DEFAULT  0x00000000
+ad_connect $sys_cpu_clk fft_config_valid/s_axi_aclk
+ad_connect $sys_cpu_resetn fft_config_valid/s_axi_aresetn
+ad_cpu_interconnect 0x41230000 fft_config_valid
+
+# FFT Config
+ad_ip_instance xlslice fft_config
+ad_ip_parameter fft_config CONFIG.DIN_WIDTH 17 # 0-4: NFFT, 8: FWD_INV, 16: RESET
+ad_ip_parameter fft_config CONFIG.DIN_TO 15
+ad_ip_parameter fft_config CONFIG.DIN_FROM 0
+ad_ip_parameter fft_config CONFIG.DOUT_WIDTH 16
+
+# FFT Reset                        #######################################################
+ad_ip_instance xlslice fft_reset
+ad_ip_parameter fft_reset CONFIG.DIN_WIDTH 17
+ad_ip_parameter fft_reset CONFIG.DIN_TO 16
+ad_ip_parameter fft_reset CONFIG.DIN_FROM 16
+ad_ip_parameter fft_reset CONFIG.DOUT_WIDTH 1
+
+# FFT S2MM Converter                        #######################################################
+ad_ip_instance axis_dwidth_converter fft_s2mm_converter
+ad_ip_parameter fft_s2mm_converter CONFIG.M_TDATA_NUM_BYTES 8
+ad_connect $sys_cpu_clk fft_s2mm_converter/s_axi_aclk
+ad_connect $sys_cpu_resetn fft_s2mm_converter/s_axi_aresetn
+ad_connect fft_s2mm_converter/M_AXIS dma_fft/S_AXIS_S2MM
+
+# FFT MM2S Converter                        #######################################################
+ad_ip_instance axis_dwidth_converter fft_mm2s_converter
+ad_ip_parameter fft_mm2s_converter CONFIG.M_TDATA_NUM_BYTES 6
+ad_connect $sys_cpu_clk fft_mm2s_converter/s_axi_aclk
+ad_connect $sys_cpu_resetn fft_mm2s_converter/s_axi_aresetn
+ad_connect fft_mm2s_converter/S_AXIS dma_fft/M_AXIS_MM2S
+
 # FFT DMA
-ad_ip_instance axi_dma adc_dma_fft
-ad_ip_parameter adc_dma_fft CONFIG.c_addr_width 32
-ad_ip_parameter adc_dma_fft CONFIG.c_m_axi_mm2s_data_width 32
-ad_ip_parameter adc_dma_fft CONFIG.c_m_axi_s2mm_data_width 32
-ad_ip_parameter adc_dma_fft CONFIG.c_m_axis_mm2s_tdata_width 32
-ad_ip_parameter adc_dma_fft CONFIG.c_mm2s_burst_size 16
-ad_ip_parameter adc_dma_fft CONFIG.c_s2mm_burst_size 16
-ad_ip_parameter adc_dma_fft CONFIG.c_s_axis_s2mm_tdata_width 32
-ad_ip_parameter adc_dma_fft CONFIG.c_sg_length_width 14
-ad_ip_parameter adc_dma_fft CONFIG.c_include_sg 0
-ad_ip_parameter adc_dma_fft CONFIG.c_sg_include_stscntrl_strm 0
-ad_connect $sys_cpu_clk adc_dma_fft/s_axi_lite_aclk
-ad_connect $sys_cpu_clk adc_dma_fft/m_axi_mm2s_aclk
-ad_connect $sys_cpu_clk adc_dma_fft/m_axi_s2mm_aclk
-ad_connect $sys_cpu_resetn adc_dma_fft/axi_resetn
-ad_cpu_interconnect 0x40400000 adc_dma_fft
+ad_ip_instance axi_dma dma_fft ##############################################
+ad_ip_parameter dma_fft CONFIG.c_addr_width 32
+ad_ip_parameter dma_fft CONFIG.c_m_axi_mm2s_data_width 64 ##############################################
+ad_ip_parameter dma_fft CONFIG.c_m_axi_s2mm_data_width 64 ##############################################
+ad_ip_parameter dma_fft CONFIG.c_m_axis_mm2s_tdata_width 64 #############################################
+ad_ip_parameter dma_fft CONFIG.c_mm2s_burst_size 8 ##############################################
+ad_ip_parameter dma_fft CONFIG.c_s2mm_burst_size 16
+# ad_ip_parameter dma_fft CONFIG.c_s_axis_s2mm_tdata_width 64 ##########################################
+ad_ip_parameter dma_fft CONFIG.c_sg_length_width 20 ##############################################
+ad_ip_parameter dma_fft CONFIG.c_include_sg 0
+ad_ip_parameter dma_fft CONFIG.c_sg_include_stscntrl_strm 0
+ad_connect $sys_cpu_clk dma_fft/s_axi_lite_aclk
+ad_connect $sys_cpu_clk dma_fft/m_axi_mm2s_aclk
+ad_connect $sys_cpu_clk dma_fft/m_axi_s2mm_aclk
+ad_connect $sys_cpu_resetn dma_fft/axi_resetn
+ad_cpu_interconnect 0x40400000 dma_fft
 ad_mem_hp3_interconnect $sys_cpu_clk sys_ps7/S_AXI_HP3
-ad_mem_hp3_interconnect $sys_cpu_clk adc_dma_fft/M_AXI_MM2S
-ad_mem_hp3_interconnect $sys_cpu_clk adc_dma_fft/M_AXI_S2MM
-ad_cpu_interrupt ps-8 mb-8 adc_dma_fft/s2mm_introut
-ad_cpu_interrupt ps-9 mb-9 adc_dma_fft/mm2s_introut
+ad_mem_hp3_interconnect $sys_cpu_clk dma_fft/M_AXI_MM2S
+ad_mem_hp3_interconnect $sys_cpu_clk dma_fft/M_AXI_S2MM
+ad_cpu_interrupt ps-8 mb-8 dma_fft/s2mm_introut
+ad_cpu_interrupt ps-9 mb-9 dma_fft/mm2s_introut
 
 # Edge Detect
 add_files -norecurse ../../../library/edge_detect/edge_detect.v
 create_bd_cell -type module -reference edge_detect fft_edge_detect
 ad_ip_parameter fft_edge_detect CONFIG.N 16
+ad_ip_parameter fft_edge_detect CONFIG.RST_DELAY 100 ################################################
 ad_connect $sys_cpu_clk fft_edge_detect/clk
 # ad_connect fft_edge_detect/din fft_constant/dout
-ad_connect fft_edge_detect/din gpio_fft/gpio_io_o
+ad_connect fft_edge_detect/din fft_config/Dout ##################################################3
+ad_connect fft_edge_detect/bvalid fft_config_valid/gpio_io_o ################################################
 
 # FFT
 # report_property [get_ips ip_instance_name]
-ad_ip_instance xfft adc_fft
-ad_ip_parameter adc_fft CONFIG.data_format fixed_point
-ad_ip_parameter adc_fft CONFIG.implementation_options pipelined_streaming_io
-ad_ip_parameter adc_fft CONFIG.input_width 16
-ad_ip_parameter adc_fft CONFIG.output_ordering natural_order
-ad_ip_parameter adc_fft CONFIG.ovflo false
-ad_ip_parameter adc_fft CONFIG.phase_factor_width 16
-ad_ip_parameter adc_fft CONFIG.rounding_modes convergent_rounding
-ad_ip_parameter adc_fft CONFIG.run_time_configurable_transform_length true
-ad_ip_parameter adc_fft CONFIG.scaling_options block_floating_point
-ad_ip_parameter adc_fft CONFIG.throttle_scheme nonrealtime
-ad_ip_parameter adc_fft CONFIG.transform_length 8192
-ad_ip_parameter adc_fft CONFIG.target_clock_frequency 100
-ad_ip_parameter adc_fft CONFIG.number_of_stages_using_block_ram_for_data_and_phase_factors 7
+ad_ip_instance xfft fft                               #############################################33
+ad_ip_parameter fft CONFIG.data_format fixed_point
+ad_ip_parameter fft CONFIG.implementation_options pipelined_streaming_io
+ad_ip_parameter fft CONFIG.input_width 24 ##################################################333
+ad_ip_parameter fft CONFIG.output_ordering natural_order
+ad_ip_parameter fft CONFIG.ovflo false
+ad_ip_parameter fft CONFIG.phase_factor_width 24 #########################################
+ad_ip_parameter fft CONFIG.rounding_modes truncation ###############################################
+ad_ip_parameter fft CONFIG.run_time_configurable_transform_length true
+ad_ip_parameter fft CONFIG.scaling_options block_floating_point
+ad_ip_parameter fft CONFIG.throttle_scheme nonrealtime
+ad_ip_parameter fft CONFIG.transform_length 8192
+ad_ip_parameter fft CONFIG.target_clock_frequency 100
+ad_ip_parameter fft CONFIG.number_of_stages_using_block_ram_for_data_and_phase_factors 6 ###########################################
+ad_ip_parameter fft CONFIG.aresetn true ################################################################
 
-ad_connect adc_fft/S_AXIS_DATA adc_dma_fft/M_AXIS_MM2S
-ad_connect adc_fft/s_axis_config_tdata fft_edge_detect/din
-ad_connect adc_fft/s_axis_config_tvalid fft_edge_detect/edge_detected
-ad_connect $sys_cpu_clk adc_fft/aclk
-ad_connect adc_fft/M_AXIS_DATA adc_dma_fft/S_AXIS_S2MM
+ad_connect fft/S_AXIS_DATA fft_mm2s_converter/M_AXIS #####################################################
+ad_connect fft/s_axis_config_tdata fft_edge_detect/din
+ad_connect fft/s_axis_config_tvalid fft_edge_detect/edge_detected
+ad_connect $sys_cpu_clk fft/aclk
+ad_connect fft/M_AXIS_DATA fft_s2mm_converter/S_AXIS ##############################################33
+ad_connect fft/aresetn fft_reset/Dout ################################################################
+ad_connect fft/aresetn fft_edge_detect/nreset ################################################################
 
 # PS7-UART
 ad_ip_parameter sys_ps7 CONFIG.PCW_UART1_BAUD_RATE 921600
+ad_ip_parameter sys_ps7 CONFIG.PCW_S_AXI_HP3_DATA_WIDTH 64
+ad_ip_parameter sys_ps7 CONFIG.PCW_USE_S_AXI_HP0 0

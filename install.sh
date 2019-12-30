@@ -36,7 +36,8 @@ if [ "$response" = "y" ]; then
 
 	cp -R HDL/pna6 "$ADI_HDL_PROJECT/projects/common/pna6"
 	cp -R HDL/ddrless_pna6 "$ADI_HDL_PROJECT/projects/ddrless/pna6"
-	cp -R HDL/common "$ADI_HDL_PROJECT/projects/ddrless/common"
+	cp -R HDL/common/pna6/pna6_bd.tcl "$ADI_HDL_PROJECT/projects/ddrless/common"
+	cp -R HDL/common/pna6/pna6_qsys.tcl "$ADI_HDL_PROJECT/projects/ddrless/common"
 
 	CHECK_PRE=$(grep 'pna6' "$ADI_HDL_PROJECT/projects/scripts/adi_project_xilinx.tcl")
 	#echo "check2 : $CHECK_PRE"
@@ -86,6 +87,8 @@ if [ "$response" = "y" ]; then
 	cp HDL/fft/fft_bd.tcl "$ADI_HDL_PROJECT/projects/fft/common"
 	
 	cp HDL/fft/edge_detect.v "$ADI_HDL_PROJECT/library/edge_detect"
+	cp HDL/common/zc702/zc702_no_hdmi_system_bd.tcl "$ADI_HDL_PROJECT/projects/common/zc702"
+	cp HDL/common/zc702/zc702_no_hdmi_system_constr.xdc "$ADI_HDL_PROJECT/projects/common/zc702"
 fi
 
 printf "synthesize FFT project?[y/N]: "

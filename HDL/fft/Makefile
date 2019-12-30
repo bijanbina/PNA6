@@ -6,8 +6,8 @@
 PROJECT_NAME := fft_zc702
 
 M_DEPS += ../common/fft_bd.tcl
-M_DEPS += ../../common/zc702/zc702_system_constr.xdc
-M_DEPS += ../../common/zc702/zc702_system_bd.tcl
+M_DEPS += ../../common/zc702/zc702_no_hdmi_system_constr.xdc
+M_DEPS += ../../common/zc702/zc702_no_hdmi_system_bd.tcl
 M_DEPS += ../../../library/xilinx/common/ad_iobuf.v
 M_DEPS += ../../../library/axi_ad9361/axi_ad9361_delay.tcl
 M_DEPS += ../../../library/edge_detect/edge_detect.v
