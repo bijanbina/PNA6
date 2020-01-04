@@ -24,6 +24,6 @@ while true; do
 	fi
 	if [[ "$response" == *"3"* ]]; then
 		cd "$XILINX_INSTALL_DIR/SDK/2018.3/bin"
-		nohup ./hw_server -s tcp::3122 &
+		./hw_server -s tcp::3122 &
 	fi
 done

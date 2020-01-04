@@ -218,13 +218,15 @@ module system_top (
     .enable (enable),
     .txnrx (txnrx),
     .up_enable (gpio_o[47]),
-    .up_txnrx (gpio_o[48]),
-    .e_led_i(e_led_i),
-    .e_led_o(e_led_o),
-    .e_led_t(e_led_t),
-    .gpio_fft_led_i(gpio_fft_led_i),
-    .gpio_fft_led_o(gpio_fft_led_o),
-    .gpio_fft_led_t(gpio_fft_led_t));
+    .up_txnrx (gpio_o[48])
+//    ,
+//    .e_led_i(e_led_i),
+//    .e_led_o(e_led_o),
+//    .e_led_t(e_led_t),
+//    .gpio_fft_led_i(gpio_fft_led_i),
+//    .gpio_fft_led_o(gpio_fft_led_o),
+//    .gpio_fft_led_t(gpio_fft_led_t));
+	);
 
 endmodule
 
