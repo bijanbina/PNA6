@@ -307,7 +307,7 @@ void console_get_command(char* command)
  * @param received_cmd - Received command.
  * @param expected_cmd - Expected command.
  * @param param        - Parameters' buffer.
- * @param param_no     - Number of parameters.
+ * @param param_no     - Nomber of parameters.
  *
  * @return cmd_type    - Type of the command.
  *                       Example: UNKNOWN_CMD - Commands don't match.

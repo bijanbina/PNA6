@@ -159,10 +159,10 @@ int32_t adc_set_calib_scale(struct ad9361_rf_phy *phy,
 							uint32_t chan,
 							int32_t val,
 							int32_t val2);
-int32_t adc_get_calib_scale(struct ad9361_rf_phy *phy,
-							uint32_t chan,
-							int32_t *val,
-							int32_t *val2);
+//int32_t adc_get_calib_scale(struct ad9361_rf_phy *phy,
+//							uint32_t chan,
+//							int32_t *val,
+//							int32_t *val2);
 int32_t adc_set_calib_phase(struct ad9361_rf_phy *phy,
 							uint32_t chan,
 							int32_t val,

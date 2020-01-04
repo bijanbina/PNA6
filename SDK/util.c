@@ -130,6 +130,7 @@ int32_t clk_set_rate(struct ad9361_rf_phy *phy,
 	source = clk_priv->source;
 	if(phy->clks[source]->rate != rate)
 	{
+//		printf("clk_set_rate: source= %d\n",source);
 		switch (source) {
 			case TX_REFCLK:
 			case RX_REFCLK:
@@ -150,10 +151,10 @@ int32_t clk_set_rate(struct ad9361_rf_phy *phy,
 				phy->clks[source]->rate = ad9361_rfpll_int_recalc_rate(clk_priv,
 											phy->clks[clk_priv->parent_source]->rate);
 				break;
-			case RX_RFPLL_DUMMY:
-			case TX_RFPLL_DUMMY:
-				ad9361_rfpll_dummy_set_rate(clk_priv, rate);
-				break;
+//			case RX_RFPLL_DUMMY:
+//			case TX_RFPLL_DUMMY:
+//				ad9361_rfpll_dummy_set_rate(clk_priv, rate);
+//				break;
 			case TX_RFPLL:
 			case RX_RFPLL:
 				round_rate = ad9361_rfpll_round_rate(clk_priv, rate);

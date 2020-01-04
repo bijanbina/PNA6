@@ -41,7 +41,7 @@
 /***************************** Include Files **********************************/
 /******************************************************************************/
 #include <stdint.h>
-#include <stdlib.h>
+//#include <stdlib.h>
 #include <xil_cache.h>
 #include <xil_io.h>
 #include "adc_core.h"
@@ -284,7 +284,6 @@ int32_t adc_capture(uint32_t size, uint32_t start_address)
 	adc_dma_write(AXI_DMAC_REG_DEST_STRIDE, 0x0);
 	adc_dma_write(AXI_DMAC_REG_X_LENGTH, length - 1);
 	adc_dma_write(AXI_DMAC_REG_Y_LENGTH, 0x0);
-
 	adc_dma_write(AXI_DMAC_REG_START_TRANSFER, 0x1);
 	/* Wait until the new transfer is queued. */
 	do {
@@ -361,47 +360,47 @@ int32_t adc_set_calib_scale_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief adc_get_calib_scale_phase
 *******************************************************************************/
-int32_t adc_get_calib_scale_phase(struct ad9361_rf_phy *phy,
-								  uint32_t phase,
-								  uint32_t chan,
-								  int32_t *val,
-								  int32_t *val2)
-{
-	uint32_t tmp;
-	int32_t sign;
-	uint64_t llval;
-
-	adc_read(phy, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
-
-	/* format is 1.1.14 (sign, integer and fractional bits) */
-
-	if (!((phase + chan) % 2)) {
-		tmp = ADC_TO_IQCOR_COEFF_1(tmp);
-	} else {
-		tmp = ADC_TO_IQCOR_COEFF_2(tmp);
-	}
-
-	if (tmp & 0x8000)
-		sign = -1;
-	else
-		sign = 1;
-
-	if (tmp & 0x4000)
-		*val = 1 * sign;
-	else
-		*val = 0;
-
-	tmp &= ~0xC000;
-
-	llval = tmp * 1000000ULL + (0x4000 / 2);
-	do_div(&llval, 0x4000);
-	if (*val == 0)
-		*val2 = llval * sign;
-	else
-		*val2 = llval;
-
-	return 0;
-}
+//int32_t adc_get_calib_scale_phase(struct ad9361_rf_phy *phy,
+//								  uint32_t phase,
+//								  uint32_t chan,
+//								  int32_t *val,
+//								  int32_t *val2)
+//{
+//	uint32_t tmp;
+//	int32_t sign;
+//	uint64_t llval;
+//
+//	adc_read(phy, ADC_REG_CHAN_CNTRL_2(chan), &tmp);
+//
+//	/* format is 1.1.14 (sign, integer and fractional bits) */
+//
+//	if (!((phase + chan) % 2)) {
+//		tmp = ADC_TO_IQCOR_COEFF_1(tmp);
+//	} else {
+//		tmp = ADC_TO_IQCOR_COEFF_2(tmp);
+//	}
+//
+//	if (tmp & 0x8000)
+//		sign = -1;
+//	else
+//		sign = 1;
+//
+//	if (tmp & 0x4000)
+//		*val = 1 * sign;
+//	else
+//		*val = 0;
+//
+//	tmp &= ~0xC000;
+//
+//	llval = tmp * 1000000ULL + (0x4000 / 2);
+//	do_div(&llval, 0x4000);
+//	if (*val == 0)
+//		*val2 = llval * sign;
+//	else
+//		*val2 = llval;
+//
+//	return 0;
+//}
 
 /***************************************************************************//**
  * @brief adc_set_calib_scale
@@ -417,13 +416,13 @@ int32_t adc_set_calib_scale(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief adc_get_calib_scale
 *******************************************************************************/
-int32_t adc_get_calib_scale(struct ad9361_rf_phy *phy,
-							uint32_t chan,
-							int32_t *val,
-							int32_t *val2)
-{
-	return adc_get_calib_scale_phase(phy, 0, chan, val, val2);
-}
+//int32_t adc_get_calib_scale(struct ad9361_rf_phy *phy,
+//							uint32_t chan,
+//							int32_t *val,
+//							int32_t *val2)
+//{
+//	return adc_get_calib_scale_phase(phy, 0, chan, val, val2);
+//}
 
 /***************************************************************************//**
  * @brief adc_set_calib_phase
@@ -439,10 +438,10 @@ int32_t adc_set_calib_phase(struct ad9361_rf_phy *phy,
 /***************************************************************************//**
  * @brief adc_get_calib_phase
 *******************************************************************************/
-int32_t adc_get_calib_phase(struct ad9361_rf_phy *phy,
-							uint32_t chan,
-							int32_t *val,
-							int32_t *val2)
-{
-	return adc_get_calib_scale_phase(phy, 1, chan, val, val2);
-}
+//int32_t adc_get_calib_phase(struct ad9361_rf_phy *phy,
+//							uint32_t chan,
+//							int32_t *val,
+//							int32_t *val2)
+//{
+//	return adc_get_calib_scale_phase(phy, 1, chan, val, val2);
+//}

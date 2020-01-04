@@ -286,25 +286,25 @@ typedef struct {
 			uint32_t rate);
 } AD9361_InitParam;
 
-typedef struct {
-	uint32_t	rx;				/* 1, 2, 3(both) */
-	int32_t		rx_gain;		/* -12, -6, 0, 6 */
-	uint32_t	rx_dec;			/* 1, 2, 4 */
-	int16_t		rx_coef[128];
-	uint8_t		rx_coef_size;
-	uint32_t	rx_path_clks[6];
-	uint32_t	rx_bandwidth;
-} AD9361_RXFIRConfig;
-
-typedef struct {
-	uint32_t	tx;				/* 1, 2, 3(both) */
-	int32_t		tx_gain;		/* -6, 0 */
-	uint32_t	tx_int;			/* 1, 2, 4 */
-	int16_t		tx_coef[128];
-	uint8_t		tx_coef_size;
-	uint32_t	tx_path_clks[6];
-	uint32_t	tx_bandwidth;
-} AD9361_TXFIRConfig;
+//typedef struct {
+//	uint32_t	rx;				/* 1, 2, 3(both) */
+//	int32_t		rx_gain;		/* -12, -6, 0, 6 */
+//	uint32_t	rx_dec;			/* 1, 2, 4 */
+//	int16_t		rx_coef[128];
+//	uint8_t		rx_coef_size;
+//	uint32_t	rx_path_clks[6];
+//	uint32_t	rx_bandwidth;
+//} AD9361_RXFIRConfig;
+//
+//typedef struct {
+//	uint32_t	tx;				/* 1, 2, 3(both) */
+//	int32_t		tx_gain;		/* -6, 0 */
+//	uint32_t	tx_int;			/* 1, 2, 4 */
+//	int16_t		tx_coef[128];
+//	uint8_t		tx_coef_size;
+//	uint32_t	tx_path_clks[6];
+//	uint32_t	tx_bandwidth;
+//} AD9361_TXFIRConfig;
 
 enum ad9361_ensm_mode {
 	ENSM_MODE_TX,
@@ -391,8 +391,8 @@ int32_t ad9361_get_rx_lo_freq (struct ad9361_rf_phy *phy, uint64_t *lo_freq_hz);
 /* Switch between internal and external LO. */
 int32_t ad9361_set_rx_lo_int_ext(struct ad9361_rf_phy *phy, uint8_t int_ext);
 /* Get the RSSI for the selected channel. */
-int32_t ad9361_get_rx_rssi (struct ad9361_rf_phy *phy, uint8_t ch,
-			    struct rf_rssi *rssi);
+//int32_t ad9361_get_rx_rssi (struct ad9361_rf_phy *phy, uint8_t ch,
+//			    struct rf_rssi *rssi);
 /* Set the gain control mode for the selected channel. */
 int32_t ad9361_set_rx_gain_control_mode (struct ad9361_rf_phy *phy, uint8_t ch,
 		uint8_t gc_mode);
@@ -400,11 +400,11 @@ int32_t ad9361_set_rx_gain_control_mode (struct ad9361_rf_phy *phy, uint8_t ch,
 int32_t ad9361_get_rx_gain_control_mode (struct ad9361_rf_phy *phy, uint8_t ch,
 		uint8_t *gc_mode);
 /* Set the RX FIR filter configuration. */
-int32_t ad9361_set_rx_fir_config (struct ad9361_rf_phy *phy,
-				  AD9361_RXFIRConfig fir_cfg);
-/* Get the RX FIR filter configuration. */
-int32_t ad9361_get_rx_fir_config(struct ad9361_rf_phy *phy, uint8_t rx_ch,
-				 AD9361_RXFIRConfig *fir_cfg);
+//int32_t ad9361_set_rx_fir_config (struct ad9361_rf_phy *phy,
+//				  AD9361_RXFIRConfig fir_cfg);
+///* Get the RX FIR filter configuration. */
+//int32_t ad9361_get_rx_fir_config(struct ad9361_rf_phy *phy, uint8_t rx_ch,
+//				 AD9361_RXFIRConfig *fir_cfg);
 /* Enable/disable the RX FIR filter. */
 int32_t ad9361_set_rx_fir_en_dis (struct ad9361_rf_phy *phy, uint8_t en_dis);
 /* Get the status of the RX FIR filter. */
@@ -470,11 +470,11 @@ int32_t ad9361_get_tx_lo_freq (struct ad9361_rf_phy *phy, uint64_t *lo_freq_hz);
 /* Switch between internal and external LO. */
 int32_t ad9361_set_tx_lo_int_ext(struct ad9361_rf_phy *phy, uint8_t int_ext);
 /* Set the TX FIR filter configuration. */
-int32_t ad9361_set_tx_fir_config (struct ad9361_rf_phy *phy,
-				  AD9361_TXFIRConfig fir_cfg);
+//int32_t ad9361_set_tx_fir_config (struct ad9361_rf_phy *phy,
+//				  AD9361_TXFIRConfig fir_cfg);
 /* Get the TX FIR filter configuration. */
-int32_t ad9361_get_tx_fir_config(struct ad9361_rf_phy *phy, uint8_t tx_ch,
-				 AD9361_TXFIRConfig *fir_cfg);
+//int32_t ad9361_get_tx_fir_config(struct ad9361_rf_phy *phy, uint8_t tx_ch,
+//				 AD9361_TXFIRConfig *fir_cfg);
 /* Enable/disable the TX FIR filter. */
 int32_t ad9361_set_tx_fir_en_dis (struct ad9361_rf_phy *phy, uint8_t en_dis);
 /* Get the status of the TX FIR filter. */
@@ -527,9 +527,9 @@ int32_t ad9361_get_trx_rate_gov (struct ad9361_rf_phy *phy, uint32_t *rate_gov);
 /* Perform the selected calibration. */
 int32_t ad9361_do_calib(struct ad9361_rf_phy *phy, uint32_t cal, int32_t arg);
 /* Load and enable TRX FIR filters configurations. */
-int32_t ad9361_trx_load_enable_fir(struct ad9361_rf_phy *phy,
-				   AD9361_RXFIRConfig rx_fir_cfg,
-				   AD9361_TXFIRConfig tx_fir_cfg);
+//int32_t ad9361_trx_load_enable_fir(struct ad9361_rf_phy *phy,
+//				   AD9361_RXFIRConfig rx_fir_cfg,
+//				   AD9361_TXFIRConfig tx_fir_cfg);
 /* Do DCXO coarse tuning. */
 int32_t ad9361_do_dcxo_tune_coarse(struct ad9361_rf_phy *phy,
 				   uint32_t coarse);
