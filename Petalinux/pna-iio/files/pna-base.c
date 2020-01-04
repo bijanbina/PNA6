@@ -153,7 +153,7 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	else if( rx1_indx % 4 == 1 )
 	{
 		rx1_buffer[rx1_indx/4] &= 0x0000FFFF;
-		rx1_buffer[rx1_indx/4] |= 0;
+		rx1_buffer[rx1_indx/4] |= (val << 16);
 		//printf("%d: 0x%x\r\n", rx1_indx/4, rx1_buffer[rx1_indx/4]);
 	}
 	rx1_indx++;
