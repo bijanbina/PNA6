@@ -182,7 +182,7 @@ ad_connect  spi1_sdi_i sys_ps7/SPI1_MISO_I
 # spdif audio
 
 # ad_connect  sys_cpu_clk axi_spdif_tx_core/DMA_REQ_ACLK
-# ad_connect  sys_cpu_clk sys_ps7/DMA0_ACLK
+ad_connect  sys_cpu_clk sys_ps7/DMA0_ACLK
 # ad_connect  sys_cpu_resetn axi_spdif_tx_core/DMA_REQ_RSTN
 # ad_connect  sys_ps7/DMA0_REQ axi_spdif_tx_core/DMA_REQ
 # ad_connect  sys_ps7/DMA0_ACK axi_spdif_tx_core/DMA_ACK

@@ -1,5 +1,5 @@
 
-source $ad_hdl_dir/projects/common/zc702/zc702_system_bd.tcl
+source $ad_hdl_dir/projects/common/zc702/zc702_no_hdmi_system_bd.tcl
 source ../common/fft_bd.tcl
 
 #system ID

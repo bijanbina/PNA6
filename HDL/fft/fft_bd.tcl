@@ -247,7 +247,7 @@ ad_ip_parameter gpio_fft_status CONFIG.C_GPIO_WIDTH 7
 ad_ip_parameter gpio_fft_status CONFIG.C_ALL_INPUTS 1
 ad_connect $sys_cpu_clk gpio_fft_status/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_fft_status/s_axi_aresetn
-ad_cpu_interconnect 0x4122_0000 gpio_fft_status
+ad_cpu_interconnect 0x41220000 gpio_fft_status
 
 # FFT Status Concat
 ad_ip_instance xlconcat status_concat
