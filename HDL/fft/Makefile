@@ -13,10 +13,10 @@ M_DEPS += ../../../library/axi_ad9361/axi_ad9361_delay.tcl
 M_DEPS += ../../../library/edge_detect/edge_detect.v
 
 LIB_DEPS += axi_ad9361
-LIB_DEPS += axi_clkgen
+# LIB_DEPS += axi_clkgen
 LIB_DEPS += axi_dmac
-LIB_DEPS += axi_hdmi_tx
-LIB_DEPS += axi_spdif_tx
+# LIB_DEPS += axi_hdmi_tx
+# LIB_DEPS += axi_spdif_tx
 LIB_DEPS += util_pack/util_cpack2
 LIB_DEPS += util_pack/util_upack2
 LIB_DEPS += util_rfifo

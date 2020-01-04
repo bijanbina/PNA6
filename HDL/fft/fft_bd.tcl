@@ -232,7 +232,7 @@ ad_connect $sys_cpu_clk gpio_fft/s_axi_aclk
 ad_connect $sys_cpu_resetn gpio_fft/s_axi_aresetn
 ad_cpu_interconnect 0x41200000 gpio_fft
 
-# FFT Config Valid
+# GPIO FFT Config Valid
 ad_ip_instance axi_gpio fft_config_valid
 ad_ip_parameter fft_config_valid CONFIG.C_GPIO_WIDTH 1
 ad_ip_parameter fft_config_valid CONFIG.C_ALL_OUTPUTS 1
@@ -241,7 +241,20 @@ ad_connect $sys_cpu_clk fft_config_valid/s_axi_aclk
 ad_connect $sys_cpu_resetn fft_config_valid/s_axi_aresetn
 ad_cpu_interconnect 0x41230000 fft_config_valid
 
-# FFT Config
+# GPIO FFT Status
+ad_ip_instance axi_gpio gpio_fft_status
+ad_ip_parameter gpio_fft_status CONFIG.C_GPIO_WIDTH 7
+ad_ip_parameter gpio_fft_status CONFIG.C_ALL_INPUTS 1
+ad_connect $sys_cpu_clk gpio_fft_status/s_axi_aclk
+ad_connect $sys_cpu_resetn gpio_fft_status/s_axi_aresetn
+ad_cpu_interconnect 0x4122_0000 gpio_fft_status
+
+# FFT Status Concat
+ad_ip_instance xlconcat status_concat
+ad_ip_parameter status_concat CONFIG.NUM_PORTS 7
+ad_connect gpio_fft_status/gpio_io_i status_concat/dout
+
+# FFT Config Slice
 ad_ip_instance xlslice fft_config
 # 0-4: NFFT, 8: FWD_INV, 16: RESET
 ad_ip_parameter fft_config CONFIG.DOUT_WIDTH 16
@@ -251,7 +264,7 @@ ad_ip_parameter fft_config CONFIG.DIN_TO 15
 ad_connect gpio_fft/gpio_io_o fft_config/Din
 ad_connect gpio_fft/gpio_io_i fft_config/Din
 
-# FFT Reset
+# FFT Reset Slice
 ad_ip_instance xlslice fft_reset
 ad_ip_parameter fft_reset CONFIG.DOUT_WIDTH 1
 ad_ip_parameter fft_reset CONFIG.DIN_FROM 16
@@ -331,6 +344,13 @@ ad_connect $sys_cpu_clk fft/aclk
 ad_connect fft/M_AXIS_DATA fft_s2mm_converter/S_AXIS
 ad_connect fft/aresetn fft_reset/Dout
 ad_connect fft/aresetn fft_edge_detect/nreset
+ad_connect fft/event_data_out_channel_halt status_concat/In0
+ad_connect fft/event_data_in_channel_halt status_concat/In1
+ad_connect fft/event_status_channel_halt status_concat/In2
+ad_connect fft/event_tlast_missing status_concat/In3
+ad_connect fft/event_tlast_unexpected status_concat/In4
+ad_connect fft/event_frame_started status_concat/In5
+ad_connect fft/s_axis_config_tready status_concat/In6
 
 # PS7-UART
 ad_ip_parameter sys_ps7 CONFIG.PCW_UART1_BAUD_RATE 921600
