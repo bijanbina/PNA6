@@ -109,11 +109,11 @@ if [ "$response" = "y" ]; then
 		sed -i 's/EXTRA_USERS_PARAMS = "	\\/# EXTRA_USERS_PARAMS = "	\\/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend"
 		sed -i 's/	usermod -P analog root;"/#	usermod -P analog root;"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend"
 	fi
-	CHECK_PRE=$(grep "file://pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
+	CHECK_PRE=$(grep "file://pl-delete-nodes-zynq-pna6.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
 	if [ -z "$CHECK_PRE" ]; then
 		WRITE_LN=$(grep -i -n "file://pl-delete-nodes-vc707_fmcjesdadc1.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
 		WRITE_LN=$(($WRITE_LN+1))
-		sed -i "$WRITE_LN"'i\ \ \ \ file://pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+		sed -i "$WRITE_LN"'i\ \ \ \ file://pl-delete-nodes-zynq-pna6.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	fi
 	CHECK_PRE=$(grep "zynq-zc702-adv7511-ad9361-fmcomms2-3" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
 	if [ -z "$CHECK_PRE" ]; then
@@ -131,7 +131,7 @@ if [ "$response" = "y" ]; then
 	sed -i "s|LINUX_KERNEL_DIRECTORY|$LINUX_KERNEL_DIR|g" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 	
 	cd "$CURRENT_DIR" 
-	cp Meta-ADI/pl-delete-nodes-zynq-zc702-adv7511-ad9361-fmcomms2-3.dtsi "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
+	cp Meta-ADI/pl-delete-nodes-zynq-pna6.dtsi "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
 #	file "zynq-zc702-adv7511-ad9361-fmcomms2-3.dts" is not necessary
 fi
 

@@ -38,14 +38,14 @@
 
 # gpio (switches, leds and such)
 
-# set_property -dict {PACKAGE_PIN G19 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[0]}]
-# set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[1]}]
-# set_property -dict {PACKAGE_PIN W6 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[2]}]
-# set_property -dict {PACKAGE_PIN W7 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[3]}]
-# set_property -dict {PACKAGE_PIN H17 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[4]}]
-# set_property -dict {PACKAGE_PIN H22 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[5]}]
-# set_property -dict {PACKAGE_PIN G22 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[6]}]
-# set_property -dict {PACKAGE_PIN H18 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[7]}]
+set_property -dict {PACKAGE_PIN G19 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[0]}]
+set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[1]}]
+set_property -dict {PACKAGE_PIN W6 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[2]}]
+set_property -dict {PACKAGE_PIN W7 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[3]}]
+set_property -dict {PACKAGE_PIN H17 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[4]}]
+set_property -dict {PACKAGE_PIN H22 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[5]}]
+set_property -dict {PACKAGE_PIN G22 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[6]}]
+set_property -dict {PACKAGE_PIN H18 IOSTANDARD LVCMOS25} [get_ports {gpio_bd[7]}]
 
 # Define SPI clock
 create_clock -period 40.000 -name spi0_clk [get_pins -hier */EMIOSPI0SCLKO]

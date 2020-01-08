@@ -258,9 +258,9 @@ ad_connect gpio_fft_status/gpio_io_i status_concat/dout
 ad_ip_instance xlslice fft_config
 # 0-4: NFFT, 8: FWD_INV, 16: RESET
 ad_ip_parameter fft_config CONFIG.DOUT_WIDTH 16
-ad_ip_parameter fft_config CONFIG.DIN_FROM 0
+ad_ip_parameter fft_config CONFIG.DIN_FROM 15
 ad_ip_parameter fft_config CONFIG.DIN_WIDTH 17
-ad_ip_parameter fft_config CONFIG.DIN_TO 15
+ad_ip_parameter fft_config CONFIG.DIN_TO 0
 ad_connect gpio_fft/gpio_io_o fft_config/Din
 ad_connect gpio_fft/gpio_io_i fft_config/Din
 
