@@ -1,7 +1,7 @@
 APP = pna-iio
 
 # Add any other object files to this list below
-APP_OBJS = pna-gpio.o pna-base.o pna-fft.o pna-iio.o
+APP_OBJS = pna-fir.o pna-gpio.o pna-base.o pna-fft.o pna-iio.o
 
 PKG_CONFIG ?= pkg-config
 

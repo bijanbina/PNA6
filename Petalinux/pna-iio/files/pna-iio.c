@@ -574,36 +574,51 @@ int main (int argc, char **argv)
 		else if (strcmp(token, "pulse")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
+			int period_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"Pulse: arguments are not enough.\r\n"
-								"Generate pulse signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
-				continue;
+				period_num = 2;
 			}
-			int channel_num = atoi(token);
+			else
+			{
+				period_num = atoi(token);
+			}
+			float amplitude;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"Pulse: arguments are not enough.\r\n"
-								"Generate pulse signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
-				continue;
+				amplitude = 0.5;
 			}
-			double period_num = atof(token);
+			else
+			{
+				amplitude = atof(token);
+			}
+			float duty_cycle;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"Pulse: arguments are not enough.\r\n"
-								"Generate pulse signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
-				continue;
+				duty_cycle = 0.5;
 			}
-			double amplitude = atof(token);
+			else
+			{
+				duty_cycle = atof(token);
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				channel_num = 1;
+				// printf("---------------------------------------------------------------\r\n"
+				// 				"Pulse: arguments are not enough.\r\n"
+				// 				"Generate pulse signal with port, period and amplitude arguments.\r\n"
+				// 				"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
+				// continue;
+			}
+			else
+			{
+				channel_num = atoi(token);
+			}
 			int amplitude_int = amplitude*DAC_MAX_VAL;
 			int period_sample_count = dds_sample_size/period_num;
 
@@ -613,7 +628,7 @@ int main (int argc, char **argv)
 				for(int j=0; j<period_sample_count; j++)
 				{
 					double x = j;
-					if ( j<period_sample_count/2 )
+					if ( j<period_sample_count*duty_cycle )
 					{
 						pulse = amplitude_int;
 					}
@@ -632,6 +647,7 @@ int main (int argc, char **argv)
 		else if (strcmp(token, "sin")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
+			int period_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -641,43 +657,93 @@ int main (int argc, char **argv)
 								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
 				continue;
 			}
-			int channel_num = atoi(token);
+			else
+			{
+				period_num = atoi(token);
+			}
+			float amplitude;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"sin: arguments are not enough.\r\n"
-								"Generate sinous signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
-				continue;
+				amplitude = .5;
 			}
-			double period_num = atof(token);
+			else
+			{
+				amplitude = atof(token);
+			}
+			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"sin: arguments are not enough.\r\n"
-								"Generate sinous signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
-				continue;
+				channel_num = 0;
 			}
-			double amplitude = atof(token);
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"sin: Channel number should be 1 or 2.\r\n"
+									"Generate sinous signal with port, period and amplitude arguments.\r\n"
+									"Usage:\r\n    sin [period] [amplitude] [port#]\r\n");
+					continue;
+				}
+			}
 			int amplitude_int = amplitude*DAC_MAX_VAL/2;
 			int period_sample_count = dds_sample_size/period_num;
 
 			for (int i=0 ; i<period_num ; i++)
 			{
-				double sinous;
+				double sinous, cosinous;
 				for(int j=0; j<period_sample_count; j++)
 				{
 					double x = j*2*PI;
 					x = x/period_sample_count;
 					sinous = sin(x)*amplitude_int;
+					cosinous = cos(x)*amplitude_int;
 					int16_t sin_int = (int16_t)(sinous);
+					int16_t cos_int = (int16_t)(cosinous);
 
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
 				}
+			}
+			create_dds_buffer(dac_buf, dds_sample_size);
+		}
+		else if (strcmp(token, "dc")==0 )
+		{
+			int s_size = iio_device_get_sample_size(iio_dac);
+			float amplitude;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				amplitude = 0.5;
+			}
+			else
+			{
+				amplitude = atof(token);
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				channel_num = 1;
+			}
+			else
+			{
+				channel_num = atoi(token);
+			}
+			int amplitude_int = amplitude*DAC_MAX_VAL;
+
+			for (int i=0 ; i<dds_sample_size ; i++)
+			{
+				double pulse = amplitude_int;
+				int16_t pulse_int = (int16_t)(pulse);
+
+				dac_buf[i*s_size+channel_num*2] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*2+1] = (int8_t)(pulse_int/256);     // MSB
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 		}
@@ -690,26 +756,31 @@ int main (int argc, char **argv)
 			//sinc 1 0.9 1               sinc 1 5 1
 			//echo 61400000 > /sys/bus/iio/devices/iio\:device0/out_voltage_sampling_frequency;pna-iio bandwidth 56000000;pna-iio sinc 1 0.9 1
 			int s_size = iio_device_get_sample_size(iio_dac);
+			double dds_freq;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"sinc: arguments are not enough.\r\n"
-								"Generate sinc signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
-				continue;
+				dds_freq = 2;
 			}
-			int channel_num = atoi(token);
+			else
+			{
+				dds_freq = atof(token);
+			}
+			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
-								"sinc: arguments are not enough.\r\n"
-								"Generate sinc signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
-				continue;
+				channel_num = 1;
+				// printf("---------------------------------------------------------------\r\n"
+				// 				"sinc: arguments are not enough.\r\n"
+				// 				"Generate sinc signal with port, period and amplitude arguments.\r\n"
+				// 				"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
+				// continue;
 			}
-			double dds_freq = atof(token);
+			else
+			{
+				channel_num = atoi(token);
+			}
 			for (int i=0 ; i<dds_sample_size ; i++)
 			{
 				double x = i-dds_sample_size/2;
@@ -740,6 +811,72 @@ int main (int argc, char **argv)
 				printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+		}
+		else if( strcmp(token, "dbg")==0 )
+		{
+			char str[80], buffer_dbg[80];
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"debug: arguments are not enough.\r\n"
+								"debug mode with attribute and value arguments.\r\n"
+								"Usage:\r\n    dbg [attribute] [value]\r\n");
+				continue;
+			}
+			strcpy(str, token);
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				iio_device_debug_attr_read(dev, str, buffer_dbg, 80);
+				printf("%s: %s \r\n", str, buffer_dbg);
+			}
+			else
+			{
+				strcpy(buffer_dbg, token);
+				while(1)
+				{
+					token = strtok(NULL, delim);
+					if(token == NULL)
+						break;
+					strcat(buffer_dbg, " ");
+					strcat(buffer_dbg, token);
+				}
+				iio_device_debug_attr_write(dev, str, buffer_dbg);
+				printf("%s: %s \r\n", str, buffer_dbg);
+			}
+		}
+		else if( strcmp(token, "reg")==0 )
+		{
+			char value[80];
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"reg: arguments are not enough.\r\n"
+								"debug mode with address and value arguments.\r\n"
+								"Usage:\r\n    reg [address] [value]\r\n");
+				continue;
+			}
+			char *sz = NULL;
+			long long address = strtoll(token, &sz, 16);
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				iio_device_debug_attr_write_longlong(dev, "direct_reg_access", address);
+				iio_device_debug_attr_read(dev, "direct_reg_access", value, 80);
+				printf("%lld: %s \r\n", address, value);
+			}
+			else
+			{
+				sprintf(value, "0x%llx 0x%s", address, token);
+				printf("%lld: %s \r\n", address, value);
+				iio_device_debug_attr_write(dev, "direct_reg_access", value);
+			}
+		}
+		else if( strcmp(token, "fir_coef")==0 )
+		{
+			load_fir_filter("filter.ftr", dev);
 		}
 		else if( strcmp(token, "exit")==0 )
 		{

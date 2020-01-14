@@ -14,21 +14,28 @@ SRC_URI = "file://pna-iio.c \
            file://pna-gpio.h \
            file://pna-fft.c \
            file://pna-fft.h \
+           file://pna-fir.c \
+           file://pna-fir.h \
            file://Makefile \
+           file://filter.ftr \
         "
 DEPENDS = " libiio libxml2"
 
 S = "${WORKDIR}"
 CFLAGS_prepend = "-I ${S}/include" 
 # LDFLAGS_prepend = "-lz -lm -liio" 
+
+homedir = "/home/root"
+
 do_compile() {
         oe_runmake
 }
 do_install() {
         install -d ${D}${bindir}
         install -m 0755 ${S}/pna-iio ${D}${bindir}
-
+        install -d ${D}${homedir}
+        install -m 0755 ${S}/filter.ftr ${D}${homedir}
 }
 
 inherit pkgconfig
-
+FILES_${PN} += "${homedir}/*"
