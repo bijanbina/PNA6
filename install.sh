@@ -29,15 +29,16 @@ printf "Add PNA6 Project to Analog Device HDL Repository?[y/N]: "
 read response
 
 if [ "$response" = "y" ]; then
-	DIR="$ADI_HDL_PROJECT/projects/ddrless"
+	DIR="$ADI_HDL_PROJECT/projects/pna6"
 	if [ ! -d "$DIR" ]; then
-		mkdir "$ADI_HDL_PROJECT/projects/ddrless"
+		mkdir "$ADI_HDL_PROJECT/projects/pna6"
+		mkdir "$ADI_HDL_PROJECT/projects/pna6/common"
 	fi
 
-	cp -R HDL/pna6 "$ADI_HDL_PROJECT/projects/common/pna6"
-	cp -R HDL/ddrless_pna6 "$ADI_HDL_PROJECT/projects/ddrless/pna6"
-	cp -R HDL/common/pna6/pna6_bd.tcl "$ADI_HDL_PROJECT/projects/ddrless/common"
-	cp -R HDL/common/pna6/pna6_qsys.tcl "$ADI_HDL_PROJECT/projects/ddrless/common"
+	cp -R HDL/pna6 "$ADI_HDL_PROJECT/projects/common"
+	cp -R HDL/ddrless_pna6 "$ADI_HDL_PROJECT/projects/pna6/ddrless"
+	cp -R HDL/common/pna6/pna6_bd.tcl "$ADI_HDL_PROJECT/projects/pna6/common"
+	cp -R HDL/common/pna6/pna6_qsys.tcl "$ADI_HDL_PROJECT/projects/pna6/common"
 
 	CHECK_PRE=$(grep 'pna6' "$ADI_HDL_PROJECT/projects/scripts/adi_project_xilinx.tcl")
 	#echo "check2 : $CHECK_PRE"
@@ -53,6 +54,14 @@ if [ "$response" = "y" ]; then
 		sed -i "$WRITE_LN"'i\ \ \ \ set sys_zynq 1' "$ADI_HDL_PROJECT/projects/scripts/adi_project_xilinx.tcl"
 		WRITE_LN=$(($WRITE_LN+1))
 		sed -i "$WRITE_LN"'i\ \ }' "$ADI_HDL_PROJECT/projects/scripts/adi_project_xilinx.tcl"
+	fi
+	printf "synthesize PNA6 project?[y/N]: "
+	read response
+
+	if [ "$response" = "y" ]; then
+		cd "$ADI_HDL_PROJECT/projects/pna6/ddrless"
+		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
+		make
 	fi
 fi
 
