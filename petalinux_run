@@ -47,6 +47,7 @@ while true; do
 		fi
 		/usr/lib/linux-tools/4.15.0-23-generic/usbip list -r 192.168.1.122
 		sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-5
+		sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-9
 	fi
 	if [[ "$response" == *"5"* ]]; then
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force;

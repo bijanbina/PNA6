@@ -12,8 +12,8 @@ SRC_URI = "file://pna-iio.c \
            file://pna-base.h \
            file://pna-gpio.c \
            file://pna-gpio.h \
-           file://pna-fft.c \
-           file://pna-fft.h \
+           file://pna-capture.c \
+           file://pna-capture.h \
            file://pna-fir.c \
            file://pna-fir.h \
            file://Makefile \

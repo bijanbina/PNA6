@@ -6,7 +6,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include "pna-gpio.h"
-#include "pna-fft.h"
+#include "pna-capture.h"
 #include "pna-fir.h"
 
 #define HANNING_ENBW 1.50

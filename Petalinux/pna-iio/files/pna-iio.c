@@ -17,6 +17,7 @@ extern struct iio_buffer *capture_buffer;
 
 extern const char *rx_freq_name, *tx_freq_name;
 extern int32_t rx1_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
+extern int32_t rx2_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
 
 int dds_sample_size;
 // int span_number = 1;
@@ -483,54 +484,147 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"adc") == 0)
 		{
-			int uart_size = 1024;
-			if(fft_size < 1024)
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
 			{
-				uart_size = fft_size;
+				printf("---------------------------------------------------------------\r\n"
+								"adc: arguments are not enough.\r\n"
+								"Capture receiver signal from port argument.\r\n"
+								"Usage:\r\n    adc [port#]\r\n");
+				continue;
 			}
-			int window_size = fft_size/uart_size;
-			double avg_adc_window;
-			int32_t rx_buffer_i;
-			int16_t rx_buffer_i_16;
-			unsigned char uart_tx_buffer[2*UART_LENGTH];
-			fill_rx_buffer(fft_size);
-			for(int i=0; i<uart_size; i++ )
+			else
 			{
-				avg_adc_window = 0;
-				for(int j=0; j<window_size; j++)
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
 				{
-					rx_buffer_i_16 = rx1_buffer[window_size*i+j] & 0x0000FFFF;
-					rx_buffer_i = rx_buffer_i_16;
-					avg_adc_window += rx_buffer_i;
+					printf("---------------------------------------------------------------\r\n"
+									"adc: Channel number should be 1 or 2.\r\n"
+									"Capture receiver signal from port argument.\r\n"
+									"Usage:\r\n    adc [port#]\r\n");
+					continue;
 				}
-				avg_adc_window = avg_adc_window/window_size;
-				rx_buffer_i = floor(avg_adc_window);
-				rx_buffer_i = rx_buffer_i & 0x0000FFFF;
-				char first_byte = rx_buffer_i%256;
-				char second_byte = rx_buffer_i/256;
-				uart_tx_buffer[2*i] = first_byte;
-				uart_tx_buffer[2*i+1] = second_byte;
-				// printf("%c%c\r\n",first_byte, second_byte);
-				// printf("%d : %d\r\n", i, rx_buffer_i);
 			}
-			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-			printf("\r\n");
+			if(channel_num)
+			{
+				pna_adc(rx2_buffer, fft_size);
+			}
+			else
+			{
+				pna_adc(rx1_buffer, fft_size);
+			}
+		}
+		else if(strcmp(token,"adc_iq") == 0)
+		{
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"adc: arguments are not enough.\r\n"
+								"Capture receiver signal from port argument.\r\n"
+								"Usage:\r\n    adc_iq [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"adc: Channel number should be 1 or 2.\r\n"
+									"Capture receiver signal from port argument.\r\n"
+									"Usage:\r\n    adc_iq [port#]\r\n");
+					continue;
+				}
+			}
+			if(channel_num)
+			{
+				pna_adc_iq2(rx2_buffer, fft_size);
+			}
+			else
+			{
+				pna_adc_iq2(rx1_buffer, fft_size);
+			}
+		}
+		else if(strcmp(token,"adc_fft") == 0)
+		{
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"adc: arguments are not enough.\r\n"
+								"Capture receiver signal from port argument.\r\n"
+								"Usage:\r\n    adc_fft [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"adc: Channel number should be 1 or 2.\r\n"
+									"Capture receiver signal from port argument.\r\n"
+									"Usage:\r\n    adc_fft [port#]\r\n");
+					continue;
+				}
+			}
+			if(channel_num)
+			{
+				pna_adc_fft(rx2_buffer, fft_size);
+			}
+			else
+			{
+				pna_adc_fft(rx1_buffer, fft_size);
+			}
 		}
 		else if(strcmp(token,"fft_span") == 0)
 		{
-			fft_span(rx1_buffer, span, fft_size);
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"fft: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    fft_span [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"fft: Channel number should be 1 or 2.\r\n"
+									"Capture spectrum of signal from port argument.\r\n"
+									"Usage:\r\n    fft_span [port#]\r\n");
+					continue;
+				}
+			}
+			if(channel_num)
+			{
+				pna_fft_span(rx2_buffer, span, fft_size);
+			}
+			else
+			{
+				pna_fft_span(rx1_buffer, span, fft_size);
+			}
 		}
 		else if(strcmp(token,"fft") == 0)
 		{
-			fft(rx1_buffer, fft_size);
+			pna_fft(rx1_buffer, fft_size);
 		}
 		else if(strcmp(token,"fft2") == 0)
 		{
-			fft2(rx1_buffer, fft_size);
+			pna_fft2(rx1_buffer, fft_size);
 		}
 		else if(strcmp(token,"fft3") == 0)
 		{
-			fft3(rx1_buffer, fft_size);
+			pna_fft3(rx1_buffer, fft_size);
 		}
 		else if(strcmp(token,"fft4") == 0)
 		{
@@ -578,7 +672,11 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				period_num = 2;
+				printf("---------------------------------------------------------------\r\n"
+								"pulse: arguments are not enough.\r\n"
+								"Generate pulse signal with period, amplitude and port arguments.\r\n"
+								"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
+				continue;
 			}
 			else
 			{
@@ -608,16 +706,19 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 1;
-				// printf("---------------------------------------------------------------\r\n"
-				// 				"Pulse: arguments are not enough.\r\n"
-				// 				"Generate pulse signal with port, period and amplitude arguments.\r\n"
-				// 				"Usage:\r\n    pulse [port#] [period] [amplitude]\r\n");
-				// continue;
+				channel_num = 0;
 			}
 			else
 			{
-				channel_num = atoi(token);
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"pulse: Channel number should be 1 or 2.\r\n"
+									"Generate pulse signal with period, amplitude and port arguments.\r\n"
+									"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
+					continue;
+				}
 			}
 			int amplitude_int = amplitude*DAC_MAX_VAL;
 			int period_sample_count = dds_sample_size/period_num;
@@ -638,8 +739,10 @@ int main (int argc, char **argv)
 					}
 					int16_t pulse_int = (int16_t)(pulse);
 
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(pulse_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(pulse_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
@@ -719,7 +822,11 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				amplitude = 0.5;
+				printf("---------------------------------------------------------------\r\n"
+								"dc: arguments are not enough.\r\n"
+								"Generate DC voltage with amplitude and port arguments.\r\n"
+								"Usage:\r\n    dc [amplitude] [port#]\r\n");
+				continue;
 			}
 			else
 			{
@@ -729,11 +836,19 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 1;
+				channel_num = 0;
 			}
 			else
 			{
-				channel_num = atoi(token);
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"dc: Channel number should be 1 or 2.\r\n"
+									"Generate DC voltage with amplitude and port arguments.\r\n"
+									"Usage:\r\n    dc [amplitude] [port#]\r\n");
+					continue;
+				}
 			}
 			int amplitude_int = amplitude*DAC_MAX_VAL;
 
@@ -742,8 +857,10 @@ int main (int argc, char **argv)
 				double pulse = amplitude_int;
 				int16_t pulse_int = (int16_t)(pulse);
 
-				dac_buf[i*s_size+channel_num*2] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*2+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
+				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 		}
@@ -760,7 +877,11 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				dds_freq = 2;
+				printf("---------------------------------------------------------------\r\n"
+								"sinc: arguments are not enough.\r\n"
+								"Generate sinc signal with frequency and port arguments.\r\n"
+								"Usage:\r\n    sinc [frequency] [port#]\r\n");
+				continue;
 			}
 			else
 			{
@@ -770,16 +891,19 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 1;
-				// printf("---------------------------------------------------------------\r\n"
-				// 				"sinc: arguments are not enough.\r\n"
-				// 				"Generate sinc signal with port, period and amplitude arguments.\r\n"
-				// 				"Usage:\r\n    sinc [port#] [sinc-frequency]\r\n");
-				// continue;
+				channel_num = 0;
 			}
 			else
 			{
-				channel_num = atoi(token);
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"sinc: Channel number should be 1 or 2.\r\n"
+									"Generate sinc signal with frequency and port arguments.\r\n"
+									"Usage:\r\n    sinc [frequency] [port#]\r\n");
+					continue;
+				}
 			}
 			for (int i=0 ; i<dds_sample_size ; i++)
 			{
@@ -795,8 +919,10 @@ int main (int argc, char **argv)
 				}
 				int16_t sinc_int = (int16_t)(sinc);
 
-				dac_buf[i*s_size+channel_num*2] = (int8_t)(sinc_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*2+1] = (int8_t)(sinc_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(sinc_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(sinc_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
+				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
 				// printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
 			}
 			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;

@@ -34,8 +34,9 @@ struct iio_buffer *capture_buffer = NULL;
 const char *rx_freq_name, *tx_freq_name;
 
 int32_t rx1_buffer [2*MAX_FFT_LENGTH];
+int32_t rx2_buffer [2*MAX_FFT_LENGTH];
 int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
-int rx1_indx=0;
+int rx_indx=0;
 int fd_dma; //file descriptor DMA driver
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMove)
@@ -146,17 +147,27 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	int16_t val;
 	iio_channel_convert(chn, &val, sample);
 
-	if( rx1_indx % 4 == 0 )
+	if( rx_indx % 4 == 0 )
 	{
-		rx1_buffer[rx1_indx/4] = val;
+			rx1_buffer[rx_indx/4] = val;
 	}
-	else if( rx1_indx % 4 == 1 )
+	else if( rx_indx % 4 == 1 )
 	{
-		rx1_buffer[rx1_indx/4] &= 0x0000FFFF;
-		rx1_buffer[rx1_indx/4] |= (val << 16);
-		//printf("%d: 0x%x\r\n", rx1_indx/4, rx1_buffer[rx1_indx/4]);
+		rx1_buffer[rx_indx/4] &= 0x0000FFFF;
+		rx1_buffer[rx_indx/4] |= (val << 16);
+		//printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
 	}
-	rx1_indx++;
+	else if( rx_indx % 4 == 2 )
+	{
+		rx2_buffer[rx_indx/4] = val;
+	}
+	else if( rx_indx % 4 == 3 )
+	{
+		rx2_buffer[rx_indx/4] &= 0x0000FFFF;
+		rx2_buffer[rx_indx/4] |= (val << 16);
+		//printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
+	}
+	rx_indx++;
 
 	return size;
 }
@@ -284,7 +295,7 @@ void fill_rx_buffer(unsigned int fft_size)
 				printf("adc_data[%d]=%d\n", i, adc_data[i]);
 			}*/
 			iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
-			rx1_indx = 0;
+			rx_indx = 0;
 		}
 		else
 		{

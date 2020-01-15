@@ -14,8 +14,8 @@ if [ "$response" = "0" ]; then
 	read response
 
 	if [ "$response" = "y" ]; then
-		cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/"
-		cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/"
+		cp -R Petalinux/pna-iio "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps"
+		cp -R Petalinux/pnadmc "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
 	fi
 
 	printf "Copy SDK Files from git?[y/N]: "
