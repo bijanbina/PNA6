@@ -26,12 +26,14 @@ if [ "$response" = "0" ]; then
 		cp -R SDK/*.h "$SDK_PROJECT/"
 	fi
 elif [ "$response" = "1" ]; then
-	printf "Copy PetaLinux Files to git?[y/N]: "
+	printf "Copy PetaLinux Files to git?[p/s/N]: "
 	read response
 
-	if [ "$response" = "y" ]; then
+	if [ "$response" = "p" ]; then
 		cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/" Petalinux/
 		cp -R "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/" Petalinux/
+	elif [ "$response" = "s" ]; then
+		cp -R $SDK_PETALINUX_PROJECT/* Petalinux/pna-iio/files/
 	fi
 
 	printf "Copy SDK Files to git?[y/N]: "

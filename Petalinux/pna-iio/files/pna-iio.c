@@ -34,7 +34,6 @@ int main (int argc, char **argv)
 	// fft_size = atoi(argv[1]);
 	dds_sample_size = fft_size;
 	// printf("fft_size=%d\n", fft_size );
-	int i;
 
 	init_all_gpio();
 	ctx = iio_create_default_context();
@@ -75,12 +74,17 @@ int main (int argc, char **argv)
 			return 0;
 		}
 	}
+	long long rx_sampling_frequency;
+	long long rx_freq;
+	iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &rx_freq);
+	iio_channel_attr_read_longlong(rx_dev_ch0, "sampling_frequency", &rx_sampling_frequency);
+	span = rx_sampling_frequency;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
 
-		gpio_fft(256);
+	gpio_fft(256);
 	gpio_fft_reset();
-		gpio_fft(fft_size);
+	gpio_fft(fft_size);
 	///////////////// FIXME
 	while(1)
 	{
@@ -189,7 +193,7 @@ int main (int argc, char **argv)
 			}
 			int channel_num = atoi(token);
 			token = strtok(NULL, delim);
-			char buf[100];
+			// char buf[100];
 			if(token==NULL)
 			{
 				long long lna_gain;
@@ -263,7 +267,7 @@ int main (int argc, char **argv)
 									"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
 					continue;
 				}
-				printf("gain_control_mode: %s \r\n", buf, ret);
+				printf("gain_control_mode: %s %d \r\n", buf, ret);
 			}
 			else
 			{
@@ -279,7 +283,7 @@ int main (int argc, char **argv)
 									"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
 					continue;
 				}
-				printf("gain_control_mode: %s \r\n", token, ret);
+				printf("gain_control_mode: %s %d \r\n", token, ret);
 			}
 		}
 		else if( strcmp(token, "tx_sample_rate")==0 )
@@ -331,15 +335,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				long long sampling_frequency;
-				iio_channel_attr_read_longlong(rx_dev_ch0, "sampling_frequency", &sampling_frequency);
-				printf("rx_sample_rate: %lld \r\n", sampling_frequency);
+				iio_channel_attr_read_longlong(rx_dev_ch0, "sampling_frequency", &rx_sampling_frequency);
+				printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
 			}
 			else
 			{
-				long long sampling_frequency = get_frequency(token);
-				iio_channel_attr_write_longlong(rx_dev_ch0, "sampling_frequency", sampling_frequency);
-				printf("rx_sample_rate: %lld \r\n", sampling_frequency);
+				rx_sampling_frequency = get_frequency(token);
+				iio_channel_attr_write_longlong(rx_dev_ch0, "sampling_frequency", rx_sampling_frequency);
+				printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "tx_freq")==0 )
@@ -363,15 +366,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				long long freq;
-				iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq);
-				printf("rx_freq: %lld \r\n", freq);
+				iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &rx_freq);
+				printf("rx_freq: %lld \r\n", rx_freq);
 			}
 			else
 			{
-				long long freq = get_frequency(token);
-				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
-				printf("rx_freq: %lld \r\n", freq);
+				rx_freq = get_frequency(token);
+				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, rx_freq);
+				printf("rx_freq: %lld \r\n", rx_freq);
 			}
 		}
 		else if( strcmp(token, "rx_port")==0 )
@@ -468,8 +470,7 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"test") == 0)
 		{
-			int i;
-			for( i=0; i<fft_size; i++ )
+			for( int i=0; i<fft_size; i++ )
 			{
 				char first_byte = i%256;
 				char second_byte = i/256;
@@ -539,14 +540,19 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			fill_rx_buffer(fft_size);
+			int uart_size;
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
 			if(channel_num)
 			{
-				pna_adc_iq2(rx2_buffer, fft_size);
+				uart_size = compress_data_iq(rx2_buffer, uart_tx_buffer, fft_size);
 			}
 			else
 			{
-				pna_adc_iq2(rx1_buffer, fft_size);
+				uart_size = compress_data_iq(rx1_buffer, uart_tx_buffer, fft_size);
 			}
+			fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
+			printf("\r\n");
 		}
 		else if(strcmp(token,"adc_fft") == 0)
 		{
@@ -581,6 +587,80 @@ int main (int argc, char **argv)
 				pna_adc_fft(rx1_buffer, fft_size);
 			}
 		}
+		else if(strcmp(token,"lo_sweep") == 0)
+		{
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"lo_sweep: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    lo_sweep [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"lo_sweep: Channel number should be 1 or 2.\r\n"
+									"Capture spectrum of signal from port argument.\r\n"
+									"Usage:\r\n    lo_sweep [port#]\r\n");
+					continue;
+				}
+			}
+
+			int32_t *spectrum;
+			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			double span_mhz = span / 1E6;
+			int span_num = floor(span_mhz / SWEEP_SPAN);
+			// span_num = floor(span_num);
+
+			if((int)span_mhz % SWEEP_SPAN > 0)
+			{
+				span_num++;
+			}
+			long long rx_freq_current = rx_freq;
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
+			int removed_span = fft_size*(rx_sampling_frequency_mhz - SWEEP_SPAN)/rx_sampling_frequency_mhz/2;
+			int spectrum_size = fft_size*SWEEP_SPAN/rx_sampling_frequency_mhz;
+			double uart_div = SWEEP_SPAN/span_mhz;
+			rx_freq = (rx_freq - 1E6*(span_mhz - SWEEP_SPAN)/2);
+			printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
+					"removed_span: %d, uart_div: %lf, spectrum_size: %d\r\n", 
+					span_num, span_mhz, rx_sampling_frequency_mhz, removed_span, uart_div, spectrum_size);
+			for(int i=0; i<span_num; i++)
+			{
+				printf("rx_freq: %lld\r\n", rx_freq);
+				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, rx_freq);
+				usleep(10000);
+				if(channel_num)
+				{
+					spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
+				}
+				else
+				{
+					spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
+				}
+				int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size, uart_div);
+				printf("uart_size_1: %d\r\n", uart_size);
+				if(i == span_num-1)
+				{
+					double extra_span = span_num*SWEEP_SPAN-span_mhz;
+					uart_size = uart_size*(SWEEP_SPAN-extra_span)/SWEEP_SPAN;
+					printf("uart_size_2: %d, extra_span: %lf", uart_size, extra_span);
+				}
+				// fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+				free(spectrum);
+				rx_freq = rx_freq + SWEEP_SPAN*1E6;
+			}
+			rx_freq = rx_freq_current;
+			iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, rx_freq);
+			usleep(10000);
+			printf("\r\n");
+		}
 		else if(strcmp(token,"fft_span") == 0)
 		{
 			int channel_num;
@@ -605,18 +685,33 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			int32_t *spectrum;
+			int span_mhz = span/1E6;
+			int rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			int removed_span = fft_size*(rx_sampling_frequency_mhz - span_mhz)/rx_sampling_frequency_mhz/2;
 			if(channel_num)
 			{
-				pna_fft_span(rx2_buffer, span, fft_size);
+				spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
 			}
 			else
 			{
-				pna_fft_span(rx1_buffer, span, fft_size);
+				spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
 			}
+			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
+			int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size, 1);
+			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			printf("\r\n");
+			free(spectrum);
 		}
 		else if(strcmp(token,"fft") == 0)
 		{
-			pna_fft(rx1_buffer, fft_size);
+			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size);
+			unsigned char uart_tx_buffer[4*UART_LENGTH];
+			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size, 1);
+			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			printf("\r\n");
+			free(spectrum);
 		}
 		else if(strcmp(token,"fft2") == 0)
 		{
@@ -654,12 +749,12 @@ int main (int argc, char **argv)
 			printf("fft_status#1 = %d\r\n", gpio_fft_status());
 			if(rwfunc)
 			{
-				printf("write %d bytes to dma.\r\n", write_DMA(
+				printf("write %ld bytes to dma.\r\n", write_DMA(
 							(char *)uart_tx_buffer, num_bytes));
 			}
 			else
 			{
-				printf("read %d bytes from dma.\r\n", read_DMA(
+				printf("read %ld bytes from dma.\r\n", read_DMA(
 							(char *)uart_tx_buffer, num_bytes));
 			}
 			printf("fft_status#2 = %d\r\n", gpio_fft_status());
@@ -728,7 +823,6 @@ int main (int argc, char **argv)
 				double pulse;
 				for(int j=0; j<period_sample_count; j++)
 				{
-					double x = j;
 					if ( j<period_sample_count*duty_cycle )
 					{
 						pulse = amplitude_int;
