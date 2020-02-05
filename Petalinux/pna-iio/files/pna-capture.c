@@ -132,10 +132,10 @@ void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 	free(bufferOut);
 }
 
-int compress_data(int32_t *data_in, unsigned char *data_out, int data_size, double div)
+int compress_data(int32_t *data_in, unsigned char *data_out, int data_size)
 {
-	int output_size = UART_LENGTH*div;
-	if(data_size < UART_LENGTH*div)
+	int output_size = UART_LENGTH;
+	if(data_size < UART_LENGTH)
 	{
 		output_size = data_size;
 	}
@@ -177,6 +177,74 @@ int compress_data(int32_t *data_in, unsigned char *data_out, int data_size, doub
 	return output_size;
 }
 
+int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
+{
+	int lo_freq_mhz = lo_freq/1E6;
+	// printf("pna_ramp-lo_freq_mhz: %d\r\n", lo_freq_mhz);
+	double y;
+	int32_t *fft_abs = (int32_t*) malloc(fft_size * sizeof(int32_t));
+	int32_t *output_data = (int32_t*) malloc((fft_size-2*removed_span) * sizeof(int32_t));
+	for(int i=0; i<fft_size; i++)
+	{
+		y = lo_freq_mhz - 15 + (60.0*i/fft_size)  - 920;
+		y = y/40;
+		double x = pow(10,y);
+		fft_abs[i] = floor(x);
+	}
+	for(int i=0; i<fft_size-2*removed_span; i++)
+	{
+		output_data[i] = fft_abs[i+removed_span];
+	}
+	return output_data;
+}
+
+// calculate 40MHz spectrum without DC interference
+int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq)
+{
+	long long freq = start_freq + 3*1E6*SWEEP_SPAN/4;
+	int sweep_offset = 0;
+	int CHUNK_C = 171; // chunk count
+	set_rx_freq(freq);
+	usleep(1000);
+	
+	//FIXME: sample_rate/2 = 30mhz
+	int removed_span = 1024 * (3*SWEEP_SPAN/4) / 30 / 2;
+	int32_t *output_data = (int32_t*) malloc(CHUNK_C * 4 * sizeof(int32_t));
+	// printf("removed_span: %d\r\n", removed_span);
+	int32_t *spectrum = pna_fft(rx_buffer, removed_span, 1024);
+	// int32_t *spectrum = pna_ramp(freq, removed_span, 1024);
+	// printf("dbg flag 1\r\n");
+	for(int j=0; j<CHUNK_C; j++)
+	{
+		output_data[j] = spectrum[j];
+		output_data[j+2*CHUNK_C] = spectrum[j+2*CHUNK_C];
+		// output_data[j] = 100;
+		// output_data[j+2*CHUNK_C] = 100;
+		sweep_offset++;
+	}
+	// printf("dbg flag 2\r\n");
+	free(spectrum);
+	// printf("dbg flag 2.5\r\n");
+	freq = freq + SWEEP_SPAN/2*1E6;
+	set_rx_freq(freq);
+	// printf("dbg flag 2.75\r\n");
+	usleep(1000);
+	spectrum = pna_fft(rx_buffer, removed_span, 1024);
+	// spectrum = pna_ramp(freq, removed_span, 1024);
+	// printf("dbg flag 3\r\n");
+	for(int j=0; j<CHUNK_C; j++)
+	{
+		output_data[sweep_offset+j] = spectrum[j];
+		output_data[sweep_offset+j+2*CHUNK_C] = spectrum[j+2*CHUNK_C];
+		// output_data[sweep_offset+j] = 100;
+		// output_data[sweep_offset+j+2*CHUNK_C] = 100;
+	}
+	// printf("dbg flag 4\r\n");
+	free(spectrum);
+	// printf("dbg flag 5\r\n");
+	return output_data;
+}
+
 int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 {
 #ifdef FFT_24_BIT
@@ -188,8 +256,10 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 	int16_t *fft_phase = (int16_t *) malloc(sizeof(int16_t) * fft_size);
 	int16_t *fft_spanned = (int16_t *) malloc(sizeof(int16_t) * (fft_size-2*removed_span));
 #endif
-
-	fill_rx_buffer(fft_size);
+	for(int i=0; i<5; i++)
+	{
+		fill_rx_buffer(fft_size);
+	}
 
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);

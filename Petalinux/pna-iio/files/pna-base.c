@@ -647,3 +647,8 @@ void init_all_gpio()
 	nchannel_status = open_gpio_channel(gpio_base_status);
 	set_gpio_direction(gpio_base_status, nchannel_status, "in");
 }
+
+void set_rx_freq(long long freq)
+{
+	iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
+}

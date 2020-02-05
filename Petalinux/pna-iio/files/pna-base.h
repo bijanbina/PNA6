@@ -77,5 +77,6 @@ uint8_t gpio_fft_status();
 void gpio_fft_reset();
 void init_all_gpio();
 void gpio_fft_valid();
+void set_rx_freq(long long freq);
 
 #endif //__PNA_BASE_H__

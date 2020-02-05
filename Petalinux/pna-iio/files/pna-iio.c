@@ -587,16 +587,16 @@ int main (int argc, char **argv)
 				pna_adc_fft(rx1_buffer, fft_size);
 			}
 		}
-		else if(strcmp(token,"lo_sweep") == 0)
+		else if(strcmp(token,"sweep") == 0)
 		{
 			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				printf("---------------------------------------------------------------\r\n"
-								"lo_sweep: arguments are not enough.\r\n"
+								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    lo_sweep [port#]\r\n");
+								"Usage:\r\n    sweep [port#]\r\n");
 				continue;
 			}
 			else
@@ -605,59 +605,65 @@ int main (int argc, char **argv)
 				if(channel_num > 1)
 				{
 					printf("---------------------------------------------------------------\r\n"
-									"lo_sweep: Channel number should be 1 or 2.\r\n"
+									"sweep: Channel number should be 1 or 2.\r\n"
 									"Capture spectrum of signal from port argument.\r\n"
-									"Usage:\r\n    lo_sweep [port#]\r\n");
+									"Usage:\r\n    sweep [port#]\r\n");
 					continue;
 				}
 			}
 
 			int32_t *spectrum;
+			int sweep_index = 0;
+			unsigned char uart_tx_buffer[2*UART_LENGTH];
+			span = 120E6;
+			// rx_sampling_frequency = 60E6;
+			// long long bandwidth = 56E6;
+			// iio_channel_attr_write_longlong(rx_dev_ch0, "sampling_frequency", rx_sampling_frequency);
+			// iio_channel_attr_write_longlong(rx_dev_ch0, "rf_bandwidth", bandwidth);
+			// rx_freq = 2400E6;
 			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
 			double span_mhz = span / 1E6;
-			int span_num = floor(span_mhz / SWEEP_SPAN);
-			// span_num = floor(span_num);
-
-			if((int)span_mhz % SWEEP_SPAN > 0)
+			// int CHUNK_C = fft_size*SWEEP_SPAN/rx_sampling_frequency_mhz/2;
+			int CHUNK_C = 171;
+			long long lo_start_freq = rx_freq - span/2.0;
+			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
+			int span_int = (int)span_mhz;
+			if(span_int % (2*SWEEP_SPAN) > 0)
 			{
-				span_num++;
+				span_num += 2;
 			}
-			long long rx_freq_current = rx_freq;
-			unsigned char uart_tx_buffer[4*UART_LENGTH];
-			int removed_span = fft_size*(rx_sampling_frequency_mhz - SWEEP_SPAN)/rx_sampling_frequency_mhz/2;
-			int spectrum_size = fft_size*SWEEP_SPAN/rx_sampling_frequency_mhz;
-			double uart_div = SWEEP_SPAN/span_mhz;
-			rx_freq = (rx_freq - 1E6*(span_mhz - SWEEP_SPAN)/2);
-			printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
-					"removed_span: %d, uart_div: %lf, spectrum_size: %d\r\n", 
-					span_num, span_mhz, rx_sampling_frequency_mhz, removed_span, uart_div, spectrum_size);
-			for(int i=0; i<span_num; i++)
+			int span_count = span_num * CHUNK_C * 2;
+			//FIXME: remove *2
+			int32_t *sweep_buf = (int32_t*) malloc(2 * span_count * sizeof(int32_t));
+			double spur_count = span_num * SWEEP_SPAN - span_mhz;
+			
+			spur_count = spur_count*fft_size/rx_sampling_frequency_mhz;
+			spur_count = floor(spur_count);
+			// printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
+			// 		"span_count: %d, spur_count: %lf\r\n", span_num, span_mhz, 
+			// 		rx_sampling_frequency_mhz, span_count, spur_count);
+			for(int i=0; i<span_num/2; i++)
 			{
-				printf("rx_freq: %lld\r\n", rx_freq);
-				iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, rx_freq);
-				usleep(10000);
+				// printf("sweep_index: %d, freq: %lld\r\n", sweep_index, lo_start_freq);
 				if(channel_num)
 				{
-					spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
+					spectrum = pna_fft_dcfixed(rx2_buffer, lo_start_freq);
 				}
 				else
 				{
-					spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
+					spectrum = pna_fft_dcfixed(rx1_buffer, lo_start_freq);
 				}
-				int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size, uart_div);
-				printf("uart_size_1: %d\r\n", uart_size);
-				if(i == span_num-1)
+				for(int j=0; j<4*CHUNK_C; j++)
 				{
-					double extra_span = span_num*SWEEP_SPAN-span_mhz;
-					uart_size = uart_size*(SWEEP_SPAN-extra_span)/SWEEP_SPAN;
-					printf("uart_size_2: %d, extra_span: %lf", uart_size, extra_span);
+					sweep_buf[sweep_index] = spectrum[j];
+					sweep_index++;
 				}
-				// fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-				free(spectrum);
-				rx_freq = rx_freq + SWEEP_SPAN*1E6;
+				lo_start_freq += 2*SWEEP_SPAN*1E6;
 			}
-			rx_freq = rx_freq_current;
-			iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, rx_freq);
+			int uart_size = compress_data(sweep_buf, uart_tx_buffer, span_count - spur_count);
+			// printf("uart_size: %d\r\n", uart_size);
+			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			set_rx_freq(rx_freq);
 			usleep(10000);
 			printf("\r\n");
 		}
@@ -699,7 +705,7 @@ int main (int argc, char **argv)
 			}
 			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
-			int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size, 1);
+			int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size);
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 			free(spectrum);
@@ -708,7 +714,7 @@ int main (int argc, char **argv)
 		{
 			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size);
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
-			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size, 1);
+			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size);
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 			free(spectrum);
