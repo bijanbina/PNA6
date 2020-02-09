@@ -10,12 +10,14 @@ read response
 
 if [ "$response" = "0" ]; then
 	git pull origin master
-	printf "Copy PetaLinux Files from git?[y/N]: "
+	printf "Copy PetaLinux Files from git?[p/s/N]: "
 	read response
 
-	if [ "$response" = "y" ]; then
+	if [ "$response" = "p" ]; then
 		cp -R Petalinux/pna-iio "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps"
 		cp -R Petalinux/pnadmc "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
+	elif [ "$response" = "s" ]; then
+		cp -R Petalinux/pna-iio/files/* $SDK_PETALINUX_PROJECT/
 	fi
 
 	printf "Copy SDK Files from git?[y/N]: "
