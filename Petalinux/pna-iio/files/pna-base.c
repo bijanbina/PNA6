@@ -648,7 +648,288 @@ void init_all_gpio()
 	set_gpio_direction(gpio_base_status, nchannel_status, "in");
 }
 
-void set_rx_freq(long long freq)
+void set_bandwidth(int direction, long long bandwidth)
 {
-	iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
+	if(direction == __RX)
+	{
+		iio_channel_attr_write_longlong(rx_dev_ch0, "rf_bandwidth", bandwidth);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write_longlong(tx_dev_ch0, "rf_bandwidth", bandwidth);
+	}
+	else
+	{
+		printf("Error with direction when setting bandwidth\r\n");
+	}
 }
+
+long long get_bandwidth(int direction)
+{
+	long long bandwidth;
+	if(direction == __RX)
+	{
+		iio_channel_attr_read_longlong(rx_dev_ch0, "rf_bandwidth", &bandwidth);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read_longlong(tx_dev_ch0, "rf_bandwidth", &bandwidth);
+	}
+	else
+	{
+		printf("Error with direction when reading bandwidth\r\n");
+		bandwidth = -1;
+	}
+	return bandwidth;
+}
+
+void set_vga_gain(int channel_num, long long vga_gain)
+{
+	if(channel_num == 2)
+		iio_channel_attr_write_longlong(tx_dev_ch1, "hardwaregain", vga_gain);
+	else if(channel_num == 1)
+		iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"vga_gain: arguments are not valid.\r\n"
+				"Read/Write vga_gain with port and value arguments.\r\n"
+				"Usage:\r\n    vga_gain [port#] [value]\r\n");
+	}
+}
+
+long long get_vga_gain(int channel_num)
+{
+	long long vga_gain;
+	if(channel_num == 2)
+		iio_channel_attr_read_longlong(tx_dev_ch1, "hardwaregain", &vga_gain);
+	else if(channel_num == 1)
+		iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"vga_gain: arguments are not valid.\r\n"
+				"Read/Write vga_gain with port and value arguments.\r\n"
+				"Usage:\r\n    vga_gain [port#] [value]\r\n");
+	}
+	return vga_gain;
+}
+
+void set_lna_gain(int channel_num, long long lna_gain)
+{
+	if(channel_num == 2)
+	{
+		iio_channel_attr_write_longlong(rx_dev_ch1, "hardwaregain", lna_gain);
+	}
+	else if(channel_num == 1)
+	{
+		iio_channel_attr_write_longlong(rx_dev_ch0, "hardwaregain", lna_gain);
+	}
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"lna_gain: arguments are not valid.\r\n"
+				"Read/Write lna_gain with port and value arguments.\r\n"
+				"Usage:\r\n    lna_gain [port#] [value]\r\n");
+	}
+}
+
+long long get_lna_gain(int channel_num)
+{
+	long long lna_gain;
+	if(channel_num == 2)
+		iio_channel_attr_read_longlong(rx_dev_ch1, "hardwaregain", &lna_gain);
+	else if(channel_num == 1)
+		iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"lna_gain: arguments are not valid.\r\n"
+				"Read/Write lna_gain with port and value arguments.\r\n"
+				"Usage:\r\n    lna_gain [port#] [value]\r\n");
+	}
+	return lna_gain;
+}
+
+void set_gain_control_mode(int channel_num, char *gain_control_mode)
+{
+	if(channel_num == 2)
+		iio_channel_attr_write(rx_dev_ch1, "gain_control_mode", gain_control_mode);
+	else if(channel_num == 1)
+		iio_channel_attr_write(rx_dev_ch0, "gain_control_mode", gain_control_mode);
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"gain_control_mode: arguments are not valid.\r\n"
+				"Read/Write gain_control_mode with port and value arguments.\r\n"
+				"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
+	}
+}
+
+void get_gain_control_mode(int channel_num, char *gain_control_mode)
+{
+	if(channel_num == 2)
+		iio_channel_attr_read(rx_dev_ch1, "gain_control_mode", gain_control_mode, sizeof(gain_control_mode));
+	else if(channel_num == 1)
+		iio_channel_attr_read(rx_dev_ch0, "gain_control_mode", gain_control_mode, sizeof(gain_control_mode));
+	else
+	{
+		printf( "---------------------------------------------------------------\r\n"
+				"gain_control_mode: arguments are not valid.\r\n"
+				"Read/Write gain_control_mode with port and value arguments.\r\n"
+				"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
+	}
+}
+
+void set_sample_rate(int direction, long long sampling_frequency)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_write_longlong(rx_dev_ch0, "sampling_frequency", sampling_frequency);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write_longlong(tx_dev_ch0, "sampling_frequency", sampling_frequency);
+	}
+	else
+	{
+		printf("Error with direction when setting sample rate\r\n");
+	}
+}
+
+long long get_sample_rate(int direction)
+{
+	long long sampling_frequency;
+	if(direction == __RX)
+	{
+		iio_channel_attr_read_longlong(rx_dev_ch0, "sampling_frequency", &sampling_frequency);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read_longlong(tx_dev_ch0, "sampling_frequency", &sampling_frequency);
+	}
+	else
+	{
+		printf("Error with direction when reading sample rate\r\n");
+		sampling_frequency = -1;
+	}
+	return sampling_frequency;
+}
+
+void set_lo_freq(int direction, long long freq)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write_longlong(tx_alt_dev_ch1, tx_freq_name, freq);
+	}
+	else
+	{
+		printf("Error with direction when setting LO frequency\r\n");
+	}
+}
+
+long long get_lo_freq(int direction)
+{
+	long long freq;
+	if(direction == __RX)
+	{
+		iio_channel_attr_read_longlong(tx_alt_dev_ch0, rx_freq_name, &freq);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read_longlong(tx_alt_dev_ch1, tx_freq_name, &freq);
+	}
+	else
+	{
+		printf("Error with direction when reading LO frequency\r\n");
+		freq = -1;
+	}
+	return freq;
+}
+
+void set_port(int direction, char* port)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_write(iio_device_find_channel(dev, "voltage0", false), "rf_port_select", port);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write(iio_device_find_channel(dev, "voltage0", true), "rf_port_select", port);
+	}
+	else
+	{
+		printf("Error with direction when setting port\r\n");
+	}
+}
+
+void get_port(int direction, char *port)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_read(iio_device_find_channel(dev, "voltage0", false), "rf_port_select", port, 100);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read(iio_device_find_channel(dev, "voltage0", true), "rf_port_select", port, 100);
+	}
+	else
+	{
+		printf("Error with direction when reading port\r\n");
+		port = NULL;
+	}
+}
+
+void set_fir_en(int direction, bool fir_en)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_write_bool(rx_dev_ch0, "filter_fir_en", fir_en);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write_bool(tx_dev_ch0, "filter_fir_en", fir_en);
+	}
+	else
+	{
+		printf("Error with direction when setting fir enable\r\n");
+	}
+}
+
+bool get_fir_en(int direction)
+{
+	bool fir_en;
+	if(direction == __RX)
+	{
+		iio_channel_attr_read_bool(rx_dev_ch0, "filter_fir_en", &fir_en);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read_bool(tx_dev_ch0, "filter_fir_en", &fir_en);
+	}
+	else
+	{
+		printf("Error with direction when reading fir enable\r\n");
+		fir_en = false;
+	}
+	return fir_en;
+}
+
+void write_reg_ad9361(long long address, const char *value)
+{
+	char buffer[80];
+	sprintf(buffer, "0x%llx 0x%s", address, value);
+	iio_device_debug_attr_write(dev, "direct_reg_access", buffer);
+}
+
+// read value from address and store it in the value
+void read_reg_ad9361(long long address, char *value)
+{
+	iio_device_debug_attr_write_longlong(dev, "direct_reg_access", address);
+	iio_device_debug_attr_read(dev, "direct_reg_access", value, 80);
+}
+

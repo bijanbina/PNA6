@@ -2,6 +2,7 @@
 #define __PNA_FFT_H__
 
 #define SWEEP_SPAN 20
+#define SET_LO_DELAY 500
 
 #include "pna-base.h"
 
@@ -11,7 +12,7 @@ void calc_fft_dma24(int32_t *bufferIn, int32_t *fft_abs, int32_t *fft_phase,
 	                int is_debug, unsigned int fft_size);
 int compress_data(int32_t *data_in, unsigned char *data_out, int data_size);
 int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size);
-int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq);
+int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size);
 int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size);
 void pna_fft2(int32_t *data_in, unsigned int fft_size);
 void pna_fft3(int32_t *data_in, unsigned int fft_size);

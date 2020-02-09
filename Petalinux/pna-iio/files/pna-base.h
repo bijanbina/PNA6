@@ -23,6 +23,10 @@
 #define CAP_DEVICE "cf-ad9361-lpc"
 #define UDC_RX_DEVICE "adf4351-udc-rx-pmod"
 #define UDC_TX_DEVICE "adf4351-udc-tx-pmod"
+#define CONTROL_OUTPUT_ADD 35
+#define CONTROL_OUTPUT_VAL 36
+#define __RX 1
+#define __TX 0
 
 struct extra_dev_info
 {
@@ -77,6 +81,25 @@ uint8_t gpio_fft_status();
 void gpio_fft_reset();
 void init_all_gpio();
 void gpio_fft_valid();
-void set_rx_freq(long long freq);
+
+void set_bandwidth(int direction, long long bandwidth);
+long long get_bandwidth(int direction);
+void set_vga_gain(int channel_num, long long vga_gain);
+long long get_vga_gain(int channel_num);
+void set_lna_gain(int channel_num, long long lna_gain);
+long long get_lna_gain(int channel_num);
+void set_gain_control_mode(int channel_num, char *gain_control_mode);
+void get_gain_control_mode(int channel_num, char *gain_control_mode);
+void set_sample_rate(int direction, long long sampling_frequency);
+long long get_sample_rate(int direction);
+void set_lo_freq(int direction, long long freq);
+long long get_lo_freq(int direction);
+void set_port(int direction, char* port);
+void get_port(int direction, char *port);
+void set_fir_en(int direction, bool fir_en);
+bool get_fir_en(int direction);
+
+void read_reg_ad9361(long long address, char *value);
+void write_reg_ad9361(long long address, const char *value);
 
 #endif //__PNA_BASE_H__
