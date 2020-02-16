@@ -82,6 +82,11 @@ void gpio_fft_reset();
 void init_all_gpio();
 void gpio_fft_valid();
 
+ssize_t fastlock_store();
+ssize_t fastlock_save(char *data);
+ssize_t fastlock_load(char* data);
+ssize_t fastlock_recall(int slot);
+
 void set_bandwidth(int direction, long long bandwidth);
 long long get_bandwidth(int direction);
 void set_vga_gain(int channel_num, long long vga_gain);
@@ -104,7 +109,6 @@ void set_rf_dc(bool rf_dc_en);
 bool get_rf_dc();
 void set_quad_track(bool quad_track);
 bool get_quad_track();
-
 void read_reg_ad9361(long long address, char *value);
 void write_reg_ad9361(long long address, const char *value);
 

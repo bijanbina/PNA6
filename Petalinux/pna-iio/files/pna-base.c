@@ -14,7 +14,7 @@ unsigned int dcxo_coarse_num, dcxo_fine_num;
 
 long long dds_alignment;
 
-char *rx_fastlock_store_name, *rx_fastlock_recall_name;
+char *rx_fastlock_store_name, *rx_fastlock_recall_name, *rx_fastlock_save_name, *rx_fastlock_load_name;
 // char *tx_fastlock_store_name, *tx_fastlock_recall_name;
 
 struct iio_context *ctx = NULL;
@@ -31,8 +31,8 @@ unsigned dds_tones_count;
 const char *dds_name;
 struct iio_buffer *dds_buffer;
 struct iio_buffer *capture_buffer = NULL;
-const char *rx_freq_name, *tx_freq_name;
 
+const char *rx_freq_name, *tx_freq_name;
 int32_t rx1_buffer [2*MAX_FFT_LENGTH];
 int32_t rx2_buffer [2*MAX_FFT_LENGTH];
 int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
@@ -459,6 +459,14 @@ void fmcomms2_init(void)
 		rx_fastlock_recall_name = "fastlock_recall";
 	else
 		rx_fastlock_recall_name = "RX_LO_fastlock_recall";
+	if (iio_channel_find_attr(tx_alt_dev_ch0, "fastlock_save"))
+		rx_fastlock_save_name = "fastlock_save";
+	else
+		rx_fastlock_save_name = "RX_LO_fastlock_save";
+	if (iio_channel_find_attr(tx_alt_dev_ch0, "fastlock_load"))
+		rx_fastlock_load_name = "fastlock_load";
+	else
+		rx_fastlock_load_name = "RX_LO_fastlock_load";
 
 	/* Transmit Chain */
 	tx_dev_ch0 = iio_device_find_channel(dev, "voltage0", true);
@@ -638,6 +646,30 @@ void init_all_gpio()
 	set_gpio_direction(gpio_base_cfft, nchannel_cfft, "out");
 	nchannel_status = open_gpio_channel(gpio_base_status);
 	set_gpio_direction(gpio_base_status, nchannel_status, "in");
+}
+
+ssize_t fastlock_store()
+{
+	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_store_name, 0);
+}
+
+ssize_t fastlock_save(char *data)
+{
+	char data_temp[66];
+	ssize_t ret = iio_channel_attr_read(tx_alt_dev_ch0, rx_fastlock_save_name, data_temp, sizeof(data_temp));
+	strcpy(data, data_temp);
+	return ret;
+}
+
+ssize_t fastlock_load(char* data)
+{
+	// printf("fastlock_load function : %s\r\n", data);
+	return iio_channel_attr_write(tx_alt_dev_ch0, rx_fastlock_load_name, data);
+}
+
+ssize_t fastlock_recall(int slot)
+{
+	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_recall_name, slot);
 }
 
 void set_bandwidth(int direction, long long bandwidth)

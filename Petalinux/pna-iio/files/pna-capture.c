@@ -1,5 +1,10 @@
 #include "pna-capture.h"
 
+fastlock_profile **profile_list;
+
+int sweep_count = 0;
+int profile_slot = 1;
+
 uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 
@@ -41,7 +46,7 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
   	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	printf("fftst: %lf \r\n", sweep_time);
+	// printf("fftst: %lf \r\n", sweep_time);
 
 	if(is_debug)
 	{
@@ -51,7 +56,7 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	printf("fftst: %lf \r\n", sweep_time);
+	// printf("fftst: %lf \r\n", sweep_time);
 	if(is_debug)
 	{
 		printf("calc_fft_dma #2 \r\n");
@@ -99,7 +104,7 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	printf("fftst: %lf \r\n", sweep_time);
+	// printf("fftst: %lf \r\n", sweep_time);
 }
 
 void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
@@ -146,6 +151,148 @@ void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 
 	}
 	free(bufferOut);
+}
+
+void fill_profiles(double start, double sweepspan)
+{
+	double step = 40.0, f;
+	fastlock_profile *profile;
+	unsigned char prev_alc = 0;
+	unsigned char alc;
+	char *last_byte;
+	unsigned int i = 0;
+	ssize_t ret;
+	long long freq;
+
+	sweep_count = sweepspan / step;
+	if((int)sweepspan % (int)step > 0)
+	{
+		sweep_count++;
+	}
+
+	start = start + 15.0;
+
+	if(profile_list)
+	{
+		for(int i=0; i<sweep_count; i++)
+		{
+			if(profile_list[i])
+			{
+				free(profile_list[i]);
+			}
+		}
+		free(profile_list);
+	}
+
+	profile_list = (fastlock_profile **)malloc(2*sweep_count*sizeof(fastlock_profile *));
+	if(!profile_list)
+	{
+		printf("error on profile_list memory allocation\r\n");
+	}
+
+	for (i = 0, f = start; i < sweep_count; f += step, i++)
+	{
+		// first round
+		freq = f*1E6;
+		set_lo_freq(__RX, freq);
+		ret = fastlock_store();
+		if(ret != 0)
+		{
+			printf("error on fastlock store\r\n");
+		}
+		profile = (fastlock_profile *)malloc(sizeof(fastlock_profile));
+		if(!profile)
+		{
+			printf("error on profile memory allocation\r\n");
+		}
+		ret = fastlock_save(profile->data);
+		if(ret < 0)
+		{
+			printf("error on fastlock save\r\n");
+		}
+		profile->frequency = freq;
+		profile->index = 2*i;
+
+		profile_list[2*i] = profile;
+		/* Make sure two consecutive profiles do not have the same ALC.
+		 * Disregard the LBS of the ALC when comparing.
+		   More on: https://ez.analog.com/message/151702#151702 */
+		last_byte = strrchr(profile->data, ',');
+		if(!last_byte)
+		{
+			printf("< , > not found\r\n");
+		}
+		last_byte++;
+		alc = atoi(last_byte);
+		if (abs(alc - prev_alc) < 2)
+			alc += 2;
+		prev_alc = alc;
+		sprintf(last_byte, "%d", alc);
+		// printf("%d,profile_data: %s \r\n"
+		// 		"freq: %lfMhz, \r\n", profile->index, profile->data, f);
+
+		// second round
+
+		freq = (f+10)*1E6;
+		set_lo_freq(__RX, freq);
+		ret = fastlock_store();
+		if(ret != 0)
+		{
+			printf("error on fastlock store\r\n");
+		}
+		profile = (fastlock_profile *)malloc(sizeof(fastlock_profile));
+		if(!profile)
+		{
+			printf("error on profile memory allocation\r\n");
+		}
+		ret = fastlock_save(profile->data);
+		if(ret < 0)
+		{
+			printf("error on fastlock save\r\n");
+		}
+
+		profile->frequency = freq;
+		profile->index = 2*i + 1;
+		profile_list[2*i+1] = profile;
+		/* Make sure two consecutive profiles do not have the same ALC.
+		 * Disregard the LBS of the ALC when comparing.
+		   More on: https://ez.analog.com/message/151702#151702 */
+		last_byte = strrchr(profile->data, ',') + 1;
+		if(!last_byte)
+		{
+			printf("< , > not found\r\n");
+		}
+		alc = atoi(last_byte);
+		if (abs(alc - prev_alc) < 2)
+			alc += 2;
+		prev_alc = alc;
+		sprintf(last_byte, "%d", alc);
+		// printf("%d:profile_data: %s \r\n"
+		// 		"freq: %lfMhz, \r\n", profile->index, profile->data, f+10);
+	}
+	freq = (start + sweepspan/2)*1E6; //TODO: this should be removed from this place
+	set_lo_freq(__RX, freq); //TODO: this should be removed from this place
+}
+
+void load_profile(int index)
+{
+	fastlock_profile *profile = profile_list[index];
+	ssize_t ret;
+
+	profile->data[0] = '0' + profile_slot;
+	// printf("%d:freq=%lld profile_data %s\r\n", profile->index, profile->frequency, profile->data);
+	ret = fastlock_load(profile->data);
+	if (ret < 0)
+	{
+		printf("error on fastlock load\r\n");
+	}
+
+	ret = fastlock_recall(profile_slot);
+	if (ret < 0)
+	{
+		printf("error on fastlock recall\r\n");
+	}
+	profile_slot = ( profile_slot+1 ) % 2;
 }
 
 int compress_data(int32_t *data_in, unsigned char *data_out, int data_size)
@@ -211,6 +358,47 @@ int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
 	{
 		output_data[i] = fft_abs[i+removed_span];
 	}
+	return output_data;
+}
+
+// calculate 40MHz spectrum without DC interference
+int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
+{
+	int sweep_offset = 0;
+	char buffer_cal[80];
+	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
+	int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
+
+	load_profile(2*index);
+	usleep(SET_LO_DELAY);
+
+	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	if(spectrum == NULL)
+		return NULL;
+	int32_t *output_data = (int32_t*) malloc(CHUNK_C * 4 * sizeof(int32_t));
+	for(int j=0; j<CHUNK_C; j++)
+	{
+		output_data[j] = spectrum[j];
+		output_data[j+2*CHUNK_C] = spectrum[j+2*CHUNK_C];
+		sweep_offset++;
+	}
+	free(spectrum);
+
+	load_profile(2*index+1);
+	usleep(SET_LO_DELAY);
+
+	spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	if(spectrum == NULL)
+	{
+		free(output_data);
+		return NULL;
+	}
+	for(int j=0; j<CHUNK_C; j++)
+	{
+		output_data[sweep_offset+j] = spectrum[j];
+		output_data[sweep_offset+j+2*CHUNK_C] = spectrum[j+2*CHUNK_C];
+	}
+	free(spectrum);
 	return output_data;
 }
 
@@ -299,7 +487,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		gettimeofday(&tv2, NULL);
 		sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-		printf("st: %lf \r\n", sweep_time);
+		// printf("st: %lf \r\n", sweep_time);
 	}
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
@@ -309,7 +497,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
   	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	printf("st: %lf \r\n", sweep_time);
+	// printf("st: %lf \r\n", sweep_time);
     for(int i=0; i<fft_size/2-removed_span; i++)
     {
 		if(i<0 || i>fft_size/2)

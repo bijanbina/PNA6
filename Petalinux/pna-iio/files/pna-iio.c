@@ -125,6 +125,16 @@ int main (int argc, char **argv)
 		{
 			printf("sweep_time: %lf \r\n",  sweep_time);
 		}
+		else if( strcmp(token, "fillpro")==0 ) // sweep time
+		{
+			double rx_freq_mhz = rx_freq / 1E6;
+			double sweep_span_mhz = 270;
+			fill_profiles(rx_freq_mhz - sweep_span_mhz/2, sweep_span_mhz);
+		}
+		else if( strcmp(token, "loadpro")==0 ) // sweep time
+		{
+			load_profile(0);
+		}
 		else if( strcmp(token, "vga_gain")==0 )
 		{
 			token = strtok(NULL, delim);
@@ -532,6 +542,109 @@ int main (int argc, char **argv)
 			{
 				pna_adc_fft(rx1_buffer, fft_size);
 			}
+		}
+		else if(strcmp(token,"sweep2") == 0)
+		{
+			int channel_num;
+			token = strtok(NULL, delim);
+			// long long span_sweep;
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"sweep: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    sweep [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(channel_num > 1)
+				{
+					printf("---------------------------------------------------------------\r\n"
+									"sweep: Channel number should be 1 or 2.\r\n"
+									"Capture spectrum of signal from port argument.\r\n"
+									"Usage:\r\n    sweep [port#]\r\n");
+					continue;
+				}
+			}
+			long long sw_span;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"sweep: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    sweep [port#]\r\n");
+				continue;
+			}
+			else
+			{
+				sw_span = get_frequency(token);
+			}
+			// printf("sw_span : %lld\r\n", sw_span);
+
+			int32_t *spectrum;
+			int sweep_index = 0;
+			unsigned char uart_tx_buffer[2*UART_LENGTH];
+			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			if(sw_span < 0)
+				sw_span = 80E6;
+			double span_mhz = sw_span / 1E6;
+			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
+			double rx_freq_mhz = rx_freq/1E6;
+			double lo_start_freq = rx_freq_mhz - span_mhz/2.0;
+			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
+			int span_int = (int)span_mhz;
+
+			fill_profiles(lo_start_freq, span_mhz);
+
+			gettimeofday(&tv1, NULL);
+
+			if(span_int % (2*SWEEP_SPAN) > 0)
+			{
+				span_num += 2;
+			}
+			int span_count = span_num * CHUNK_C * 2;
+			int32_t *sweep_buf = (int32_t*) malloc(span_count * sizeof(int32_t));
+			double spur_count = span_num * SWEEP_SPAN - span_mhz;
+			
+			spur_count = spur_count*fft_size/rx_sampling_frequency_mhz;
+			spur_count = floor(spur_count);
+			// printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
+			// 		"span_count: %d, spur_count: %lf\r\n", span_num, span_mhz, 
+			// 		rx_sampling_frequency_mhz, span_count, spur_count);
+			for(int i=0; i<span_num/2; i++)
+			{
+				if(channel_num)
+				{
+					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i);
+				}
+				else
+				{
+					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i);
+				}
+				if(spectrum == NULL)
+				{
+					free(sweep_buf);
+					return -1;
+				}
+				for(int j=0; j<4*CHUNK_C; j++)
+				{
+					sweep_buf[sweep_index] = spectrum[j];
+					sweep_index++;
+				}
+			}
+			int uart_size = compress_data(sweep_buf, uart_tx_buffer, span_count - spur_count);
+
+			gettimeofday(&tv2, NULL);
+			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+
+			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			set_lo_freq(__RX, rx_freq);
+			usleep(SET_LO_DELAY);
+			printf("\r\n");
 		}
 		else if(strcmp(token,"sweep") == 0)
 		{
