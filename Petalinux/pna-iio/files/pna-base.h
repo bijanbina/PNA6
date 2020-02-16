@@ -23,7 +23,7 @@
 #define CAP_DEVICE "cf-ad9361-lpc"
 #define UDC_RX_DEVICE "adf4351-udc-rx-pmod"
 #define UDC_TX_DEVICE "adf4351-udc-tx-pmod"
-#define CONTROL_OUTPUT_ADD 35
+#define VCO_CAL_STATUS 0x244
 #define CONTROL_OUTPUT_VAL 36
 #define __RX 1
 #define __TX 0
@@ -98,6 +98,12 @@ void set_port(int direction, char* port);
 void get_port(int direction, char *port);
 void set_fir_en(int direction, bool fir_en);
 bool get_fir_en(int direction);
+void set_bb_dc(bool bb_dc_en);
+bool get_bb_dc();
+void set_rf_dc(bool rf_dc_en);
+bool get_rf_dc();
+void set_quad_track(bool quad_track);
+bool get_quad_track();
 
 void read_reg_ad9361(long long address, char *value);
 void write_reg_ad9361(long long address, const char *value);

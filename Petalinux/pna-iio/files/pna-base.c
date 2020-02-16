@@ -136,16 +136,10 @@ double read_sampling_frequency(const struct iio_device *dev)
 ssize_t demux_sample(const struct iio_channel *chn,
 		void *sample, size_t size, void *d)
 {
-	struct extra_info *info = iio_channel_get_data(chn);
-	struct extra_dev_info *dev_info = iio_device_get_data(info->dev);
-	const struct iio_data_format *format = iio_channel_get_data_format(chn);
-
-	/* Prevent buffer overflow */
-	if ((unsigned long) info->offset == (unsigned long) dev_info->sample_count)
-		return 0;
-
-	int16_t val;
-	iio_channel_convert(chn, &val, sample);
+	int16_t *sample_int = (int16_t *)sample;
+	int16_t val = *(sample_int);
+	val = val & 0xFFFF;
+	// printf("val: 0x%x, sample: 0x%x \r\n", val , *sample_int);
 
 	if( rx_indx % 4 == 0 )
 	{
@@ -278,33 +272,31 @@ void fill_rx_buffer(unsigned int fft_size)
 	}
 	else
 	{
-		unsigned int buffer_step;
-		/* Demux captured data */
-		buffer_step = iio_buffer_step(capture_buffer);
-		// printf("buffer step=%d,ret=%d\r\n", buffer_step, ret);
-		// printf("capture_buffer=%x\r\n", capture_buffer);
-		if ((unsigned)ret >= buffer_step*fft_size)
+		// iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
+		rx_indx = 0;
+		int16_t *capture_pointer = (int *)iio_buffer_start(capture_buffer);
+		for(int i=0; i<fft_size; i++)
 		{
-#ifdef FFT_24_BIT
-			int32_t *adc_data = (int32_t *) iio_buffer_start(capture_buffer);
-#elif FFT_16_BIT
-			int16_t *adc_data = (int16_t *) iio_buffer_start(capture_buffer);
-#endif
-			/*for (i = 0; i < ret; i++)
-			{
-				printf("adc_data[%d]=%d\n", i, adc_data[i]);
-			}*/
-			iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
-			rx_indx = 0;
-		}
-		else
-		{
-			printf("error capture from adc failed, "
-						"buffer step=%d, ret=%d\r\n", buffer_step, ret);
+			int16_t val_i1 = *(capture_pointer);
+			int16_t val_q1 = *(capture_pointer+1);
+			int16_t val_i2 = *(capture_pointer+2);
+			int16_t val_q2 = *(capture_pointer+3);
+
+			val_i1 = val_i1 & 0xFFFF;
+			val_q1 = val_q1 & 0xFFFF;
+			val_i2 = val_i2 & 0xFFFF;
+			val_q2 = val_q2 & 0xFFFF;
+
+			rx1_buffer[rx_indx] = val_i1;
+			rx1_buffer[rx_indx] &= 0x0000FFFF;
+			rx1_buffer[rx_indx] |= (val_q1 << 16);
+			rx2_buffer[rx_indx] = val_i2;
+			rx2_buffer[rx_indx] &= 0x0000FFFF;
+			rx2_buffer[rx_indx] |= (val_q2 << 16);
+			rx_indx++;
+			capture_pointer += 4;
 		}
 	}
-	//printf("exit fill_rx_buffer capture_buffer=%x\n", capture_buffer);
-	//iio_buffer_destroy(capture_buffer);
 }
 
 /*
@@ -717,6 +709,7 @@ long long get_vga_gain(int channel_num)
 
 void set_lna_gain(int channel_num, long long lna_gain)
 {
+	printf("channel num : %d \r\n", channel_num);
 	if(channel_num == 2)
 	{
 		iio_channel_attr_write_longlong(rx_dev_ch1, "hardwaregain", lna_gain);
@@ -933,3 +926,38 @@ void read_reg_ad9361(long long address, char *value)
 	iio_device_debug_attr_read(dev, "direct_reg_access", value, 80);
 }
 
+void set_bb_dc(bool bb_dc_en)
+{
+	iio_channel_attr_write_bool(rx_dev_ch0, "bb_dc_offset_tracking_en", bb_dc_en);
+}
+
+bool get_bb_dc()
+{
+	bool bb_dc_en;
+	iio_channel_attr_read_bool(rx_dev_ch0, "bb_dc_offset_tracking_en", &bb_dc_en);
+	return bb_dc_en;
+}
+
+void set_rf_dc(bool rf_dc_en)
+{
+	iio_channel_attr_write_bool(rx_dev_ch0, "rf_dc_offset_tracking_en", rf_dc_en);
+}
+
+bool get_rf_dc()
+{
+	bool rf_dc_en;
+	iio_channel_attr_read_bool(rx_dev_ch0, "rf_dc_offset_tracking_en", &rf_dc_en);
+	return rf_dc_en;
+}
+
+void set_quad_track(bool quad_track)
+{
+	iio_channel_attr_write_bool(rx_dev_ch0, "quadrature_tracking_en", quad_track);
+}
+
+bool get_quad_track()
+{
+	bool quad_track;
+	iio_channel_attr_read_bool(rx_dev_ch0, "rf_dc_offset_tracking_en", &quad_track);
+	return quad_track;
+}

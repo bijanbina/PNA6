@@ -1,46 +1,57 @@
 #include "pna-capture.h"
 
+uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
+uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
+
 void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 	                int is_debug, unsigned int fft_size)
 {
-  uint8_t *bufferIn = (uint8_t *) malloc(sizeof(uint8_t) * FFT_24_BIT * 2 * fft_size);
-	uint8_t *bufferOut = (uint8_t *) malloc(sizeof(uint8_t) * FFT_24_BIT * 2 * fft_size);
-
-  memset(bufferOut, 0, sizeof(uint8_t) * FFT_24_BIT * 2 * fft_size);
-  memset(bufferIn, 0, sizeof(uint8_t) * FFT_24_BIT * 2  * fft_size);
+//   memset(bufferOut, 0, sizeof(uint8_t) * FFT_24_BIT * 2 * fft_size);
+//   memset(bufferIn, 0, sizeof(uint8_t) * FFT_24_BIT * 2  * fft_size);
   // printf("fft24 flag1 %d\n",fft_size);
-  for(int i=0; i<fft_size; i++)
-  {
-    int16_t dataIn_I = data_in[i] & 0x0000ffff;
-    int16_t dataIn_Q = (data_in[i] & 0xffff0000) >> 16;
-    bufferIn[6*i] = data_in[i] & 0x000000ff;
-    bufferIn[6*i+1] = (data_in[i] & 0x0000ff00) >> 8;
-    if(dataIn_I>=0)
-    {
-      bufferIn[6*i+2] = 0;
-    }
-    else
-    {
-      bufferIn[6*i+2] = 0xff;
-    }
+  	struct timeval  tv1, tv2;
+	double sweep_time = 0;
+	gettimeofday(&tv1, NULL);
+	for(int i=0; i<fft_size; i++)
+	{
+		int16_t dataIn_I = data_in[i] & 0x0000ffff;
+		int16_t dataIn_Q = (data_in[i] & 0xffff0000) >> 16;
+		fft_buffer_in[6*i] = data_in[i] & 0x000000ff;
+		fft_buffer_in[6*i+1] = (data_in[i] & 0x0000ff00) >> 8;
+		if(dataIn_I>=0)
+		{
+			fft_buffer_in[6*i+2] = 0;
+		}
+		else
+		{
+			fft_buffer_in[6*i+2] = 0xff;
+		}
 
-    bufferIn[6*i+3] = (data_in[i] & 0x00ff0000) >> 16;
-    bufferIn[6*i+4] = (data_in[i] & 0xff000000) >> 24;
-    if(dataIn_Q>=0)
-    {
-      bufferIn[6*i+5] = 0;
-    }
-    else
-    {
-      bufferIn[6*i+5] = 0xff;
-    }
-  }
+		fft_buffer_in[6*i+3] = (data_in[i] & 0x00ff0000) >> 16;
+		fft_buffer_in[6*i+4] = (data_in[i] & 0xff000000) >> 24;
+		if(dataIn_Q>=0)
+		{
+			fft_buffer_in[6*i+5] = 0;
+		}
+		else
+		{
+			fft_buffer_in[6*i+5] = 0xff;
+		}
+	}
+  	gettimeofday(&tv2, NULL);
+	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+	printf("fftst: %lf \r\n", sweep_time);
 
 	if(is_debug)
 	{
 		printf("calc_fft_dma #1 \r\n");
 	}
-	memCpy_DMA((char *)bufferIn, (char *)bufferOut, fft_size * FFT_24_BIT * 2);
+	memCpy_DMA((char *)fft_buffer_in, (char *)fft_buffer_out, fft_size * FFT_24_BIT * 2);
+	gettimeofday(&tv2, NULL);
+	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+	printf("fftst: %lf \r\n", sweep_time);
 	if(is_debug)
 	{
 		printf("calc_fft_dma #2 \r\n");
@@ -48,24 +59,26 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 
 	for (int i=0 ; i<fft_size; i++)
 	{
-    int8_t fft_output = bufferOut[6*i+2];
+		int8_t fft_output = fft_buffer_out[6*i+2];
+
 		int32_t fft_re = 0;
-    fft_re |= bufferOut[6*i];
-    fft_re |= bufferOut[6*i+1] << 8;
-    fft_re |= bufferOut[6*i+2] << 16;
-    if(fft_output < 0)
-    {
-      fft_re |= 0xff000000;
-    }
-    fft_output = bufferOut[6*i+5];
+		fft_re |= fft_buffer_out[6*i];
+		fft_re |= fft_buffer_out[6*i+1] << 8;
+		fft_re |= fft_buffer_out[6*i+2] << 16;
+		if(fft_output < 0)
+		{
+			fft_re |= 0xff000000;
+		}
+		fft_output = fft_buffer_out[6*i+5];
+
 		int32_t fft_im = 0;
-    fft_im = bufferOut[6*i+3];
-    fft_im |= bufferOut[6*i+4] << 8;
-    fft_im |= bufferOut[6*i+5] << 16;
-    if(fft_output < 0)
-    {
-      fft_im |= 0xff000000;
-    }
+		fft_im = fft_buffer_out[6*i+3];
+		fft_im |= fft_buffer_out[6*i+4] << 8;
+		fft_im |= fft_buffer_out[6*i+5] << 16;
+		if(fft_output < 0)
+		{
+			fft_im |= 0xff000000;
+		}
 		double fft_re_double = fft_re;
 		double fft_im_double = fft_im;
 		double fft_mag = sqrt( pow(fft_re_double,2) + pow(fft_im_double,2) );
@@ -83,7 +96,10 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 		// }
 
 	}
-	free(bufferOut);
+	gettimeofday(&tv2, NULL);
+	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+	printf("fftst: %lf \r\n", sweep_time);
 }
 
 void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
@@ -203,25 +219,35 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 {
 	long long freq = start_freq + 3*1E6*SWEEP_SPAN/4;
 	int sweep_offset = 0;
-	// char *sz = NULL;
-	// long long cal_reg_val = 0;
-	// char buffer_cal[80];
+	 char *sz = NULL;
+	 long long cal_reg_val = 0;
+	 char buffer_cal[80];
 	int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
+//	struct timeval  tv1, tv2;
+
+//	gettimeofday(&tv1, NULL);
 	set_lo_freq(__RX, freq);
+//	gettimeofday(&tv2, NULL);
+//	printf("time: %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+//	         (double) (tv2.tv_sec - tv1.tv_sec));
 
-	// write_reg_ad9361(CONTROL_OUTPUT_ADD, "00");
-	// read_reg_ad9361(CONTROL_OUTPUT_VAL, buffer_cal);
-	// printf("reg cal: %s\r\n", buffer_cal);
-	// cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+//	gettimeofday(&tv1, NULL);
+	usleep(SET_LO_DELAY);
+//	gettimeofday(&tv2, NULL);
+//	printf("usleep time : %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+//	         (double) (tv2.tv_sec - tv1.tv_sec));
 
-	// while(cal_reg_val == 2)
-	// {
+	read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+//	printf("reg cal: %s\r\n", buffer_cal);
+	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+
+	 while((cal_reg_val & 0xA0) != 0xA0)
+	 {
 		usleep(SET_LO_DELAY);
-	// 	write_reg_ad9361(CONTROL_OUTPUT_ADD, "00");
-	// 	read_reg_ad9361(CONTROL_OUTPUT_VAL, buffer_cal);
-	// 	printf("reg cal: %s\r\n", buffer_cal);
-	// 	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
-	// }
+		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+//		printf("reg cal: %s\r\n", buffer_cal);
+	 	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+	 }
 
 	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
 	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
@@ -264,15 +290,26 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 	int16_t *fft_phase = (int16_t *) malloc(sizeof(int16_t) * fft_size);
 	int16_t *fft_spanned = (int16_t *) malloc(sizeof(int16_t) * (fft_size-2*removed_span));
 #endif
+	struct timeval  tv1, tv2;
+	double sweep_time = 0;
+	gettimeofday(&tv1, NULL);
 	for(int i=0; i<5; i++)
 	{
 		fill_rx_buffer(fft_size);
+		gettimeofday(&tv2, NULL);
+		sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+		printf("st: %lf \r\n", sweep_time);
 	}
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
 #elif FFT_16_BIT
   	calc_fft_dma16(data_in, fft_abs, fft_phase, 0, fft_size);
 #endif
+  	gettimeofday(&tv2, NULL);
+	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+	printf("st: %lf \r\n", sweep_time);
     for(int i=0; i<fft_size/2-removed_span; i++)
     {
 		if(i<0 || i>fft_size/2)

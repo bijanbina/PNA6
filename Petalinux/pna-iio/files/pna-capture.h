@@ -2,8 +2,9 @@
 #define __PNA_FFT_H__
 
 #define SWEEP_SPAN 20
-#define SET_LO_DELAY 500
+#define SET_LO_DELAY 200
 
+#include <time.h>
 #include "pna-base.h"
 
 void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,

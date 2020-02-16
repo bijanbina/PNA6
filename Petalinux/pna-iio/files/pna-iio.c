@@ -19,6 +19,11 @@ int main (int argc, char **argv)
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
+
+	// calculating sweep time
+	struct timeval  tv1, tv2;
+	double sweep_time = 0;
+
 	unsigned int fft_size = 1024; //16bit(I)+16bit(Q) = 32bit data
 	// fft_size = atoi(argv[1]);
 	dds_sample_size = fft_size;
@@ -115,6 +120,10 @@ int main (int argc, char **argv)
 				set_bandwidth(__RX, bandwidth);
 				printf("rx_bandwidth: %lld \r\n", bandwidth);
 			}
+		}
+		else if( strcmp(token, "st")==0 ) // sweep time
+		{
+			printf("sweep_time: %lf \r\n",  sweep_time);
 		}
 		else if( strcmp(token, "vga_gain")==0 )
 		{
@@ -350,6 +359,48 @@ int main (int argc, char **argv)
 				printf("tx_fir_en: %d \r\n", fir_en);
 			}
 		}
+		else if( strcmp(token, "bbdc") == 0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("bb_dc_enable: %d \r\n", get_bb_dc());
+			}
+			else
+			{
+				bool bb_dc_en = atoi(token);
+				set_bb_dc(bb_dc_en);
+				printf("bb_dc_enable: %d \r\n", bb_dc_en);
+			}
+		}
+		else if( strcmp(token, "rfdc") == 0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("rf_dc_enable: %d \r\n", get_rf_dc());
+			}
+			else
+			{
+				bool rf_dc_en = atoi(token);
+				set_rf_dc(rf_dc_en);
+				printf("rf_dc_enable: %d \r\n", rf_dc_en);
+			}
+		}
+		else if( strcmp(token, "quad") == 0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("quad_enable: %d \r\n", get_quad_track());
+			}
+			else
+			{
+				bool quad_en = atoi(token);
+				set_quad_track(quad_en);
+				printf("quad_enable: %d \r\n", quad_en);
+			}
+		}
 		else if( strcmp(token, "span")==0 )
 		{
 			token = strtok(NULL, delim);
@@ -534,6 +585,9 @@ int main (int argc, char **argv)
 			long long lo_start_freq = rx_freq - sw_span/2.0;
 			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
 			int span_int = (int)span_mhz;
+
+			gettimeofday(&tv1, NULL);
+
 			if(span_int % (2*SWEEP_SPAN) > 0)
 			{
 				span_num += 2;
@@ -570,6 +624,11 @@ int main (int argc, char **argv)
 				lo_start_freq += 2*SWEEP_SPAN*1E6;
 			}
 			int uart_size = compress_data(sweep_buf, uart_tx_buffer, span_count - spur_count);
+
+			gettimeofday(&tv2, NULL);
+			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			set_lo_freq(__RX, rx_freq);
 			usleep(SET_LO_DELAY);
@@ -606,6 +665,9 @@ int main (int argc, char **argv)
 			int span_mhz = span/1E6;
 			int rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
 			int removed_span = fft_size*(rx_sampling_frequency_mhz - span_mhz)/rx_sampling_frequency_mhz/2;
+
+			gettimeofday(&tv1, NULL);
+
 			if(channel_num)
 			{
 				spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
@@ -618,6 +680,9 @@ int main (int argc, char **argv)
 				return -1;
 			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
 			int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size);
+			gettimeofday(&tv2, NULL);
+			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
+			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
 			printf("\r\n");
 			free(spectrum);
