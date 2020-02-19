@@ -20,12 +20,19 @@ if [ "$response" = "0" ]; then
 		cp -R Petalinux/pna-iio/files/* $SDK_PETALINUX_PROJECT/
 	fi
 
-	printf "Copy SDK Files from git?[y/N]: "
+	printf "Copy SDK ZC702 Files from git?[y/N]: "
 	read response
 
 	if [ "$response" = "y" ]; then
-		cp -R SDK/*.c "$SDK_PROJECT/"
-		cp -R SDK/*.h "$SDK_PROJECT/"
+		cp -R SDK/ZC702/*.c "$SDK_PROJECT/"
+		cp -R SDK/ZC702/*.h "$SDK_PROJECT/"
+	fi
+	printf "Copy SDK DDRLess Files from git?[y/N]: "
+	read response
+
+	if [ "$response" = "y" ]; then
+		cp -R SDK/DDRLess/*.c "$DDRLESS_PROJECT/"
+		cp -R SDK/DDRLess/*.h "$DDRLESS_PROJECT/"
 	fi
 elif [ "$response" = "1" ]; then
 	printf "Copy PetaLinux Files to git?[p/s/N]: "
@@ -38,16 +45,26 @@ elif [ "$response" = "1" ]; then
 		cp -R $SDK_PETALINUX_PROJECT/* Petalinux/pna-iio/files/
 	fi
 
-	printf "Copy SDK Files to git?[y/N]: "
+	printf "Copy ZC702 SDK Files to git?[y/N]: "
 	read response
 
 	if [ "$response" = "y" ]; then
-		rm SDK/*.c
-		rm SDK/*.h
-		cp -R $SDK_PROJECT/*.h SDK/
-		cp -R $SDK_PROJECT/*.c SDK/
+		rm SDK/ZC702/*.c
+		rm SDK/ZC702/*.h
+		cp -R $SDK_PROJECT/*.h SDK/ZC702/
+		cp -R $SDK_PROJECT/*.c SDK/ZC702/
 	fi
 
+	printf "Copy DDRLess SDK Files to git?[y/N]: "
+	read response
+
+	if [ "$response" = "y" ]; then
+		rm SDK/DDRLess/*.c
+		rm SDK/DDRLess/*.h
+		cp -R $DDRLESS_PROJECT/*.h SDK/DDRLess/
+		cp -R $DDRLESS_PROJECT/*.c SDK/DDRLess/
+	fi
+	
 	git status
 
 	printf "Enter git commit comment: "
