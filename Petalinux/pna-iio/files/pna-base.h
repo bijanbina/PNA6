@@ -83,7 +83,7 @@ void init_all_gpio();
 void gpio_fft_valid();
 
 ssize_t fastlock_store();
-ssize_t fastlock_save(char *data);
+ssize_t fastlock_read_cal(char *data);
 ssize_t fastlock_load(char* data);
 ssize_t fastlock_recall(int slot);
 

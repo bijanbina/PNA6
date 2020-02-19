@@ -7,16 +7,19 @@
 #include <time.h>
 #include "pna-base.h"
 
-typedef struct _fastlock_profile {
+typedef struct _fastlock_profile
+{
 	unsigned int index;
 	long long frequency;
 	char data[66];
 } fastlock_profile;
 
+void fft_changed(int fft_size);
 void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 	                int is_debug, unsigned int fft_size);
 void calc_fft_dma24(int32_t *bufferIn, int32_t *fft_abs, int32_t *fft_phase,
 	                int is_debug, unsigned int fft_size);
+void store_profile(int index, long long freq);
 void fill_profiles(double start, double sweepspan);
 void load_profile(int index);
 int compress_data(int32_t *data_in, unsigned char *data_out, int data_size);

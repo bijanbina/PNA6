@@ -1,12 +1,27 @@
 #include "pna-capture.h"
 
-fastlock_profile **profile_list;
+fastlock_profile *profile_list;
 
 int sweep_count = 0;
 int profile_slot = 1;
+int CHUNK_C = 1024/6;
 
+int32_t *output_data;
+int32_t *fft_phase;
+int32_t *fft_abs;
 uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
+
+void fft_changed(int fft_size)
+{
+	CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
+	free(output_data);
+	free(fft_abs);
+	free(fft_phase);
+	output_data = (int32_t *) malloc(CHUNK_C * 4 * sizeof(int32_t));
+	fft_abs = (int32_t *) malloc(fft_size * sizeof(int32_t));
+	fft_phase = (int32_t *) malloc(fft_size * sizeof(int32_t));
+}
 
 void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 	                int is_debug, unsigned int fft_size)
@@ -153,16 +168,59 @@ void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 	free(bufferOut);
 }
 
-void fill_profiles(double start, double sweepspan)
+void store_profile(int index, long long freq)
 {
-	double step = 40.0, f;
-	fastlock_profile *profile;
 	unsigned char prev_alc = 0;
 	unsigned char alc;
 	char *last_byte;
-	unsigned int i = 0;
 	ssize_t ret;
+
+	ret = fastlock_store();
+	if(ret != 0)
+	{
+		printf("error on fastlock store\r\n");
+	}
+	ret = fastlock_read_cal(profile_list[index].data);
+	if(ret < 0)
+	{
+		printf("error on fastlock save\r\n");
+	}
+	profile_list[index].frequency = freq;
+	profile_list[index].index = index;
+
+	/* Make sure two consecutive profiles do not have the same ALC.
+		* Disregard the LBS of the ALC when comparing.
+		More on: https://ez.analog.com/message/151702#151702 */
+	last_byte = strrchr(profile_list[index].data, ',');
+	if(!last_byte)
+	{
+		printf("< , > not found\r\n");
+	}
+	last_byte++;
+	alc = atoi(last_byte);
+	if (abs(alc - prev_alc) < 2)
+		alc += 2;
+	prev_alc = alc;
+	sprintf(last_byte, "%d", alc);
+	// printf("cal-%d: %s\r\n", index, profile_list[index].data);
+}
+
+// start_freq & sweepspan are in mhz scale
+void fill_profiles(double start_freq, double sweepspan)
+{
+	double step = 40.0, f;
+	unsigned int i = 0;
 	long long freq;
+	char *sz = NULL;
+	long long cal_reg_val = 0;
+	char buffer_cal[80];
+
+	start_freq = start_freq + 15.0;
+
+	if(profile_list)
+	{
+		free(profile_list);
+	}
 
 	sweep_count = sweepspan / step;
 	if((int)sweepspan % (int)step > 0)
@@ -170,118 +228,55 @@ void fill_profiles(double start, double sweepspan)
 		sweep_count++;
 	}
 
-	start = start + 15.0;
-
-	if(profile_list)
-	{
-		for(int i=0; i<sweep_count; i++)
-		{
-			if(profile_list[i])
-			{
-				free(profile_list[i]);
-			}
-		}
-		free(profile_list);
-	}
-
-	profile_list = (fastlock_profile **)malloc(2*sweep_count*sizeof(fastlock_profile *));
+	profile_list = (fastlock_profile *)malloc(2*sweep_count*sizeof(fastlock_profile));
 	if(!profile_list)
 	{
 		printf("error on profile_list memory allocation\r\n");
 	}
 
-	for (i = 0, f = start; i < sweep_count; f += step, i++)
+	for (i = 0, f = start_freq; i < sweep_count; f += step, i++)
 	{
-		// first round
 		freq = f*1E6;
 		set_lo_freq(__RX, freq);
-		ret = fastlock_store();
-		if(ret != 0)
+		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+		// printf("reg cal: %s\r\n", buffer_cal);
+		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+		while((cal_reg_val & 0xA0) != 0xA0)
 		{
-			printf("error on fastlock store\r\n");
+			usleep(SET_LO_DELAY);
+			read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+			// printf("reg cal: %s\r\n", buffer_cal);
+			cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		}
-		profile = (fastlock_profile *)malloc(sizeof(fastlock_profile));
-		if(!profile)
-		{
-			printf("error on profile memory allocation\r\n");
-		}
-		ret = fastlock_save(profile->data);
-		if(ret < 0)
-		{
-			printf("error on fastlock save\r\n");
-		}
-		profile->frequency = freq;
-		profile->index = 2*i;
-
-		profile_list[2*i] = profile;
-		/* Make sure two consecutive profiles do not have the same ALC.
-		 * Disregard the LBS of the ALC when comparing.
-		   More on: https://ez.analog.com/message/151702#151702 */
-		last_byte = strrchr(profile->data, ',');
-		if(!last_byte)
-		{
-			printf("< , > not found\r\n");
-		}
-		last_byte++;
-		alc = atoi(last_byte);
-		if (abs(alc - prev_alc) < 2)
-			alc += 2;
-		prev_alc = alc;
-		sprintf(last_byte, "%d", alc);
-		// printf("%d,profile_data: %s \r\n"
-		// 		"freq: %lfMhz, \r\n", profile->index, profile->data, f);
-
-		// second round
+		store_profile(2*i, freq);
 
 		freq = (f+10)*1E6;
 		set_lo_freq(__RX, freq);
-		ret = fastlock_store();
-		if(ret != 0)
+		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+		// printf("reg cal: %s\r\n", buffer_cal);
+		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+		while((cal_reg_val & 0xA0) != 0xA0)
 		{
-			printf("error on fastlock store\r\n");
+			usleep(SET_LO_DELAY);
+			read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+			// printf("reg cal: %s\r\n", buffer_cal);
+			cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		}
-		profile = (fastlock_profile *)malloc(sizeof(fastlock_profile));
-		if(!profile)
-		{
-			printf("error on profile memory allocation\r\n");
-		}
-		ret = fastlock_save(profile->data);
-		if(ret < 0)
-		{
-			printf("error on fastlock save\r\n");
-		}
-
-		profile->frequency = freq;
-		profile->index = 2*i + 1;
-		profile_list[2*i+1] = profile;
-		/* Make sure two consecutive profiles do not have the same ALC.
-		 * Disregard the LBS of the ALC when comparing.
-		   More on: https://ez.analog.com/message/151702#151702 */
-		last_byte = strrchr(profile->data, ',') + 1;
-		if(!last_byte)
-		{
-			printf("< , > not found\r\n");
-		}
-		alc = atoi(last_byte);
-		if (abs(alc - prev_alc) < 2)
-			alc += 2;
-		prev_alc = alc;
-		sprintf(last_byte, "%d", alc);
-		// printf("%d:profile_data: %s \r\n"
-		// 		"freq: %lfMhz, \r\n", profile->index, profile->data, f+10);
+		store_profile(2*i+1, freq);
 	}
-	freq = (start + sweepspan/2)*1E6; //TODO: this should be removed from this place
-	set_lo_freq(__RX, freq); //TODO: this should be removed from this place
 }
 
 void load_profile(int index)
 {
-	fastlock_profile *profile = profile_list[index];
 	ssize_t ret;
+	if(!profile_list)
+	{
+		printf("no profile list found\r\n");
+	}
 
-	profile->data[0] = '0' + profile_slot;
+	profile_list[index].data[0] = '0' + profile_slot;
 	// printf("%d:freq=%lld profile_data %s\r\n", profile->index, profile->frequency, profile->data);
-	ret = fastlock_load(profile->data);
+	ret = fastlock_load(profile_list[index].data);
 	if (ret < 0)
 	{
 		printf("error on fastlock load\r\n");
@@ -365,17 +360,14 @@ int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
 int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 {
 	int sweep_offset = 0;
-	char buffer_cal[80];
 	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
-	int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
 
 	load_profile(2*index);
-	usleep(SET_LO_DELAY);
+	// usleep(SET_LO_DELAY);
 
 	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
 	if(spectrum == NULL)
 		return NULL;
-	int32_t *output_data = (int32_t*) malloc(CHUNK_C * 4 * sizeof(int32_t));
 	for(int j=0; j<CHUNK_C; j++)
 	{
 		output_data[j] = spectrum[j];
@@ -385,8 +377,7 @@ int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 	free(spectrum);
 
 	load_profile(2*index+1);
-	usleep(SET_LO_DELAY);
-
+	// usleep(SET_LO_DELAY);
 	spectrum = pna_fft(rx_buffer, removed_span, fft_size);
 	if(spectrum == NULL)
 	{
@@ -407,10 +398,9 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 {
 	long long freq = start_freq + 3*1E6*SWEEP_SPAN/4;
 	int sweep_offset = 0;
-	 char *sz = NULL;
-	 long long cal_reg_val = 0;
-	 char buffer_cal[80];
-	int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
+	char *sz = NULL;
+	long long cal_reg_val = 0;
+	char buffer_cal[80];
 //	struct timeval  tv1, tv2;
 
 //	gettimeofday(&tv1, NULL);
@@ -426,22 +416,21 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 //	         (double) (tv2.tv_sec - tv1.tv_sec));
 
 	read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-//	printf("reg cal: %s\r\n", buffer_cal);
+	// printf("reg cal: %s\r\n", buffer_cal);
 	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 
-	 while((cal_reg_val & 0xA0) != 0xA0)
-	 {
+	while((cal_reg_val & 0xA0) != 0xA0)
+	{
 		usleep(SET_LO_DELAY);
 		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-//		printf("reg cal: %s\r\n", buffer_cal);
-	 	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
-	 }
+			// printf("reg cal: %s\r\n", buffer_cal);
+		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+	}
 
 	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
 	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
 	if(spectrum == NULL)
 		return NULL;
-	int32_t *output_data = (int32_t*) malloc(CHUNK_C * 4 * sizeof(int32_t));
 	for(int j=0; j<CHUNK_C; j++)
 	{
 		output_data[j] = spectrum[j];
@@ -470,12 +459,8 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 {
 #ifdef FFT_24_BIT
-	int32_t *fft_abs = (int32_t *) malloc(sizeof(int32_t) * fft_size);
-	int32_t *fft_phase = (int32_t *) malloc(sizeof(int32_t) * fft_size);
 	int32_t *fft_spanned = (int32_t *) malloc(sizeof(int32_t) * (fft_size-2*removed_span));
 #elif FFT_16_BIT
-	int16_t *fft_abs = (int16_t *) malloc(sizeof(int16_t) * fft_size);
-	int16_t *fft_phase = (int16_t *) malloc(sizeof(int16_t) * fft_size);
 	int16_t *fft_spanned = (int16_t *) malloc(sizeof(int16_t) * (fft_size-2*removed_span));
 #endif
 	struct timeval  tv1, tv2;
@@ -511,8 +496,6 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		fft_spanned[i] = fft_abs[fft_size/2 + removed_span + i];
 		fft_spanned[i+fft_size/2-removed_span] = fft_abs[i];
     }
-	free(fft_abs);
-	free(fft_phase);
 	return fft_spanned;
 }
 
@@ -520,13 +503,6 @@ void pna_fft2(int32_t *data_in, unsigned int fft_size)
 {
   int uart_size = UART_LENGTH;
   unsigned char uart_tx_buffer[4*UART_LENGTH];
-#ifdef FFT_24_BIT
-  int32_t *fft_abs = (int32_t *) malloc(sizeof(uint32_t) * fft_size);
-  int32_t *fft_phase = (int32_t *) malloc(sizeof(uint32_t) * fft_size);
-#elif FFT_16_BIT
-  int16_t *fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
-  int16_t *fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
-#endif
   fill_rx_buffer(fft_size);
 #ifdef FFT_24_BIT
   calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
@@ -556,19 +532,10 @@ void pna_fft2(int32_t *data_in, unsigned int fft_size)
   }
   fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
   printf("\r\n");
-  free(fft_abs);
-  free(fft_phase);
 }
 
 void pna_fft3(int32_t *data_in, unsigned int fft_size)
 {
-#ifdef FFT_24_BIT
-  int32_t *fft_abs = (int32_t *) malloc(sizeof(uint32_t) * fft_size);
-  int32_t *fft_phase = (int32_t *) malloc(sizeof(uint32_t) * fft_size);
-#elif FFT_16_BIT
-  int16_t *fft_abs = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
-  int16_t *fft_phase = (int16_t *) malloc(sizeof(uint16_t) * fft_size);
-#endif
   fill_rx_buffer(fft_size);
 #ifdef FFT_24_BIT
   calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
@@ -580,8 +547,6 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size)
     printf("fft3_%d=%d\n", i, fft_abs[i]);
   }
   printf("\r\n");
-  free(fft_abs);
-  free(fft_phase);
 }
 
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size)

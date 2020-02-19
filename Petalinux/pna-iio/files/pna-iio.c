@@ -19,6 +19,7 @@ int main (int argc, char **argv)
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
+	bool is_profile_empty = true;
 
 	// calculating sweep time
 	struct timeval  tv1, tv2;
@@ -80,6 +81,7 @@ int main (int argc, char **argv)
 	gpio_fft(256);
 	gpio_fft_reset();
 	gpio_fft(fft_size);
+	fft_changed(fft_size);
 	///////////////// FIXME
 	while(1)
 	{
@@ -128,8 +130,24 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "fillpro")==0 ) // sweep time
 		{
 			double rx_freq_mhz = rx_freq / 1E6;
-			double sweep_span_mhz = 270;
-			fill_profiles(rx_freq_mhz - sweep_span_mhz/2, sweep_span_mhz);
+			long long sw_span;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				printf("---------------------------------------------------------------\r\n"
+								"sweep: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    sweep [port#][span][profile_flag]\r\n");
+				continue;
+			}
+			else
+			{
+				sw_span = get_frequency(token);
+			}
+			is_profile_empty = false;
+			double span_mhz = sw_span/1E6;
+			double lo_start_freq = rx_freq_mhz - span_mhz/2;
+			fill_profiles(lo_start_freq, span_mhz);
 		}
 		else if( strcmp(token, "loadpro")==0 ) // sweep time
 		{
@@ -253,6 +271,7 @@ int main (int argc, char **argv)
 				gpio_fft(fft_size);
 				init_rx_channel(fft_size);
 				usleep(10000);
+				fft_changed(fft_size);
 				printf("rx_sample_size: %d \r\n", fft_size);
 			}
 		}
@@ -553,7 +572,7 @@ int main (int argc, char **argv)
 				printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#]\r\n");
+								"Usage:\r\n    sweep [port#][span]\r\n");
 				continue;
 			}
 			else
@@ -564,7 +583,7 @@ int main (int argc, char **argv)
 					printf("---------------------------------------------------------------\r\n"
 									"sweep: Channel number should be 1 or 2.\r\n"
 									"Capture spectrum of signal from port argument.\r\n"
-									"Usage:\r\n    sweep [port#]\r\n");
+									"Usage:\r\n    sweep [port#][span]\r\n");
 					continue;
 				}
 			}
@@ -575,29 +594,34 @@ int main (int argc, char **argv)
 				printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#]\r\n");
+								"Usage:\r\n    sweep [port#][span]\r\n");
 				continue;
 			}
 			else
 			{
 				sw_span = get_frequency(token);
 			}
-			// printf("sw_span : %lld\r\n", sw_span);
+
+			if(sw_span < 0)
+				sw_span = 80E6;
+			double span_mhz = sw_span/1E6;
+
+			if(is_profile_empty)
+			{
+				double rx_freq_mhz = rx_freq/1E6;
+				double lo_start_freq = rx_freq_mhz - span_mhz/2;
+				is_profile_empty = false;
+				fill_profiles(lo_start_freq, span_mhz);
+			}
 
 			int32_t *spectrum;
 			int sweep_index = 0;
 			unsigned char uart_tx_buffer[2*UART_LENGTH];
 			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
-			if(sw_span < 0)
-				sw_span = 80E6;
-			double span_mhz = sw_span / 1E6;
+			
 			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
-			double rx_freq_mhz = rx_freq/1E6;
-			double lo_start_freq = rx_freq_mhz - span_mhz/2.0;
 			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
 			int span_int = (int)span_mhz;
-
-			fill_profiles(lo_start_freq, span_mhz);
 
 			gettimeofday(&tv1, NULL);
 

@@ -653,9 +653,9 @@ ssize_t fastlock_store()
 	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_store_name, 0);
 }
 
-ssize_t fastlock_save(char *data)
+ssize_t fastlock_read_cal(char *data)
 {
-	char data_temp[66];
+	char data_temp[66]; // 66 came from adi-iio-oscope codes
 	ssize_t ret = iio_channel_attr_read(tx_alt_dev_ch0, rx_fastlock_save_name, data_temp, sizeof(data_temp));
 	strcpy(data, data_temp);
 	return ret;
