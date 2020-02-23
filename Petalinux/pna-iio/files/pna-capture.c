@@ -335,6 +335,23 @@ int compress_data(int32_t *data_in, unsigned char *data_out, int data_size)
 	return output_size;
 }
 
+void fill_output_buffer(int32_t *data_in, unsigned char *data_out, int data_size)
+{
+	char first_byte, second_byte;
+	double fft_double;
+	int32_t fft_abs32;
+	for(int i=0; i<data_size; i++)
+    {
+		fft_double = data_in[i]/32768.0;
+		fft_double = 100*20*log10(fft_double);
+		fft_abs32 = floor(fft_double);
+		first_byte = fft_abs32%256;
+		second_byte = fft_abs32/256;
+		data_out[2*i] = first_byte;
+		data_out[2*i+1] = second_byte;
+	}
+}
+
 int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
 {
 	int lo_freq_mhz = lo_freq/1E6;
@@ -563,7 +580,7 @@ int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int dat
 	int32_t rx_buffer_q;
 	int16_t rx_buffer_i_16;
 	int16_t rx_buffer_q_16;
-	for(int i=0; i<output_size; i++ )
+	for(int i=0; i<output_size; i++)
 	{
 		avg_adc_window_i = 0;
 		avg_adc_window_q = 0;
@@ -592,6 +609,32 @@ int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int dat
 		data_out[4*i+3] = fourth_byte;
 	}
 	return output_size;
+}
+
+void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size)
+{
+	int32_t rx_buffer_i;
+	int32_t rx_buffer_q;
+	int16_t rx_buffer_i_16;
+	int16_t rx_buffer_q_16;
+	char first_byte, second_byte, third_byte, fourth_byte;
+	for(int i=0; i<data_size; i++)
+	{
+		rx_buffer_i_16 = data_in[i] & 0x0000FFFF;
+		rx_buffer_i = rx_buffer_i_16;
+		rx_buffer_q_16 = (data_in[i] >> 16) & 0x0000FFFF;
+		rx_buffer_q = rx_buffer_q_16;
+		rx_buffer_i = rx_buffer_i & 0x0000FFFF;
+		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
+		first_byte = rx_buffer_i%256;
+		second_byte = rx_buffer_i/256;
+		third_byte = rx_buffer_q%256;
+		fourth_byte = rx_buffer_q/256;
+		data_out[4*i] = first_byte;
+		data_out[4*i+1] = second_byte;
+		data_out[4*i+2] = third_byte;
+		data_out[4*i+3] = fourth_byte;
+	}
 }
 
 void pna_adc(int32_t *data_in, unsigned int fft_size)

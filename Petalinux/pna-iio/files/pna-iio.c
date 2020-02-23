@@ -515,16 +515,38 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			fill_rx_buffer(fft_size);
-			int uart_size;
-			unsigned char uart_tx_buffer[4*UART_LENGTH];
-			if(channel_num)
+			bool compression_enable;
+			token = strtok(NULL, delim);
+			if(token==NULL)
 			{
-				uart_size = compress_data_iq(rx2_buffer, uart_tx_buffer, fft_size);
+				compression_enable = true;
 			}
 			else
 			{
-				uart_size = compress_data_iq(rx1_buffer, uart_tx_buffer, fft_size);
+				compression_enable = atoi(token);
+			}
+			fill_rx_buffer(fft_size);
+			int uart_size;
+			int32_t *adc_data;
+			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
+
+			if(channel_num)
+			{
+				adc_data = rx2_buffer;
+			}
+			else
+			{
+				adc_data = rx1_buffer;
+			}
+
+			if(compression_enable)
+			{
+				uart_size = compress_data_iq(adc_data, uart_tx_buffer, fft_size);
+			}
+			else
+			{
+				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size);
+				uart_size = fft_size;
 			}
 			fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
 			printf("\r\n");
@@ -795,8 +817,19 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			bool compression_enable;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				compression_enable = true;
+			}
+			else
+			{
+				compression_enable = atoi(token);
+			}
+			
 			int32_t *spectrum;
-			unsigned char uart_tx_buffer[4*UART_LENGTH];
+			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 			if(span > rx_sampling_frequency || span < 0)
 				span = rx_sampling_frequency;
 			int span_mhz = span/1E6;
@@ -816,7 +849,16 @@ int main (int argc, char **argv)
 			if(spectrum == NULL)
 				return -1;
 			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
-			int uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size);
+			int uart_size;
+			if(compression_enable)
+			{
+				uart_size = compress_data(spectrum, uart_tx_buffer, spectrum_size);
+			}
+			else
+			{
+				fill_output_buffer(spectrum, uart_tx_buffer, spectrum_size);
+				uart_size = spectrum_size;
+			}
 			gettimeofday(&tv2, NULL);
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);

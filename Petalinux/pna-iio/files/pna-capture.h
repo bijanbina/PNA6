@@ -22,6 +22,7 @@ void calc_fft_dma24(int32_t *bufferIn, int32_t *fft_abs, int32_t *fft_phase,
 void store_profile(int index, long long freq);
 void fill_profiles(double start, double sweepspan);
 void load_profile(int index);
+void fill_output_buffer(int32_t *data_in, unsigned char *data_out, int data_size);
 int compress_data(int32_t *data_in, unsigned char *data_out, int data_size);
 int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size);
 int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index);
@@ -29,6 +30,7 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size);
 void pna_fft2(int32_t *data_in, unsigned int fft_size);
 void pna_fft3(int32_t *data_in, unsigned int fft_size);
+void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size);
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size);
 void pna_adc(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq(int32_t *data_in, unsigned int fft_size);
