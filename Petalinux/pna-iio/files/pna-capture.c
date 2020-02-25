@@ -12,15 +12,34 @@ int32_t *fft_abs;
 uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 
-void fft_changed(int fft_size)
+int fft_changed(int fft_size)
 {
 	CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/2/rx_sampling_frequency_mhz
 	free(output_data);
 	free(fft_abs);
 	free(fft_phase);
 	output_data = (int32_t *) malloc(CHUNK_C * 4 * sizeof(int32_t));
+	if(output_data == NULL)
+	{
+		printf("memory allocation failed in changed_fft function\r\n");
+		return -1;
+	}
 	fft_abs = (int32_t *) malloc(fft_size * sizeof(int32_t));
+	if(fft_abs == NULL)
+	{
+		printf("memory allocation failed in changed_fft function\r\n");
+		free(output_data);
+		return -1;
+	}
 	fft_phase = (int32_t *) malloc(fft_size * sizeof(int32_t));
+	if(fft_phase == NULL)
+	{
+		printf("memory allocation failed in changed_fft function\r\n");
+		free(output_data);
+		free(fft_abs);
+		return -1;
+	}
+	return 0;
 }
 
 void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
@@ -28,7 +47,7 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 {
 //   memset(bufferOut, 0, sizeof(uint8_t) * FFT_24_BIT * 2 * fft_size);
 //   memset(bufferIn, 0, sizeof(uint8_t) * FFT_24_BIT * 2  * fft_size);
-  // printf("fft24 flag1 %d\n",fft_size);
+  // pna_printf("fft24 flag1 %d\n",fft_size);
   	struct timeval  tv1, tv2;
 	double sweep_time = 0;
 	gettimeofday(&tv1, NULL);
@@ -61,20 +80,20 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
   	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	// printf("fftst: %lf \r\n", sweep_time);
+	// pna_printf("fftst: %lf \r\n", sweep_time);
 
 	if(is_debug)
 	{
-		printf("calc_fft_dma #1 \r\n");
+		pna_printf("calc_fft_dma #1 \r\n");
 	}
 	memCpy_DMA((char *)fft_buffer_in, (char *)fft_buffer_out, fft_size * FFT_24_BIT * 2);
 	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	// printf("fftst: %lf \r\n", sweep_time);
+	// pna_printf("fftst: %lf \r\n", sweep_time);
 	if(is_debug)
 	{
-		printf("calc_fft_dma #2 \r\n");
+		pna_printf("calc_fft_dma #2 \r\n");
 	}
 
 	for (int i=0 ; i<fft_size; i++)
@@ -105,7 +124,7 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 		//double fft_mag = sqrt( pow(fft_re,2) + pow(fft_im,2) );
 		// if(is_debug)
 		// {
-		// 	printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
+		// 	pna_printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
 		// 			"im_d %6.1lf - mag %6.1lf - o %6d\n", i, fft_re_16, fft_im_16, fft_re, fft_im, fft_re_double, fft_im_double, fft_mag, fft_output[i]);
 		// }
 		fft_abs[i] = floor(fft_mag); //RE
@@ -119,30 +138,34 @@ void calc_fft_dma24(int32_t *data_in, int32_t *fft_abs, int32_t *fft_phase,
 	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	// printf("fftst: %lf \r\n", sweep_time);
+	// pna_printf("fftst: %lf \r\n", sweep_time);
 }
 
 void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 	                int is_debug, unsigned int fft_size)
 {
-	int i;
 	int32_t *bufferOut = (int32_t *) malloc(sizeof(int32_t) * fft_size);
+	if(bufferOut == NULL)
+	{
+		printf("memory allocation failed in calc_fft_dma16 function\r\n");
+		return;
+	}
 
-  memset(bufferOut, 0, sizeof(int32_t) * fft_size);
+  	memset(bufferOut, 0, sizeof(int32_t) * fft_size);
 
 	if(is_debug)
 	{
-		printf("calc_fft_dma #1 \r\n");
+		pna_printf("calc_fft_dma #1 \r\n");
 	}
 	memCpy_DMA((char *)bufferIn, (char *)bufferOut, fft_size * sizeof(int32_t));
 	if(is_debug)
 	{
-		printf("calc_fft_dma #2 \r\n");
+		pna_printf("calc_fft_dma #2 \r\n");
 	}
 
 	uint32_t *fft_output = (uint32_t *)bufferOut;
 
-	for (i=0 ; i<fft_size; i++)
+	for (int i=0 ; i<fft_size; i++)
 	{
 		int16_t fft_re_16 = fft_output[i] & 0x0000ffff;
 		int16_t fft_im_16 = (fft_output[i] & 0xffff0000) >> 16;
@@ -154,7 +177,7 @@ void calc_fft_dma16(int32_t *bufferIn, int16_t *fft_abs, int16_t *fft_phase,
 		//double fft_mag = sqrt( pow(fft_re,2) + pow(fft_im,2) );
 		// if(is_debug)
 		// {
-		// 	printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
+		// 	pna_printf("%4d : re16 %+6d - im16 %+6d - re %+6d - im %+6d - re_d %6.1lf - "
 		// 			"im_d %6.1lf - mag %6.1lf - o %6d\n", i, fft_re_16, fft_im_16, fft_re, fft_im, fft_re_double, fft_im_double, fft_mag, fft_output[i]);
 		// }
 		fft_abs[i] = floor(fft_mag/sqrt(2.0)); //RE
@@ -178,12 +201,12 @@ void store_profile(int index, long long freq)
 	ret = fastlock_store();
 	if(ret != 0)
 	{
-		printf("error on fastlock store\r\n");
+		pna_printf("error on fastlock store\r\n");
 	}
 	ret = fastlock_read_cal(profile_list[index].data);
 	if(ret < 0)
 	{
-		printf("error on fastlock save\r\n");
+		pna_printf("error on fastlock save\r\n");
 	}
 	profile_list[index].frequency = freq;
 	profile_list[index].index = index;
@@ -194,7 +217,7 @@ void store_profile(int index, long long freq)
 	last_byte = strrchr(profile_list[index].data, ',');
 	if(!last_byte)
 	{
-		printf("< , > not found\r\n");
+		pna_printf("< , > not found\r\n");
 	}
 	last_byte++;
 	alc = atoi(last_byte);
@@ -202,7 +225,7 @@ void store_profile(int index, long long freq)
 		alc += 2;
 	prev_alc = alc;
 	sprintf(last_byte, "%d", alc);
-	// printf("cal-%d: %s\r\n", index, profile_list[index].data);
+	// pna_printf("cal-%d: %s\r\n", index, profile_list[index].data);
 }
 
 // start_freq & sweepspan are in mhz scale
@@ -231,7 +254,8 @@ void fill_profiles(double start_freq, double sweepspan)
 	profile_list = (fastlock_profile *)malloc(2*sweep_count*sizeof(fastlock_profile));
 	if(!profile_list)
 	{
-		printf("error on profile_list memory allocation\r\n");
+		pna_printf("error on profile_list memory allocation\r\n");
+		return;
 	}
 
 	for (i = 0, f = start_freq; i < sweep_count; f += step, i++)
@@ -239,13 +263,13 @@ void fill_profiles(double start_freq, double sweepspan)
 		freq = f*1E6;
 		set_lo_freq(__RX, freq);
 		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-		// printf("reg cal: %s\r\n", buffer_cal);
+		// pna_printf("reg cal: %s\r\n", buffer_cal);
 		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		while((cal_reg_val & 0xA0) != 0xA0)
 		{
 			usleep(SET_LO_DELAY);
 			read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-			// printf("reg cal: %s\r\n", buffer_cal);
+			// pna_printf("reg cal: %s\r\n", buffer_cal);
 			cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		}
 		store_profile(2*i, freq);
@@ -253,13 +277,13 @@ void fill_profiles(double start_freq, double sweepspan)
 		freq = (f+10)*1E6;
 		set_lo_freq(__RX, freq);
 		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-		// printf("reg cal: %s\r\n", buffer_cal);
+		// pna_printf("reg cal: %s\r\n", buffer_cal);
 		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		while((cal_reg_val & 0xA0) != 0xA0)
 		{
 			usleep(SET_LO_DELAY);
 			read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-			// printf("reg cal: %s\r\n", buffer_cal);
+			// pna_printf("reg cal: %s\r\n", buffer_cal);
 			cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 		}
 		store_profile(2*i+1, freq);
@@ -271,21 +295,21 @@ void load_profile(int index)
 	ssize_t ret;
 	if(!profile_list)
 	{
-		printf("no profile list found\r\n");
+		pna_printf("no profile list found\r\n");
 	}
 
 	profile_list[index].data[0] = '0' + profile_slot;
-	// printf("%d:freq=%lld profile_data %s\r\n", profile->index, profile->frequency, profile->data);
+	// pna_printf("%d:freq=%lld profile_data %s\r\n", profile->index, profile->frequency, profile->data);
 	ret = fastlock_load(profile_list[index].data);
 	if (ret < 0)
 	{
-		printf("error on fastlock load\r\n");
+		pna_printf("error on fastlock load\r\n");
 	}
 
 	ret = fastlock_recall(profile_slot);
 	if (ret < 0)
 	{
-		printf("error on fastlock recall\r\n");
+		pna_printf("error on fastlock recall\r\n");
 	}
 	profile_slot = ( profile_slot+1 ) % 2;
 }
@@ -355,10 +379,8 @@ void fill_output_buffer(int32_t *data_in, unsigned char *data_out, int data_size
 int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
 {
 	int lo_freq_mhz = lo_freq/1E6;
-	// printf("pna_ramp-lo_freq_mhz: %d\r\n", lo_freq_mhz);
+	// pna_printf("pna_ramp-lo_freq_mhz: %d\r\n", lo_freq_mhz);
 	double y;
-	int32_t *fft_abs = (int32_t*) malloc(fft_size * sizeof(int32_t));
-	int32_t *output_data = (int32_t*) malloc((fft_size-2*removed_span) * sizeof(int32_t));
 	for(int i=0; i<fft_size; i++)
 	{
 		y = lo_freq_mhz - 15 + (60.0*i/fft_size)  - 920;
@@ -384,7 +406,10 @@ int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 
 	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
 	if(spectrum == NULL)
+	{
 		return NULL;
+	}
+
 	for(int j=0; j<CHUNK_C; j++)
 	{
 		output_data[j] = spectrum[j];
@@ -423,24 +448,24 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 //	gettimeofday(&tv1, NULL);
 	set_lo_freq(__RX, freq);
 //	gettimeofday(&tv2, NULL);
-//	printf("time: %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+//	pna_printf("time: %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
 //	         (double) (tv2.tv_sec - tv1.tv_sec));
 
 //	gettimeofday(&tv1, NULL);
 	usleep(SET_LO_DELAY);
 //	gettimeofday(&tv2, NULL);
-//	printf("usleep time : %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+//	pna_printf("usleep time : %lf\r\n", (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
 //	         (double) (tv2.tv_sec - tv1.tv_sec));
 
 	read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-	// printf("reg cal: %s\r\n", buffer_cal);
+	// pna_printf("reg cal: %s\r\n", buffer_cal);
 	cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 
 	while((cal_reg_val & 0xA0) != 0xA0)
 	{
 		usleep(SET_LO_DELAY);
 		read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
-			// printf("reg cal: %s\r\n", buffer_cal);
+			// pna_printf("reg cal: %s\r\n", buffer_cal);
 		cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
 	}
 
@@ -480,6 +505,11 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 #elif FFT_16_BIT
 	int16_t *fft_spanned = (int16_t *) malloc(sizeof(int16_t) * (fft_size-2*removed_span));
 #endif
+	if(fft_spanned == NULL)
+	{
+		printf("memory allocation failed in pna_fft function\r\n");
+		return NULL;
+	}
 	struct timeval  tv1, tv2;
 	double sweep_time = 0;
 	gettimeofday(&tv1, NULL);
@@ -489,7 +519,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		gettimeofday(&tv2, NULL);
 		sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-		// printf("st: %lf \r\n", sweep_time);
+		// pna_printf("st: %lf \r\n", sweep_time);
 	}
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
@@ -499,12 +529,12 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
   	gettimeofday(&tv2, NULL);
 	sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 	sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-	// printf("st: %lf \r\n", sweep_time);
+	// pna_printf("st: %lf \r\n", sweep_time);
     for(int i=0; i<fft_size/2-removed_span; i++)
     {
 		if(i<0 || i>fft_size/2)
 		{
-			printf("span bug!\r\n");
+			pna_printf("span bug!\r\n");
 			free(fft_abs);
 			free(fft_phase);
 			free(fft_spanned);
@@ -547,23 +577,24 @@ void pna_fft2(int32_t *data_in, unsigned int fft_size)
       uart_tx_buffer[2*i+1] = second_byte;
     }
   }
-  fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-  printf("\r\n");
+  pna_write(uart_tx_buffer, 2*uart_size);
+  pna_printf("\r\n");
 }
 
 void pna_fft3(int32_t *data_in, unsigned int fft_size)
 {
-  fill_rx_buffer(fft_size);
-#ifdef FFT_24_BIT
-  calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
-#elif FFT_16_BIT
-  calc_fft_dma16(data_in, fft_abs, fft_phase, 0, fft_size);
-#endif
-  for( int i=0; i<20; i++ )
-  {
-    printf("fft3_%d=%d\n", i, fft_abs[i]);
-  }
-  printf("\r\n");
+	int uart_size = UART_LENGTH;
+	unsigned char uart_tx_buffer[4*UART_LENGTH];
+	printf("umadim inja\r\n");
+	for( int i=0; i<8; i++ )
+	{
+		for (int j = 0; j < 255; j++)
+		{
+			uart_tx_buffer[j+256*i] = j;
+		}
+	}
+	pna_write(uart_tx_buffer, 2*uart_size);
+	pna_printf("\r\n");
 }
 
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size)
@@ -666,11 +697,11 @@ void pna_adc(int32_t *data_in, unsigned int fft_size)
 		char second_byte = rx_buffer_i/256;
 		uart_tx_buffer[2*i] = first_byte;
 		uart_tx_buffer[2*i+1] = second_byte;
-		// printf("%c%c\r\n",first_byte, second_byte);
-		// printf("%d : %d\r\n", i, rx_buffer_i);
+		// pna_printf("%c%c\r\n",first_byte, second_byte);
+		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
-	fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-	printf("\r\n");
+	pna_write(uart_tx_buffer, 2*uart_size);
+	pna_printf("\r\n");
 }
 
 void pna_adc_iq2(int32_t *data_in, unsigned int fft_size)
@@ -716,11 +747,11 @@ void pna_adc_iq2(int32_t *data_in, unsigned int fft_size)
 		uart_tx_buffer[4*i+1] = second_byte;
 		uart_tx_buffer[4*i+2] = third_byte;
 		uart_tx_buffer[4*i+3] = fourth_byte;
-		// printf("%c%c\r\n",first_byte, second_byte);
-		// printf("%d : %d\r\n", i, rx_buffer_i);
+		// pna_printf("%c%c\r\n",first_byte, second_byte);
+		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
-	fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
-	printf("\r\n");
+	pna_write(uart_tx_buffer, 4*uart_size);
+	pna_printf("\r\n");
 }
 
 void pna_adc_iq(int32_t *data_in, unsigned int fft_size)
@@ -751,11 +782,11 @@ void pna_adc_iq(int32_t *data_in, unsigned int fft_size)
 		uart_tx_buffer[4*i+1] = second_byte;
 		uart_tx_buffer[4*i+2] = third_byte;
 		uart_tx_buffer[4*i+3] = fourth_byte;
-		// printf("%c%c\r\n",first_byte, second_byte);
-		// printf("%d : %d\r\n", i, rx_buffer_i);
+		// pna_printf("%c%c\r\n",first_byte, second_byte);
+		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
-	fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
-	printf("\r\n");
+	pna_write(uart_tx_buffer, 4*uart_size);
+	pna_printf("\r\n");
 }
 
 void pna_adc_fft(int32_t *data_in, unsigned int fft_size)
@@ -785,9 +816,9 @@ void pna_adc_fft(int32_t *data_in, unsigned int fft_size)
 		uart_tx_buffer[4*i+1] = second_byte;
 		uart_tx_buffer[4*i+2] = third_byte;
 		uart_tx_buffer[4*i+3] = fourth_byte;
-		// printf("%c%c\r\n",first_byte, second_byte);
-		// printf("%d : %d\r\n", i, rx_buffer_i);
+		// pna_printf("%c%c\r\n",first_byte, second_byte);
+		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
-	fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
-	printf("\r\n");
+	pna_write(uart_tx_buffer, 4*uart_size);
+	pna_printf("\r\n");
 }

@@ -8,6 +8,7 @@
 #include "pna-gpio.h"
 #include "pna-capture.h"
 #include "pna-fir.h"
+#include "pna-interface.h"
 
 #define HANNING_ENBW 1.50
 #define MAX_FFT_LENGTH 8192 //FFT output on UART size (should be 1024 FIX)

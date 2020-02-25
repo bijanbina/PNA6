@@ -28,34 +28,34 @@ int main (int argc, char **argv)
 	unsigned int fft_size = 1024; //16bit(I)+16bit(Q) = 32bit data
 	// fft_size = atoi(argv[1]);
 	dds_sample_size = fft_size;
-	// printf("fft_size=%d\n", fft_size );
+	// pna_printf("fft_size=%d\n", fft_size );
 
 	init_all_gpio();
 	ctx = iio_create_default_context();
-	// printf("flag3\r\n");
+	// pna_printf("flag3\r\n");
 	if (ctx)
 	{
 		// init_device_list();
 		fmcomms2_init();
-		// printf("flag4\r\n");
+		// pna_printf("flag4\r\n");
 		dds_init();
-		// printf("flag5\r\n");
+		// pna_printf("flag5\r\n");
 	}
-	// printf("flag1\r\n");
+	// pna_printf("flag1\r\n");
 	init_rx_channel(fft_size);
-	// printf("flag2\r\n");
+	// pna_printf("flag2\r\n");
 	if( argc>1 )
 	{
 		if( strcmp(argv[1], "-v")==0 )
 		{
 			float version = 0.6;
-			printf("Version %f \r\n", version);
+			pna_printf("Version %f \r\n", version);
 
 			return 0;
 		}
-		else if ( strcmp(argv[1], "--help")==0 )
+		else if( strcmp(argv[1], "--help")==0 )
 		{
-			printf("%s\r\n",
+			pna_printf("%s\r\n",
 					"Usage: pna-iio [OPTION] [VALUE] \r\n"
 					 "PNA command line interface. \r\n"
 					 "\r\n"
@@ -68,7 +68,21 @@ int main (int argc, char **argv)
 					 "   -v, \t\t\t show version\r\n");
 			return 0;
 		}
+		else if( strcmp(argv[1], "console")==0 )
+		{
+			pna_init_interface(PNA_INTERFACE_CONSOLE);
+		}
+		else if( strcmp(argv[1], "tcp")==0 )
+		{
+			pna_init_interface(PNA_INTERFACE_TCP);
+		}
 	}
+	else
+	{
+		pna_printf("Error: interface is not set\r\n");
+		return 0;
+	}
+	
 	long long span;
 	long long rx_sampling_frequency;
 	long long rx_freq;
@@ -81,32 +95,35 @@ int main (int argc, char **argv)
 	gpio_fft(256);
 	gpio_fft_reset();
 	gpio_fft(fft_size);
-	fft_changed(fft_size);
-	///////////////// FIXME
+	int ret = fft_changed(fft_size);
+	if(ret < 0)
+	{
+		return -1;
+	}
 	while(1)
 	{
-		printf(">>");
+		pna_printf(">>");
 		//scanf("%s\r", buffer);
-		gets(buffer);
+		int ret = pna_gets(buffer, 1000);
+		// printf("received: %s --- %d\r\n", buffer, ret);
+		
 		if(strcmp(buffer,"")==0)
 		{
 			break;
 		}
-		//printf("buffer = %s\r\n", buffer);
 		token = strtok(buffer, delim);
-		//printf("Debug Flag #-4\r\n");
 		if( strcmp(token, "tx_bandwidth")==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("tx_bandwidth: %lld \r\n", get_bandwidth(__TX));
+				pna_printf("tx_bandwidth: %lld \r\n", get_bandwidth(__TX));
 			}
 			else
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__TX, bandwidth);
-				printf("tx_bandwidth: %lld \r\n", bandwidth);
+				pna_printf("tx_bandwidth: %lld \r\n", bandwidth);
 			}
 		}
 		else if( strcmp(token, "rx_bandwidth")==0 )
@@ -114,18 +131,18 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("rx_bandwidth: %lld \r\n",  get_bandwidth(__RX));
+				pna_printf("rx_bandwidth: %lld \r\n",  get_bandwidth(__RX));
 			}
 			else
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__RX, bandwidth);
-				printf("rx_bandwidth: %lld \r\n", bandwidth);
+				pna_printf("rx_bandwidth: %lld \r\n", bandwidth);
 			}
 		}
 		else if( strcmp(token, "st")==0 ) // sweep time
 		{
-			printf("sweep_time: %lf \r\n",  sweep_time);
+			pna_printf("sweep_time: %lf \r\n",  sweep_time);
 		}
 		else if( strcmp(token, "fillpro")==0 ) // sweep time
 		{
@@ -134,7 +151,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    sweep [port#][span][profile_flag]\r\n");
@@ -158,7 +175,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"vga_gain: arguments are not enough.\r\n"
 								"Read/Write vga_gain with port and value arguments.\r\n"
 								"Usage:\r\n    vga_gain [port#] [value]\r\n");
@@ -168,14 +185,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("vga_gain: %lld \r\n", get_vga_gain(channel_num));
+				pna_printf("vga_gain: %lld \r\n", get_vga_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
 				long long vga_gain = strtoll(token, &sz, 10);
 				set_vga_gain(channel_num, vga_gain);
-				printf("vga_gain: %lld \r\n", vga_gain);
+				pna_printf("vga_gain: %lld \r\n", vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
@@ -183,7 +200,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"lna_gain: arguments are not enough.\r\n"
 								"Read/Write lna_gain with port and value arguments.\r\n"
 								"Usage:\r\n    lna_gain [port#] [value]\r\n");
@@ -194,14 +211,14 @@ int main (int argc, char **argv)
 			// char buf[100];
 			if(token==NULL)
 			{
-				printf("lna_gain: %lld \r\n", get_lna_gain(channel_num));
+				pna_printf("lna_gain: %lld \r\n", get_lna_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
 				set_lna_gain(channel_num, lna_gain);
-				printf("lna_gain: %lld \r\n", lna_gain);
+				pna_printf("lna_gain: %lld \r\n", lna_gain);
 			}
 		}
 		else if( strcmp(token, "gain_control_mode")==0 )
@@ -209,7 +226,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"gain_control_mode: arguments are not enough.\r\n"
 								"Read/Write gain_control_mode with port and value arguments.\r\n"
 								"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
@@ -221,12 +238,12 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				get_gain_control_mode(channel_num, buf);
-				printf("gain_control_mode: %s\r\n", buf);
+				pna_printf("gain_control_mode: %s\r\n", buf);
 			}
 			else
 			{
 				set_gain_control_mode(channel_num, token);
-				printf("gain_control_mode: %s\r\n", token);
+				pna_printf("gain_control_mode: %s\r\n", token);
 			}
 		}
 		else if( strcmp(token, "tx_sample_rate")==0 )
@@ -234,13 +251,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("tx_sample_rate: %lld \r\n", get_sample_rate(__TX));
+				pna_printf("tx_sample_rate: %lld \r\n", get_sample_rate(__TX));
 			}
 			else
 			{
 				long long sampling_frequency = get_frequency(token);
 				set_sample_rate(__TX, sampling_frequency);
-				printf("tx_sample_rate: %lld \r\n", sampling_frequency);
+				pna_printf("tx_sample_rate: %lld \r\n", sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "rx_sample_rate")==0 )
@@ -249,13 +266,13 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				rx_sampling_frequency = get_sample_rate(__RX);
-				printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
+				pna_printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
 			}
 			else
 			{
 				rx_sampling_frequency = get_frequency(token);
 				set_sample_rate(__RX, rx_sampling_frequency);
-				printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
+				pna_printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "rx_sample_size")==0 )
@@ -263,7 +280,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("rx_sample_size: %d \r\n", fft_size);
+				pna_printf("rx_sample_size: %d \r\n", fft_size);
 			}
 			else
 			{
@@ -271,8 +288,12 @@ int main (int argc, char **argv)
 				gpio_fft(fft_size);
 				init_rx_channel(fft_size);
 				usleep(10000);
-				fft_changed(fft_size);
-				printf("rx_sample_size: %d \r\n", fft_size);
+				int ret = fft_changed(fft_size);
+				if(ret < 0)
+				{
+					return -1;
+				}
+				pna_printf("rx_sample_size: %d \r\n", fft_size);
 			}
 		}
 		else if( strcmp(token, "tx_sample_size")==0 )
@@ -280,12 +301,12 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("tx_sample_size: %d \r\n", dds_sample_size);
+				pna_printf("tx_sample_size: %d \r\n", dds_sample_size);
 			}
 			else
 			{
 				dds_sample_size = atoi(token);
-				printf("tx_sample_size: %d \r\n", dds_sample_size);
+				pna_printf("tx_sample_size: %d \r\n", dds_sample_size);
 			}
 		}
 		else if( strcmp(token, "tx_freq")==0 )
@@ -293,13 +314,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("tx_freq: %lld \r\n", get_lo_freq(__TX));
+				pna_printf("tx_freq: %lld \r\n", get_lo_freq(__TX));
 			}
 			else
 			{
 				long long freq = get_frequency(token);
 				set_lo_freq(__TX, freq);
-				printf("tx_freq: %lld \r\n", freq);
+				pna_printf("tx_freq: %lld \r\n", freq);
 			}
 		}
 		else if( strcmp(token, "rx_freq")==0 )
@@ -308,13 +329,13 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				rx_freq = get_lo_freq(__RX);
-				printf("rx_freq: %lld \r\n", rx_freq);
+				pna_printf("rx_freq: %lld \r\n", rx_freq);
 			}
 			else
 			{
 				rx_freq = get_frequency(token);
 				set_lo_freq(__RX, rx_freq);
-				printf("rx_freq: %lld \r\n", rx_freq);
+				pna_printf("rx_freq: %lld \r\n", rx_freq);
 			}
 		}
 		else if( strcmp(token, "rx_port")==0 )
@@ -324,12 +345,12 @@ int main (int argc, char **argv)
 			{
 				char rx_port[100];
 				get_port(__RX, rx_port);
-				printf("rx_port: %s\r\n", rx_port);
+				pna_printf("rx_port: %s\r\n", rx_port);
 			}
 			else
 			{
 				set_port(__RX, token);
-				printf("rx_port: %s \r\n", token);
+				pna_printf("rx_port: %s \r\n", token);
 			}
 		}
 		else if( strcmp(token, "tx_port")==0 )
@@ -339,12 +360,12 @@ int main (int argc, char **argv)
 			{
 				char tx_port[100];
 				get_port(__TX, tx_port);
-				printf("tx_port: %s \r\n", tx_port);
+				pna_printf("tx_port: %s \r\n", tx_port);
 			}
 			else
 			{
 				set_port(__TX, token);
-				printf("tx_port: %s \r\n", token);
+				pna_printf("tx_port: %s \r\n", token);
 			}
 		}
 		else if( strcmp(token, "sample_size")==0 )
@@ -353,7 +374,7 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				int sample_size = iio_device_get_sample_size(iio_dac);
-				printf("sample_size: %d \r\n", sample_size);
+				pna_printf("sample_size: %d \r\n", sample_size);
 			}
 			else
 			{
@@ -365,13 +386,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("rx_fir_en: %d \r\n", get_fir_en(__RX));
+				pna_printf("rx_fir_en: %d \r\n", get_fir_en(__RX));
 			}
 			else
 			{
 				bool fir_en = atoi(token);
 				set_fir_en(__RX, fir_en);
-				printf("rx_fir_en: %d \r\n", fir_en);
+				pna_printf("rx_fir_en: %d \r\n", fir_en);
 			}
 		}
 		else if( strcmp(token, "tx_fir_en")==0 )
@@ -379,13 +400,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("tx_fir_en: %d \r\n", get_fir_en(__TX));
+				pna_printf("tx_fir_en: %d \r\n", get_fir_en(__TX));
 			}
 			else
 			{
 				bool fir_en = atoi(token);
 				set_fir_en(__TX, fir_en);
-				printf("tx_fir_en: %d \r\n", fir_en);
+				pna_printf("tx_fir_en: %d \r\n", fir_en);
 			}
 		}
 		else if( strcmp(token, "bbdc") == 0 )
@@ -393,13 +414,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("bb_dc_enable: %d \r\n", get_bb_dc());
+				pna_printf("bb_dc_enable: %d \r\n", get_bb_dc());
 			}
 			else
 			{
 				bool bb_dc_en = atoi(token);
 				set_bb_dc(bb_dc_en);
-				printf("bb_dc_enable: %d \r\n", bb_dc_en);
+				pna_printf("bb_dc_enable: %d \r\n", bb_dc_en);
 			}
 		}
 		else if( strcmp(token, "rfdc") == 0 )
@@ -407,13 +428,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("rf_dc_enable: %d \r\n", get_rf_dc());
+				pna_printf("rf_dc_enable: %d \r\n", get_rf_dc());
 			}
 			else
 			{
 				bool rf_dc_en = atoi(token);
 				set_rf_dc(rf_dc_en);
-				printf("rf_dc_enable: %d \r\n", rf_dc_en);
+				pna_printf("rf_dc_enable: %d \r\n", rf_dc_en);
 			}
 		}
 		else if( strcmp(token, "quad") == 0 )
@@ -421,13 +442,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("quad_enable: %d \r\n", get_quad_track());
+				pna_printf("quad_enable: %d \r\n", get_quad_track());
 			}
 			else
 			{
 				bool quad_en = atoi(token);
 				set_quad_track(quad_en);
-				printf("quad_enable: %d \r\n", quad_en);
+				pna_printf("quad_enable: %d \r\n", quad_en);
 			}
 		}
 		else if( strcmp(token, "span")==0 )
@@ -435,12 +456,12 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("span: %lld \r\n", span);
+				pna_printf("span: %lld \r\n", span);
 			}
 			else
 			{
 				span = get_frequency(token);
-				printf("span: %lld \r\n", span);
+				pna_printf("span: %lld \r\n", span);
 			}
 		}
 		else if(strcmp(token,"test") == 0)
@@ -449,14 +470,14 @@ int main (int argc, char **argv)
 			{
 				char first_byte = i%256;
 				char second_byte = i/256;
-				printf("%d %d\r\n",first_byte, second_byte);
+				pna_printf("%d %d\r\n",first_byte, second_byte);
 			}
-			printf("\r\n");
+			pna_printf("\r\n");
 		}
 		else if(strcmp(token,"freset") == 0)
 		{
 			gpio_fft_reset();
-			printf("\r\n");
+			pna_printf("\r\n");
 		}
 		else if(strcmp(token,"adc") == 0)
 		{
@@ -464,7 +485,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"adc: arguments are not enough.\r\n"
 								"Capture receiver signal from port argument.\r\n"
 								"Usage:\r\n    adc [port#]\r\n");
@@ -475,7 +496,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
 									"Capture receiver signal from port argument.\r\n"
 									"Usage:\r\n    adc [port#]\r\n");
@@ -497,7 +518,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"adc: arguments are not enough.\r\n"
 								"Capture receiver signal from port argument.\r\n"
 								"Usage:\r\n    adc_iq [port#]\r\n");
@@ -508,7 +529,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
 									"Capture receiver signal from port argument.\r\n"
 									"Usage:\r\n    adc_iq [port#]\r\n");
@@ -548,8 +569,8 @@ int main (int argc, char **argv)
 				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size);
 				uart_size = fft_size;
 			}
-			fwrite(uart_tx_buffer, 1, 4*uart_size, stdout);
-			printf("\r\n");
+			pna_write(uart_tx_buffer, 4*uart_size);
+			pna_printf("\r\n");
 		}
 		else if(strcmp(token,"adc_fft") == 0)
 		{
@@ -557,7 +578,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"adc: arguments are not enough.\r\n"
 								"Capture receiver signal from port argument.\r\n"
 								"Usage:\r\n    adc_fft [port#]\r\n");
@@ -568,7 +589,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
 									"Capture receiver signal from port argument.\r\n"
 									"Usage:\r\n    adc_fft [port#]\r\n");
@@ -591,7 +612,7 @@ int main (int argc, char **argv)
 			// long long span_sweep;
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    sweep [port#][span]\r\n");
@@ -602,7 +623,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"sweep: Channel number should be 1 or 2.\r\n"
 									"Capture spectrum of signal from port argument.\r\n"
 									"Usage:\r\n    sweep [port#][span]\r\n");
@@ -613,7 +634,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    sweep [port#][span]\r\n");
@@ -622,6 +643,16 @@ int main (int argc, char **argv)
 			else
 			{
 				sw_span = get_frequency(token);
+			}
+			int compression_enable;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				compression_enable = 1;
+			}
+			else
+			{
+				compression_enable = atoi(token);
 			}
 
 			if(sw_span < 0)
@@ -638,7 +669,7 @@ int main (int argc, char **argv)
 
 			int32_t *spectrum;
 			int sweep_index = 0;
-			unsigned char uart_tx_buffer[2*UART_LENGTH];
+			// unsigned char uart_tx_buffer[2*UART_LENGTH];
 			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
 			
 			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
@@ -652,12 +683,24 @@ int main (int argc, char **argv)
 				span_num += 2;
 			}
 			int span_count = span_num * CHUNK_C * 2;
+			unsigned char *uart_tx_buffer = (unsigned char *) malloc(2*span_count * sizeof(unsigned char));
+			if(uart_tx_buffer == NULL)
+			{
+				printf("memory allocation failed in sweep2\r\n");
+				return -1;
+			}
 			int32_t *sweep_buf = (int32_t*) malloc(span_count * sizeof(int32_t));
+			if(sweep_buf == NULL)
+			{
+				printf("memory allocation failed in sweep2\r\n");
+				free(uart_tx_buffer);
+				return -1;
+			}
+
 			double spur_count = span_num * SWEEP_SPAN - span_mhz;
-			
 			spur_count = spur_count*fft_size/rx_sampling_frequency_mhz;
 			spur_count = floor(spur_count);
-			// printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
+			// pna_printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
 			// 		"span_count: %d, spur_count: %lf\r\n", span_num, span_mhz, 
 			// 		rx_sampling_frequency_mhz, span_count, spur_count);
 			for(int i=0; i<span_num/2; i++)
@@ -673,6 +716,8 @@ int main (int argc, char **argv)
 				if(spectrum == NULL)
 				{
 					free(sweep_buf);
+					free(uart_tx_buffer);
+					printf("spectrum is null from pna_fft_dcfixed2 function\r\n");
 					return -1;
 				}
 				for(int j=0; j<4*CHUNK_C; j++)
@@ -681,16 +726,28 @@ int main (int argc, char **argv)
 					sweep_index++;
 				}
 			}
-			int uart_size = compress_data(sweep_buf, uart_tx_buffer, span_count - spur_count);
 
+			int uart_size;
+			if(compression_enable)
+			{
+				uart_size = compress_data(sweep_buf, uart_tx_buffer, span_count - spur_count);
+			}
+			else
+			{
+				fill_output_buffer(sweep_buf, uart_tx_buffer, span_count - spur_count);
+				uart_size = span_count - spur_count;
+			}
+			
 			gettimeofday(&tv2, NULL);
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
-			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			pna_write(uart_tx_buffer, 2*uart_size);
 			set_lo_freq(__RX, rx_freq);
 			usleep(SET_LO_DELAY);
-			printf("\r\n");
+			pna_printf("\r\n", 2*uart_size);
+			free(sweep_buf);
+			free(uart_tx_buffer);
 		}
 		else if(strcmp(token,"sweep") == 0)
 		{
@@ -699,7 +756,7 @@ int main (int argc, char **argv)
 			// long long span_sweep;
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    sweep [port#]\r\n");
@@ -710,7 +767,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"sweep: Channel number should be 1 or 2.\r\n"
 									"Capture spectrum of signal from port argument.\r\n"
 									"Usage:\r\n    sweep [port#]\r\n");
@@ -721,7 +778,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sweep: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    sweep [port#]\r\n");
@@ -731,7 +788,7 @@ int main (int argc, char **argv)
 			{
 				sw_span = get_frequency(token);
 			}
-			// printf("sw_span : %lld\r\n", sw_span);
+			// pna_printf("sw_span : %lld\r\n", sw_span);
 
 			int32_t *spectrum;
 			int sweep_index = 0;
@@ -757,7 +814,7 @@ int main (int argc, char **argv)
 			
 			spur_count = spur_count*fft_size/rx_sampling_frequency_mhz;
 			spur_count = floor(spur_count);
-			// printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
+			// pna_printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
 			// 		"span_count: %d, spur_count: %lf\r\n", span_num, span_mhz, 
 			// 		rx_sampling_frequency_mhz, span_count, spur_count);
 			for(int i=0; i<span_num/2; i++)
@@ -773,6 +830,7 @@ int main (int argc, char **argv)
 				if(spectrum == NULL)
 				{
 					free(sweep_buf);
+					free(uart_tx_buffer);
 					return -1;
 				}
 				for(int j=0; j<4*CHUNK_C; j++)
@@ -788,10 +846,12 @@ int main (int argc, char **argv)
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
-			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
+			pna_write(uart_tx_buffer, 2*uart_size);
 			set_lo_freq(__RX, rx_freq);
 			usleep(SET_LO_DELAY);
-			printf("\r\n");
+			pna_printf("\r\n");
+			free(sweep_buf);
+			// free(uart_tx_buffer);
 		}
 		else if(strcmp(token,"fft_span") == 0)
 		{
@@ -799,7 +859,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"fft: arguments are not enough.\r\n"
 								"Capture spectrum of signal from port argument.\r\n"
 								"Usage:\r\n    fft_span [port#]\r\n");
@@ -810,7 +870,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"fft: Channel number should be 1 or 2.\r\n"
 									"Capture spectrum of signal from port argument.\r\n"
 									"Usage:\r\n    fft_span [port#]\r\n");
@@ -862,8 +922,8 @@ int main (int argc, char **argv)
 			gettimeofday(&tv2, NULL);
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
-			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-			printf("\r\n");
+			pna_write(uart_tx_buffer, 2*uart_size);
+			pna_printf("\r\n");
 			free(spectrum);
 		}
 		else if(strcmp(token,"fft") == 0)
@@ -871,8 +931,8 @@ int main (int argc, char **argv)
 			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size);
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
 			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size);
-			fwrite(uart_tx_buffer, 1, 2*uart_size, stdout);
-			printf("\r\n");
+			pna_write(uart_tx_buffer, 2*uart_size);
+			pna_printf("\r\n");
 			free(spectrum);
 		}
 		else if(strcmp(token,"fft2") == 0)
@@ -888,7 +948,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"fft4: There is not enough arguments\r\n"
 								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
 				continue;
@@ -897,7 +957,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"fft4: There is not enough arguments\r\n"
 								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
 				continue;
@@ -908,19 +968,19 @@ int main (int argc, char **argv)
 			{
 				uart_tx_buffer[k] = k;
 			}
-			printf("fft_status#1 = %d\r\n", gpio_fft_status());
+			pna_printf("fft_status#1 = %d\r\n", gpio_fft_status());
 			if(rwfunc)
 			{
-				printf("write %ld bytes to dma.\r\n", write_DMA(
+				pna_printf("write %ld bytes to dma.\r\n", write_DMA(
 							(char *)uart_tx_buffer, num_bytes));
 			}
 			else
 			{
-				printf("read %ld bytes from dma.\r\n", read_DMA(
+				pna_printf("read %ld bytes from dma.\r\n", read_DMA(
 							(char *)uart_tx_buffer, num_bytes));
 			}
-			printf("fft_status#2 = %d\r\n", gpio_fft_status());
-			printf("\r\n");
+			pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
+			pna_printf("\r\n");
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -929,7 +989,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"pulse: arguments are not enough.\r\n"
 								"Generate pulse signal with period, amplitude and port arguments.\r\n"
 								"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
@@ -970,7 +1030,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"pulse: Channel number should be 1 or 2.\r\n"
 									"Generate pulse signal with period, amplitude and port arguments.\r\n"
 									"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
@@ -1010,7 +1070,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sin: arguments are not enough.\r\n"
 								"Generate sinous signal with port, period and amplitude arguments.\r\n"
 								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
@@ -1041,7 +1101,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"sin: Channel number should be 1 or 2.\r\n"
 									"Generate sinous signal with port, period and amplitude arguments.\r\n"
 									"Usage:\r\n    sin [period] [amplitude] [port#]\r\n");
@@ -1078,7 +1138,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"dc: arguments are not enough.\r\n"
 								"Generate DC voltage with amplitude and port arguments.\r\n"
 								"Usage:\r\n    dc [amplitude] [port#]\r\n");
@@ -1099,7 +1159,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"dc: Channel number should be 1 or 2.\r\n"
 									"Generate DC voltage with amplitude and port arguments.\r\n"
 									"Usage:\r\n    dc [amplitude] [port#]\r\n");
@@ -1133,7 +1193,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"sinc: arguments are not enough.\r\n"
 								"Generate sinc signal with frequency and port arguments.\r\n"
 								"Usage:\r\n    sinc [frequency] [port#]\r\n");
@@ -1154,7 +1214,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(channel_num > 1)
 				{
-					printf("---------------------------------------------------------------\r\n"
+					pna_printf("---------------------------------------------------------------\r\n"
 									"sinc: Channel number should be 1 or 2.\r\n"
 									"Generate sinc signal with frequency and port arguments.\r\n"
 									"Usage:\r\n    sinc [frequency] [port#]\r\n");
@@ -1179,18 +1239,18 @@ int main (int argc, char **argv)
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(sinc_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
-				// printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
+				// pna_printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
 			}
 			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;
 			//dac_buf[sample_count/2*s_size + channel_num*2] = 240;
 
-			printf("Channel Num = %d\r\n", channel_num );
-			printf("DDS Freq = %f\r\n", dds_freq);
-			printf("Sample Count= %d\r\n", dds_sample_size);
-			printf("Sample Size = %d\r\n", s_size );
+			pna_printf("Channel Num = %d\r\n", channel_num );
+			pna_printf("DDS Freq = %f\r\n", dds_freq);
+			pna_printf("Sample Count= %d\r\n", dds_sample_size);
+			pna_printf("Sample Size = %d\r\n", s_size );
 			for ( int i=dds_sample_size/2-5 ; i<dds_sample_size/2+5 ; i++)
 			{
-				printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
+				pna_printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 		}
@@ -1200,7 +1260,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"debug: arguments are not enough.\r\n"
 								"debug mode with attribute and value arguments.\r\n"
 								"Usage:\r\n    dbg [attribute] [value]\r\n");
@@ -1211,7 +1271,7 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				iio_device_debug_attr_read(dev, str, buffer_dbg, 80);
-				printf("%s: %s \r\n", str, buffer_dbg);
+				pna_printf("%s: %s \r\n", str, buffer_dbg);
 			}
 			else
 			{
@@ -1225,7 +1285,7 @@ int main (int argc, char **argv)
 					strcat(buffer_dbg, token);
 				}
 				iio_device_debug_attr_write(dev, str, buffer_dbg);
-				printf("%s: %s \r\n", str, buffer_dbg);
+				pna_printf("%s: %s \r\n", str, buffer_dbg);
 			}
 		}
 		else if( strcmp(token, "reg")==0 )
@@ -1234,7 +1294,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				printf("---------------------------------------------------------------\r\n"
+				pna_printf("---------------------------------------------------------------\r\n"
 								"reg: arguments are not enough.\r\n"
 								"debug mode with address and value arguments.\r\n"
 								"Usage:\r\n    reg [address] [value]\r\n");
@@ -1246,12 +1306,12 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				read_reg_ad9361(address, value);
-				printf("reg %llx: %s \r\n", address, value);
+				pna_printf("reg %llx: %s \r\n", address, value);
 			}
 			else
 			{
 				write_reg_ad9361(address, token);
-				printf("write to %llx: %s \r\n", address, token);
+				pna_printf("write to %llx: %s \r\n", address, token);
 				
 			}
 		}
@@ -1262,9 +1322,11 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "exit")==0 )
 		{
 			close(fd_dma);
+			pna_close_interface();
 			return 0;
 		}
 	}
 	close(fd_dma);
+	pna_close_interface();
 	return 0;
 }

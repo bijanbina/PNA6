@@ -10,7 +10,7 @@ read response
 
 if [ "$response" = "0" ]; then
 	git pull origin master
-	printf "Copy PetaLinux Files from git?[p/s/N]: "
+	printf "Copy Files from git?[p/s/N]: "
 	read response
 
 	if [ "$response" = "p" ]; then
@@ -35,7 +35,7 @@ if [ "$response" = "0" ]; then
 		cp -R SDK/DDRLess/*.h "$DDRLESS_PROJECT/"
 	fi
 elif [ "$response" = "1" ]; then
-	printf "Copy PetaLinux Files to git?[p/s/N]: "
+	printf "Copy Files to git?[p/s/N]: "
 	read response
 
 	if [ "$response" = "p" ]; then

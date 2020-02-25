@@ -41,45 +41,45 @@ int fd_dma; //file descriptor DMA driver
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMove)
 {
-	// printf("memcpy len = %d \r\n", byteToMove);
+	// pna_printf("memcpy len = %d \r\n", byteToMove);
 
 	int write_return = 0;
-	// printf("fft_status#1 = %d\r\n", gpio_fft_status());
+	// pna_printf("fft_status#1 = %d\r\n", gpio_fft_status());
 	write_return = write(fd_dma, bufferIn, byteToMove);
-	// printf("fft_status#2 = %d\r\n", gpio_fft_status());
-	// printf("write_return=%d \r\n", write_return);
+	// pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
+	// pna_printf("write_return=%d \r\n", write_return);
 
-	// printf ("byteToMove = %d \r\n", byteToMove);
+	// pna_printf ("byteToMove = %d \r\n", byteToMove);
 	int read_return = 0;
 	read_return = read(fd_dma, bufferOut, byteToMove);
-	// printf("fft_status#3 = %d\r\n", gpio_fft_status());
-	// printf("read_return=%d \r\n", read_return);
+	// pna_printf("fft_status#3 = %d\r\n", gpio_fft_status());
+	// pna_printf("read_return=%d \r\n", read_return);
 
-	// printf ("Debug Flag #5\r\n");
+	// pna_printf ("Debug Flag #5\r\n");
 	return byteToMove;
 }
 
 unsigned long write_DMA(char *bufferIn, size_t size)
 {
-	printf("write_DMA called!\r\n");
+	pna_printf("write_DMA called!\r\n");
 	for(int i=0; i<10; i++)
 	{
-		printf("write_dma[%d]: %d\r\n", i, bufferIn[i]);
+		pna_printf("write_dma[%d]: %d\r\n", i, bufferIn[i]);
 	}
-	printf("write_DMA print finished!\r\n");
+	pna_printf("write_DMA print finished!\r\n");
 	int write_bytes = write(fd_dma, bufferIn, size);
 	return write_bytes;
 }
 
 unsigned long read_DMA(char *bufferOut, size_t size)
 {
-	printf("read_DMA called!\r\n");
+	pna_printf("read_DMA called!\r\n");
 	int read_bytes = read(fd_dma, bufferOut, size);
 	for(int i=0; i<10; i++)
 	{
-		printf("read_dma[%d]: %d\r\n", i, bufferOut[i]);
+		pna_printf("read_dma[%d]: %d\r\n", i, bufferOut[i]);
 	}
-	printf("read_DMA print finished!\r\n");
+	pna_printf("read_DMA print finished!\r\n");
 	return read_bytes;
 }
 
@@ -139,7 +139,7 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	int16_t *sample_int = (int16_t *)sample;
 	int16_t val = *(sample_int);
 	val = val & 0xFFFF;
-	// printf("val: 0x%x, sample: 0x%x \r\n", val , *sample_int);
+	// pna_printf("val: 0x%x, sample: 0x%x \r\n", val , *sample_int);
 
 	if( rx_indx % 4 == 0 )
 	{
@@ -149,7 +149,7 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	{
 		rx1_buffer[rx_indx/4] &= 0x0000FFFF;
 		rx1_buffer[rx_indx/4] |= (val << 16);
-		//printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
+		//pna_printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
 	}
 	else if( rx_indx % 4 == 2 )
 	{
@@ -159,7 +159,7 @@ ssize_t demux_sample(const struct iio_channel *chn,
 	{
 		rx2_buffer[rx_indx/4] &= 0x0000FFFF;
 		rx2_buffer[rx_indx/4] |= (val << 16);
-		//printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
+		//pna_printf("%d: 0x%x\r\n", rx_indx/4, rx1_buffer[rx_indx/4]);
 	}
 	rx_indx++;
 
@@ -176,7 +176,7 @@ void init_rx_channel(unsigned int fft_size)
 	long long rate;
 
 	int num_devices = iio_context_get_devices_count(ctx);
-	//printf("num_devices = %d \n", num_devices );
+	//pna_printf("num_devices = %d \n", num_devices );
 
 	for (i = 0; i < num_devices; i++)
 	{
@@ -187,7 +187,7 @@ void init_rx_channel(unsigned int fft_size)
 		iio_device_set_data(dev_temp, dev_info_temp);
 		dev_info_temp->input_device = is_input_device(dev_temp);
 		unsigned int sample_size_temp = iio_device_get_sample_size(dev_temp);
-		// printf("id=%d, sample_size_temp=%d, input_device=%d \n", i,
+		// pna_printf("id=%d, sample_size_temp=%d, input_device=%d \n", i,
 				 // sample_size_temp, dev_info_temp->input_device);
 
 		for (j = 0; j < channel_count; j++)
@@ -198,27 +198,27 @@ void init_rx_channel(unsigned int fft_size)
 			iio_channel_set_data(chn, info);
 		}
 	}
-	// printf("flag6\r\n");
+	// pna_printf("flag6\r\n");
 
 	dev_info = iio_device_get_data(dev);
 	unsigned int sampling_rate = 5000000;
-	// printf("Debug flag #1 \n");
-	// printf("flag7\r\n");
+	// pna_printf("Debug flag #1 \n");
+	// pna_printf("flag7\r\n");
 
 	//##### initialize capture buffer and channels
 	// device_set_rx_sampling_freq(dev, sampling_rate);
 	// rate = device_get_rx_sampling_freq(cap);
 	// if (rate != sampling_rate)
 	// {
-	// 	printf("Failed to set the rx sampling rate to %lld"
+	// 	pna_printf("Failed to set the rx sampling rate to %lld"
 	// 		"in \n", sampling_rate);
 	// }
 	// else
 	// {
-	// 	printf("INIT_RX_CHANNEL: rate=%d, sampling rate=%d\n",
+	// 	pna_printf("INIT_RX_CHANNEL: rate=%d, sampling rate=%d\n",
 	//  			 rate, sampling_rate);
 	// }
-	// printf("flag8\r\n");
+	// pna_printf("flag8\r\n");
 
 	dev_info = iio_device_get_data(cap);
 	dev_info->sample_count = fft_size;
@@ -242,7 +242,7 @@ void init_rx_channel(unsigned int fft_size)
 	// 	dev_info->adc_scale = '?';
 	// 	dev_info->adc_freq = 0.0;
 	// }
-	// printf("flag9\r\n");
+	// pna_printf("flag9\r\n");
 	for (i = 0; i < iio_device_get_channels_count(cap); i++)
 	{
 		chn = iio_device_get_channel(cap, i);
@@ -251,10 +251,10 @@ void init_rx_channel(unsigned int fft_size)
 		iio_channel_enable(chn);
 		info->data_ref = (float *) malloc(fft_size);
 	}
-	// printf("flag10\r\n");
+	// pna_printf("flag10\r\n");
 	create_adc_buffer(fft_size);
-	// printf("flag11\r\n");
-	//printf("refill_rx_buffer\n");
+	// pna_printf("flag11\r\n");
+	//pna_printf("refill_rx_buffer\n");
 }
 
 void fill_rx_buffer(unsigned int fft_size)
@@ -265,10 +265,10 @@ void fill_rx_buffer(unsigned int fft_size)
 
 	/* Get captured data */
 	ssize_t ret = iio_buffer_refill(capture_buffer);
-	//printf("ret=%d\n", ret);
+	//pna_printf("ret=%d\n", ret);
 	if (ret < 0)
 	{
-		printf("Error while refilling iio buffer, return=%d \n", ret);
+		pna_printf("Error while refilling iio buffer, return=%d \n", ret);
 	}
 	else
 	{
@@ -334,7 +334,7 @@ void device_set_rx_sampling_freq(struct iio_device *dev, long long freq_hz)
 	}
 	else
 	{
-		printf("Failed to set rx sampling freq \n");
+		pna_printf("Failed to set rx sampling freq \n");
 	}
 }
 
@@ -350,7 +350,7 @@ long long device_get_rx_sampling_freq(struct iio_device *dev)
 	}
 	else
 	{
-		printf("Failed to retrieve iio channel in \n");
+		pna_printf("Failed to retrieve iio channel in \n");
 	}
 
 	return freq_hz;
@@ -564,18 +564,18 @@ void create_adc_buffer(unsigned int fft_size) //, uint8_t is_init
 
 	if(capture_buffer)
 	{
-		// printf("Destroy capture buffer\n");
+		// pna_printf("Destroy capture buffer\n");
 		iio_buffer_destroy(capture_buffer);
 	}
 	capture_buffer = iio_device_create_buffer(cap, fft_size, false);
 	if (!capture_buffer)
 	{
-		printf("Could not create iio buffer in capture device\n");
+		pna_printf("Could not create iio buffer in capture device\n");
 		return;
 	}
 
-	//printf("hello=0x%x\n", capture_buffer);
-	//printf("entered fill_rx_buffer\n");
+	//pna_printf("hello=0x%x\n", capture_buffer);
+	//pna_printf("entered fill_rx_buffer\n");
 	/* Reset the data offset for all channels */
 	for (int i = 0; i < iio_device_get_channels_count(cap); i++)
 	{
@@ -663,7 +663,7 @@ ssize_t fastlock_read_cal(char *data)
 
 ssize_t fastlock_load(char* data)
 {
-	// printf("fastlock_load function : %s\r\n", data);
+	// pna_printf("fastlock_load function : %s\r\n", data);
 	return iio_channel_attr_write(tx_alt_dev_ch0, rx_fastlock_load_name, data);
 }
 
@@ -684,7 +684,7 @@ void set_bandwidth(int direction, long long bandwidth)
 	}
 	else
 	{
-		printf("Error with direction when setting bandwidth\r\n");
+		pna_printf("Error with direction when setting bandwidth\r\n");
 	}
 }
 
@@ -701,7 +701,7 @@ long long get_bandwidth(int direction)
 	}
 	else
 	{
-		printf("Error with direction when reading bandwidth\r\n");
+		pna_printf("Error with direction when reading bandwidth\r\n");
 		bandwidth = -1;
 	}
 	return bandwidth;
@@ -715,7 +715,7 @@ void set_vga_gain(int channel_num, long long vga_gain)
 		iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"vga_gain: arguments are not valid.\r\n"
 				"Read/Write vga_gain with port and value arguments.\r\n"
 				"Usage:\r\n    vga_gain [port#] [value]\r\n");
@@ -731,7 +731,7 @@ long long get_vga_gain(int channel_num)
 		iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"vga_gain: arguments are not valid.\r\n"
 				"Read/Write vga_gain with port and value arguments.\r\n"
 				"Usage:\r\n    vga_gain [port#] [value]\r\n");
@@ -741,7 +741,7 @@ long long get_vga_gain(int channel_num)
 
 void set_lna_gain(int channel_num, long long lna_gain)
 {
-	printf("channel num : %d \r\n", channel_num);
+	pna_printf("channel num : %d \r\n", channel_num);
 	if(channel_num == 2)
 	{
 		iio_channel_attr_write_longlong(rx_dev_ch1, "hardwaregain", lna_gain);
@@ -752,7 +752,7 @@ void set_lna_gain(int channel_num, long long lna_gain)
 	}
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"lna_gain: arguments are not valid.\r\n"
 				"Read/Write lna_gain with port and value arguments.\r\n"
 				"Usage:\r\n    lna_gain [port#] [value]\r\n");
@@ -768,7 +768,7 @@ long long get_lna_gain(int channel_num)
 		iio_channel_attr_read_longlong(rx_dev_ch0, "hardwaregain", &lna_gain);
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"lna_gain: arguments are not valid.\r\n"
 				"Read/Write lna_gain with port and value arguments.\r\n"
 				"Usage:\r\n    lna_gain [port#] [value]\r\n");
@@ -784,7 +784,7 @@ void set_gain_control_mode(int channel_num, char *gain_control_mode)
 		iio_channel_attr_write(rx_dev_ch0, "gain_control_mode", gain_control_mode);
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"gain_control_mode: arguments are not valid.\r\n"
 				"Read/Write gain_control_mode with port and value arguments.\r\n"
 				"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
@@ -799,7 +799,7 @@ void get_gain_control_mode(int channel_num, char *gain_control_mode)
 		iio_channel_attr_read(rx_dev_ch0, "gain_control_mode", gain_control_mode, sizeof(gain_control_mode));
 	else
 	{
-		printf( "---------------------------------------------------------------\r\n"
+		pna_printf( "---------------------------------------------------------------\r\n"
 				"gain_control_mode: arguments are not valid.\r\n"
 				"Read/Write gain_control_mode with port and value arguments.\r\n"
 				"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
@@ -818,7 +818,7 @@ void set_sample_rate(int direction, long long sampling_frequency)
 	}
 	else
 	{
-		printf("Error with direction when setting sample rate\r\n");
+		pna_printf("Error with direction when setting sample rate\r\n");
 	}
 }
 
@@ -835,7 +835,7 @@ long long get_sample_rate(int direction)
 	}
 	else
 	{
-		printf("Error with direction when reading sample rate\r\n");
+		pna_printf("Error with direction when reading sample rate\r\n");
 		sampling_frequency = -1;
 	}
 	return sampling_frequency;
@@ -853,7 +853,7 @@ void set_lo_freq(int direction, long long freq)
 	}
 	else
 	{
-		printf("Error with direction when setting LO frequency\r\n");
+		pna_printf("Error with direction when setting LO frequency\r\n");
 	}
 }
 
@@ -870,7 +870,7 @@ long long get_lo_freq(int direction)
 	}
 	else
 	{
-		printf("Error with direction when reading LO frequency\r\n");
+		pna_printf("Error with direction when reading LO frequency\r\n");
 		freq = -1;
 	}
 	return freq;
@@ -888,7 +888,7 @@ void set_port(int direction, char* port)
 	}
 	else
 	{
-		printf("Error with direction when setting port\r\n");
+		pna_printf("Error with direction when setting port\r\n");
 	}
 }
 
@@ -904,7 +904,7 @@ void get_port(int direction, char *port)
 	}
 	else
 	{
-		printf("Error with direction when reading port\r\n");
+		pna_printf("Error with direction when reading port\r\n");
 		port = NULL;
 	}
 }
@@ -921,7 +921,7 @@ void set_fir_en(int direction, bool fir_en)
 	}
 	else
 	{
-		printf("Error with direction when setting fir enable\r\n");
+		pna_printf("Error with direction when setting fir enable\r\n");
 	}
 }
 
@@ -938,7 +938,7 @@ bool get_fir_en(int direction)
 	}
 	else
 	{
-		printf("Error with direction when reading fir enable\r\n");
+		pna_printf("Error with direction when reading fir enable\r\n");
 		fir_en = false;
 	}
 	return fir_en;

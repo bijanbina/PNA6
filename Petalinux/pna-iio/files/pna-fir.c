@@ -24,16 +24,16 @@ int load_fir_filter(const char *file_name, struct iio_device *dev1)
 	}
 	else
 	{
-		printf("FIR filter file failed to open: %s\n", file_name);
+		pna_printf("FIR filter file failed to open: %s\n", file_name);
 	}
 
 	if (ret < 0)
 	{
-		printf("FIR filter config failed: %s\n", file_name);
+		pna_printf("FIR filter config failed: %s\n", file_name);
 	}
 	else
 	{
-		printf("Filter loaded: %s (ret = %i)\n", file_name, ret);
+		pna_printf("Filter loaded: %s (ret = %i)\n", file_name, ret);
 	}
 	return ret;
 }
