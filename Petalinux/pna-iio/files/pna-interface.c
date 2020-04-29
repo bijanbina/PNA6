@@ -1,5 +1,7 @@
 #include "pna-interface.h"
 #include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -19,7 +21,6 @@ void pna_printf(char *format, ...)
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
-        int n = 0;
         char buffer[1000];
         vsprintf(buffer, format, args);
         write(connfd, buffer, strlen(buffer));
@@ -31,7 +32,10 @@ int pna_gets(char *buffer, int max_len)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
-        return gets(buffer);
+        int ret;
+        ret = gets(buffer);
+        // return ret;
+        return 0;
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
@@ -55,9 +59,14 @@ int pna_gets(char *buffer, int max_len)
         while(!end_of_string);
         return size_data;
     }
+    else
+    {
+        return -1;
+    }
+    
 }
 
-void pna_write(char *data, int len)
+void pna_write(unsigned char *data, int len)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
@@ -138,7 +147,7 @@ void pna_init_interface(int id)
         }
 
         // Accept the data packet from client and verification
-        int len;
+        socklen_t len;
         len = sizeof(cli);
         connfd = accept(sockfd, (struct sockaddr*)&cli, &len);
         if (connfd < 0) {

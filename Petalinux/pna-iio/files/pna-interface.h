@@ -7,7 +7,7 @@
 
 void pna_printf(char *format, ...);
 int pna_gets(char *buffer, int max_len);
-void pna_write(char *data, int len);
+void pna_write(unsigned char *data, int len);
 void pna_set_interface(int id);
 void pna_init_interface(int id);
 void pna_close_interface();

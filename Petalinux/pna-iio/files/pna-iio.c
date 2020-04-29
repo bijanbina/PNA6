@@ -9,10 +9,14 @@ extern struct iio_buffer *dds_buffer;
 extern int32_t rx1_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
 extern int32_t rx2_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
 
+#define ERROR_ARG 0
+#define ERROR_CH 1
+
 int dds_sample_size;
-// int span_number = 1;
 extern int8_t dac_buf[8*MAX_FFT_LENGTH];
 extern int fd_dma;
+
+void print_error(char *function, int error_code);
 
 int main (int argc, char **argv)
 {
@@ -83,12 +87,11 @@ int main (int argc, char **argv)
 		return 0;
 	}
 	
-	long long span;
+	double span;
 	long long rx_sampling_frequency;
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
 	rx_sampling_frequency = get_sample_rate(__RX);
-	// span = rx_sampling_frequency;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
 
@@ -105,6 +108,11 @@ int main (int argc, char **argv)
 		pna_printf(">>");
 		//scanf("%s\r", buffer);
 		int ret = pna_gets(buffer, 1000);
+		if(ret < 0)
+		{
+			pna_printf("Error while trying to read from console/tcp\r\n");
+			return -1;
+		}
 		// printf("received: %s --- %d\r\n", buffer, ret);
 		
 		if(strcmp(buffer,"")==0)
@@ -456,12 +464,12 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("span: %lld \r\n", span);
+				pna_printf("span: %lf \r\n", span);
 			}
 			else
 			{
-				span = get_frequency(token);
-				pna_printf("span: %lld \r\n", span);
+				span = atof(token);
+				pna_printf("span: %lf \r\n", span);
 			}
 		}
 		else if(strcmp(token,"test") == 0)
@@ -494,7 +502,7 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
 					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
@@ -527,7 +535,7 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
 					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
@@ -587,7 +595,7 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
 					pna_printf("---------------------------------------------------------------\r\n"
 									"adc: Channel number should be 1 or 2.\r\n"
@@ -609,24 +617,17 @@ int main (int argc, char **argv)
 		{
 			int channel_num;
 			token = strtok(NULL, delim);
-			// long long span_sweep;
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#][span]\r\n");
+				print_error("sweep", ERROR_ARG);
 				continue;
 			}
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"sweep: Channel number should be 1 or 2.\r\n"
-									"Capture spectrum of signal from port argument.\r\n"
-									"Usage:\r\n    sweep [port#][span]\r\n");
+					print_error("sweep", ERROR_CH);
 					continue;
 				}
 			}
@@ -634,10 +635,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#][span]\r\n");
+				print_error("sweep", ERROR_ARG);
 				continue;
 			}
 			else
@@ -743,8 +741,6 @@ int main (int argc, char **argv)
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
 			pna_write(uart_tx_buffer, 2*uart_size);
-			set_lo_freq(__RX, rx_freq);
-			usleep(SET_LO_DELAY);
 			pna_printf("\r\n", 2*uart_size);
 			free(sweep_buf);
 			free(uart_tx_buffer);
@@ -756,21 +752,15 @@ int main (int argc, char **argv)
 			// long long span_sweep;
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#]\r\n");
+				print_error("sweep", ERROR_ARG);
 				continue;
 			}
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"sweep: Channel number should be 1 or 2.\r\n"
-									"Capture spectrum of signal from port argument.\r\n"
-									"Usage:\r\n    sweep [port#]\r\n");
+					print_error("sweep", ERROR_CH);
 					continue;
 				}
 			}
@@ -778,10 +768,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#]\r\n");
+				print_error("sweep", ERROR_ARG);
 				continue;
 			}
 			else
@@ -830,7 +817,6 @@ int main (int argc, char **argv)
 				if(spectrum == NULL)
 				{
 					free(sweep_buf);
-					free(uart_tx_buffer);
 					return -1;
 				}
 				for(int j=0; j<4*CHUNK_C; j++)
@@ -859,21 +845,15 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"fft: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    fft_span [port#]\r\n");
+				print_error("fft", ERROR_ARG);
 				continue;
 			}
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"fft: Channel number should be 1 or 2.\r\n"
-									"Capture spectrum of signal from port argument.\r\n"
-									"Usage:\r\n    fft_span [port#]\r\n");
+					print_error("fft", ERROR_CH);
 					continue;
 				}
 			}
@@ -890,11 +870,11 @@ int main (int argc, char **argv)
 			
 			int32_t *spectrum;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
-			if(span > rx_sampling_frequency || span < 0)
-				span = rx_sampling_frequency;
-			int span_mhz = span/1E6;
-			int rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
-			int removed_span = fft_size*(rx_sampling_frequency_mhz - span_mhz)/rx_sampling_frequency_mhz/2;
+			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			if(span > rx_sampling_frequency_mhz || span < 1E-3)
+				span = rx_sampling_frequency_mhz;
+			int removed_span = fft_size*(rx_sampling_frequency_mhz - span)/rx_sampling_frequency_mhz/2;
+			// pna_printf("rx-freq %lf, span %f\r\n",rx_sampling_frequency_mhz, span);
 
 			gettimeofday(&tv1, NULL);
 
@@ -908,7 +888,7 @@ int main (int argc, char **argv)
 			}
 			if(spectrum == NULL)
 				return -1;
-			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
+			int spectrum_size = fft_size*span/rx_sampling_frequency_mhz;
 			int uart_size;
 			if(compression_enable)
 			{
@@ -923,7 +903,7 @@ int main (int argc, char **argv)
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 			pna_write(uart_tx_buffer, 2*uart_size);
-			pna_printf("\r\n");
+			pna_printf("\r\n"); // \r\n%d  , 2*uart_size
 			free(spectrum);
 		}
 		else if(strcmp(token,"fft") == 0)
@@ -1028,7 +1008,7 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
 					pna_printf("---------------------------------------------------------------\r\n"
 									"pulse: Channel number should be 1 or 2.\r\n"
@@ -1099,7 +1079,7 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
 					pna_printf("---------------------------------------------------------------\r\n"
 									"sin: Channel number should be 1 or 2.\r\n"
@@ -1138,10 +1118,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"dc: arguments are not enough.\r\n"
-								"Generate DC voltage with amplitude and port arguments.\r\n"
-								"Usage:\r\n    dc [amplitude] [port#]\r\n");
+				print_error("DC", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1157,12 +1134,9 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"dc: Channel number should be 1 or 2.\r\n"
-									"Generate DC voltage with amplitude and port arguments.\r\n"
-									"Usage:\r\n    dc [amplitude] [port#]\r\n");
+					print_error("DC", ERROR_CH);
 					continue;
 				}
 			}
@@ -1193,10 +1167,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sinc: arguments are not enough.\r\n"
-								"Generate sinc signal with frequency and port arguments.\r\n"
-								"Usage:\r\n    sinc [frequency] [port#]\r\n");
+				print_error("sinc", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1212,12 +1183,9 @@ int main (int argc, char **argv)
 			else
 			{
 				channel_num = atoi(token) - 1;
-				if(channel_num > 1)
+				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"sinc: Channel number should be 1 or 2.\r\n"
-									"Generate sinc signal with frequency and port arguments.\r\n"
-									"Usage:\r\n    sinc [frequency] [port#]\r\n");
+					print_error("sinc", ERROR_CH);
 					continue;
 				}
 			}
@@ -1260,10 +1228,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"debug: arguments are not enough.\r\n"
-								"debug mode with attribute and value arguments.\r\n"
-								"Usage:\r\n    dbg [attribute] [value]\r\n");
+				print_error("debug", ERROR_ARG);
 				continue;
 			}
 			strcpy(str, token);
@@ -1294,10 +1259,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"reg: arguments are not enough.\r\n"
-								"debug mode with address and value arguments.\r\n"
-								"Usage:\r\n    reg [address] [value]\r\n");
+				print_error("register", ERROR_ARG);
 				continue;
 			}
 			char *sz = NULL;
@@ -1329,4 +1291,69 @@ int main (int argc, char **argv)
 	close(fd_dma);
 	pna_close_interface();
 	return 0;
+}
+
+void print_error(char *function, int error_code)
+{
+	char arg_buf[200];
+	char err_massage[200];
+	char usage[200];
+	char cmd_name[20];
+
+	if(error_code == ERROR_ARG)
+	{
+		strcpy(err_massage, "arguments are not enough.");
+	}
+	else if(error_code == ERROR_CH)
+	{
+		strcpy(err_massage, "Channel number should be 1 or 2.");
+	}
+
+	if(!strcmp(function, "sweep"))
+	{
+		strcpy(arg_buf, "[port#][span][compression enable]");
+		strcpy(usage, "Capture spectrum of signal while sweeping.");
+		strcpy(cmd_name, "sweep");
+	}
+	else if(!strcmp(function, "fft"))
+	{
+		strcpy(arg_buf, "[port#][compression enable]");
+		strcpy(usage, "Capture spectrum of signal.");
+		strcpy(cmd_name, "fft_span");
+	}
+	else if(!strcmp(function, "fill profile"))
+	{
+		strcpy(arg_buf, "[span]");
+		strcpy(usage, "Fill FastLock profiles before sweep.");
+		strcpy(cmd_name, "fillpro");
+	}
+	else if(!strcmp(function, "register"))
+	{
+		strcpy(arg_buf, "[address][value]");
+		strcpy(usage, "Debug mode.");
+		strcpy(cmd_name, "reg");
+	}
+	else if(!strcmp(function, "debug"))
+	{
+		strcpy(arg_buf, "[attribute][value]");
+		strcpy(usage, "Debug mode.");
+		strcpy(cmd_name, "dbg");
+	}
+	else if(!strcmp(function, "sinc"))
+	{
+		strcpy(usage, "Generate sinc signal.");
+		strcpy(arg_buf, "[frequency][port#]");
+		strcpy(cmd_name, "sinc");
+	}
+	else if(!strcmp(function, "DC"))
+	{
+		strcpy(usage, "Generate DC signal.");
+		strcpy(arg_buf, "[amplitude][port#]");
+		strcpy(cmd_name, "dc");
+	}
+
+	pna_printf("---------------------------------------------------------------\r\n"
+						"%s: %s\r\n%s\r\nUsage:\r\n    %s %s\r\n"
+						"---------------------------------------------------------------\r\n" ,
+						function, err_massage, usage, cmd_name, arg_buf);
 }
