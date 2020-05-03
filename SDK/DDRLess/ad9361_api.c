@@ -201,10 +201,10 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy,
 					 init_param->clk_output_mode_select;
 
 	/* Gain Control */
-//	phy->pdata->gain_ctrl.rx1_mode = (enum rf_gain_ctrl_mode)
-//					 init_param->gc_rx1_mode;
-//	phy->pdata->gain_ctrl.rx2_mode = (enum rf_gain_ctrl_mode)
-//					 init_param->gc_rx2_mode;
+	phy->pdata->gain_ctrl.rx1_mode = (enum rf_gain_ctrl_mode)
+					 init_param->gc_rx1_mode;
+	phy->pdata->gain_ctrl.rx2_mode = (enum rf_gain_ctrl_mode)
+					 init_param->gc_rx2_mode;
 //	phy->pdata->gain_ctrl.adc_large_overload_thresh =
 //		init_param->gc_adc_large_overload_thresh;
 //	phy->pdata->gain_ctrl.adc_ovr_sample_size = init_param->gc_adc_ovr_sample_size;
@@ -221,12 +221,12 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy,
 //	phy->pdata->gain_ctrl.max_dig_gain = init_param->gc_max_dig_gain;
 
 	/* Gain MGC Control */
-//	phy->pdata->gain_ctrl.mgc_dec_gain_step = init_param->mgc_dec_gain_step;
-//	phy->pdata->gain_ctrl.mgc_inc_gain_step = init_param->mgc_inc_gain_step;
-//	phy->pdata->gain_ctrl.mgc_rx1_ctrl_inp_en = init_param->mgc_rx1_ctrl_inp_enable;
-//	phy->pdata->gain_ctrl.mgc_rx2_ctrl_inp_en = init_param->mgc_rx2_ctrl_inp_enable;
-//	phy->pdata->gain_ctrl.mgc_split_table_ctrl_inp_gain_mode =
-//		init_param->mgc_split_table_ctrl_inp_gain_mode;
+	phy->pdata->gain_ctrl.mgc_dec_gain_step = init_param->mgc_dec_gain_step;
+	phy->pdata->gain_ctrl.mgc_inc_gain_step = init_param->mgc_inc_gain_step;
+	phy->pdata->gain_ctrl.mgc_rx1_ctrl_inp_en = init_param->mgc_rx1_ctrl_inp_enable;
+	phy->pdata->gain_ctrl.mgc_rx2_ctrl_inp_en = init_param->mgc_rx2_ctrl_inp_enable;
+	phy->pdata->gain_ctrl.mgc_split_table_ctrl_inp_gain_mode =
+		init_param->mgc_split_table_ctrl_inp_gain_mode;
 
 	/* Gain AGC Control */
 //	phy->pdata->gain_ctrl.adc_large_overload_exceed_counter =
@@ -506,7 +506,7 @@ int32_t ad9361_init (struct ad9361_rf_phy **ad9361_phy,
 	phy->bbdc_track_en = true;
 	phy->quad_track_en = true;
 
-//	phy->gt_info = ad9361_adi_gt_info;
+	phy->gt_info = ad9361_adi_gt_info;
 
 	phy->bist_loopback_mode = 0;
 	phy->bist_config = 0;
@@ -921,18 +921,18 @@ int32_t ad9361_set_rx_lo_int_ext(struct ad9361_rf_phy *phy, uint8_t int_ext)
  *				   RF_GAIN_HYBRID_AGC (hybrid)
  * @return 0 in case of success, negative error code otherwise.
  */
-//int32_t ad9361_set_rx_gain_control_mode (struct ad9361_rf_phy *phy,
-//		uint8_t ch, uint8_t gc_mode)
-//{
-//	struct rf_gain_ctrl gc = {0, 0};
-//
-//	gc.ant = ad9361_1rx1tx_channel_map(phy, false, ch + 1);
-//	gc.mode = phy->agc_mode[ch] = gc_mode;
-//
-//	ad9361_set_gain_ctrl_mode(phy, &gc);
-//
-//	return 0;
-//}
+int32_t ad9361_set_rx_gain_control_mode (struct ad9361_rf_phy *phy,
+		uint8_t ch, uint8_t gc_mode)
+{
+	struct rf_gain_ctrl gc = {0, 0};
+
+	gc.ant = ad9361_1rx1tx_channel_map(phy, false, ch + 1);
+	gc.mode = phy->agc_mode[ch] = gc_mode;
+
+	ad9361_set_gain_ctrl_mode(phy, &gc);
+
+	return 0;
+}
 
 /**
  * Get the gain control mode for the selected channel.

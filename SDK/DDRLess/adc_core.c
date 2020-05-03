@@ -448,7 +448,7 @@ int32_t adc_set_calib_phase(struct ad9361_rf_phy *phy,
 //}
 
 
-void pna_adc()
+void pna_adc(int mode)
 {
 	uint32_t buf_size = 1024;
 	adc_capture(buf_size, ADC_NODDR_BASEADDR);
@@ -481,32 +481,38 @@ void pna_adc()
 		uart_tx_buffer[8*i + 2] = third_byte;
 		uart_tx_buffer[8*i + 3] = fourth_byte;
 
-		buf_i = buf[4*i + 2];
-		buf_q = buf[4*i + 3];
+		if(mode == PNA_MODE_VNA)
+		{
+			buf_i = buf[4*i + 2];
+			buf_q = buf[4*i + 3];
 
-		first_byte = buf_i%256;
-		second_byte = buf_i>>8;
-		third_byte = buf_q%256;
-		fourth_byte = buf_q>>8;
+			first_byte = buf_i%256;
+			second_byte = buf_i>>8;
+			third_byte = buf_q%256;
+			fourth_byte = buf_q>>8;
 
-		first_byte = first_byte & 0xFF;
-		second_byte = second_byte & 0xFF;
-		third_byte = third_byte & 0xFF;
-		fourth_byte = fourth_byte & 0xFF;
+			first_byte = first_byte & 0xFF;
+			second_byte = second_byte & 0xFF;
+			third_byte = third_byte & 0xFF;
+			fourth_byte = fourth_byte & 0xFF;
 
-		uart_tx_buffer[8*i + 4] = first_byte;
-		uart_tx_buffer[8*i + 5] = second_byte;
-		uart_tx_buffer[8*i + 6] = third_byte;
-		uart_tx_buffer[8*i + 7] = fourth_byte;
+			uart_tx_buffer[8*i + 4] = first_byte;
+			uart_tx_buffer[8*i + 5] = second_byte;
+			uart_tx_buffer[8*i + 6] = third_byte;
+			uart_tx_buffer[8*i + 7] = fourth_byte;
+		}
 
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i]);
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 1]);
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 2]);
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 3]);
-		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 4]);
-		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 5]);
-		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 6]);
-		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 7]);
+		if(mode == PNA_MODE_VNA)
+		{
+			XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 4]);
+			XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 5]);
+			XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 6]);
+			XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 7]);
+		}
 	}
 
 	XUartPs_SendByte(XPS_UART1_BASEADDR,'\r');

@@ -3064,14 +3064,14 @@ struct ctrl_outs_control {
 	uint8_t			en_mask;
 };
 
-//struct elna_control {
-//	uint16_t			gain_mdB;
-//	uint16_t			bypass_loss_mdB;
-//	uint32_t			settling_delay_ns;
-//	bool			elna_1_control_en; /* GPO0 */
-//	bool			elna_2_control_en; /* GPO1 */
-//	bool			elna_in_gaintable_all_index_en;
-//};
+struct elna_control {
+	uint16_t			gain_mdB;
+	uint16_t			bypass_loss_mdB;
+	uint32_t			settling_delay_ns;
+	bool			elna_1_control_en; /* GPO0 */
+	bool			elna_2_control_en; /* GPO1 */
+	bool			elna_in_gaintable_all_index_en;
+};
 
 //struct auxadc_control {
 //	int8_t			offset;
@@ -3197,7 +3197,7 @@ struct ad9361_phy_platform_data {
 //	struct rssi_control	rssi_ctrl;
 	struct port_control	port_ctrl;
 	struct ctrl_outs_control	ctrl_outs_ctrl;
-//	struct elna_control	elna_ctrl;
+	struct elna_control	elna_ctrl;
 //	struct auxadc_control	auxadc_ctrl;
 //	struct auxdac_control	auxdac_ctrl;
 	struct gpo_control	gpo_ctrl;
@@ -3455,8 +3455,8 @@ int32_t ad9361_get_trx_clock_chain(struct ad9361_rf_phy *phy,
 uint32_t ad9361_to_clk(uint64_t freq);
 uint64_t ad9361_from_clk(uint32_t freq);
 //int32_t ad9361_read_rssi(struct ad9361_rf_phy *phy, struct rf_rssi *rssi);
-//int32_t ad9361_set_gain_ctrl_mode(struct ad9361_rf_phy *phy,
-//				  struct rf_gain_ctrl *gain_ctrl);
+int32_t ad9361_set_gain_ctrl_mode(struct ad9361_rf_phy *phy,
+				  struct rf_gain_ctrl *gain_ctrl);
 //int32_t ad9361_load_fir_filter_coef(struct ad9361_rf_phy *phy,
 //				    enum fir_dest dest, int32_t gain_dB,
 //				    uint32_t ntaps, short *coef);

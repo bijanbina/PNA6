@@ -141,15 +141,15 @@ ID_AD9361,	// dev_sel
 		0,	//rx_rf_port_input_select *** adi,rx-rf-port-input-select
 		0,	//tx_rf_port_input_select *** adi,tx-rf-port-input-select
 		/* TX Attenuation Control */
-		10000,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
+		50000,	//tx_attenuation_mdB *** adi,tx-attenuation-mdB
 		0,//update_tx_gain_in_alert_enable *** adi,update-tx-gain-in-alert-enable
 		/* Reference Clock Control */
 		0,//xo_disable_use_ext_refclk_enable *** adi,xo-disable-use-ext-refclk-enable
 		{ 8, 5920 },//dcxo_coarse_and_fine_tune[2] *** adi,dcxo-coarse-and-fine-tune
 		CLKOUT_DISABLE,	//clk_output_mode_select *** adi,clk-output-mode-select
 		/* Gain Control */
-		2,		//gc_rx1_mode *** adi,gc-rx1-mode
-		2,		//gc_rx2_mode *** adi,gc-rx2-mode
+		RF_GAIN_MGC,		//gc_rx1_mode *** adi,gc-rx1-mode
+		RF_GAIN_MGC,		//gc_rx2_mode *** adi,gc-rx2-mode
 		58,	//gc_adc_large_overload_thresh *** adi,gc-adc-large-overload-thresh
 		4,		//gc_adc_ovr_sample_size *** adi,gc-adc-ovr-sample-size
 		47,	//gc_adc_small_overload_thresh *** adi,gc-adc-small-overload-thresh
@@ -815,6 +815,8 @@ int main(void)
 #endif
 #if HAVE_AD9361_API
 	ad9361_init(&ad9361_phy, &default_init_param);
+	ad9361_set_rx_gain_control_mode(ad9361_phy, 0, RF_GAIN_MGC);
+	ad9361_set_rx_gain_control_mode(ad9361_phy, 1, RF_GAIN_MGC);
 #else
 	init_phy(&ad9361_phy);
 #endif
@@ -1003,8 +1005,8 @@ int main(void)
 				if (temp == NULL)
 				{
 					ad9361_get_tx_lo_freq(ad9361_phy, &lo_freq_hz);
-					lo_freq_hz /= 1000000;
-					printf("rx_lo_freq=%" PRIu64 " MHz\n", lo_freq_hz);
+					lo_freq_hz /= 1000;
+					printf("tx_lo_freq=%" PRIu64 " KHz\n", lo_freq_hz);
 				}
 				else
 				{
@@ -1018,8 +1020,8 @@ int main(void)
 					int32_t result = ad9361_set_tx_lo_freq(ad9361_phy,
 							lo_freq_hz);
 					printf(
-							"result=%" PRId32 ", set_tx_lo_freq=%" PRIu64 " Hz\n",
-							result, lo_freq_hz);
+							"result=%" PRId32 ", set_tx_lo_freq=%" PRIu64 " KHz\n",
+							result, lo_freq_hz/1000);
 				}
 			}
 			else if (strcmp(command, "rx_freq") == 0)
@@ -1029,8 +1031,8 @@ int main(void)
 				if (temp == NULL)
 				{
 					ad9361_get_rx_lo_freq(ad9361_phy, &lo_freq_hz);
-					lo_freq_hz /= 1000000;
-					printf("rx_lo_freq=%" PRIu64 " MHz\n", lo_freq_hz);
+					lo_freq_hz /= 1000;
+					printf("rx_lo_freq=%" PRIu64 " KHz\n", lo_freq_hz);
 				}
 				else
 				{
@@ -1044,29 +1046,65 @@ int main(void)
 					int32_t result = ad9361_set_rx_lo_freq(ad9361_phy,
 							lo_freq_hz);
 					printf(
-							"result=%" PRId32 ", set_rx_lo_freq=%" PRIu64 " Hz\n",
-							result, lo_freq_hz);
+							"result=%" PRId32 ", set_rx_lo_freq=%" PRIu64 " KHz\n",
+							result, lo_freq_hz/1000);
 				}
 			}
 			else if (strcmp(command, "s11") == 0)
 			{
 				pna_s11(ad9361_phy, &gpio_sw, &value_sw);
+				printf("S11, value = %" PRIu16 "\n", value_sw);
 			}
 			else if (strcmp(command, "s21") == 0)
 			{
 				pna_s21(ad9361_phy, &gpio_sw, &value_sw);
+				printf("S21, value = %" PRIu16 "\n", value_sw);
 			}
 			else if (strcmp(command, "s22") == 0)
 			{
 				pna_s22(ad9361_phy, &gpio_sw, &value_sw);
+				printf("S22, value = %" PRIu16 "\n", value_sw);
 			}
 			else if (strcmp(command, "s12") == 0)
 			{
 				pna_s12(ad9361_phy, &gpio_sw, &value_sw);
+				printf("S12, value = %" PRIu16 "\n", value_sw);
+			}
+			else if (strcmp(command, "lna_pow12") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint8_t en;
+				if (temp == NULL)
+				{
+					en = 1;
+				}
+				else
+				{
+					int temp_en = atoi(temp);
+					en = (uint8_t) temp_en;
+				}
+				pna_sw_lna_pow12(&gpio_sw, en, &value_sw);
+				printf("lna_pow12  enable = %" PRIu8 ", value = %" PRIu16 "\n",en, value_sw);
+			}
+			else if (strcmp(command, "lna_pow5") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint8_t en;
+				if (temp == NULL)
+				{
+					en = 1;
+				}
+				else
+				{
+					int temp_en = atoi(temp);
+					en = (uint8_t) temp_en;
+				}
+				pna_sw_lna_pow5(&gpio_sw, en, &value_sw);
+				printf("lna_pow5  enable = %" PRIu8 ", value = %" PRIu16 "\n",en, value_sw);
 			}
 			else if(strcmp(command, "adc_vna") == 0)
 			{
-				pna_adc();
+				pna_adc(PNA_MODE_VNA);
 			}
 			else if (strcmp(command, "vga_gain") == 0)
 			{
@@ -1082,9 +1120,11 @@ int main(void)
 				{
 					int temp_channel_num = atoi(temp);
 					channel_num = (uint8_t) temp_channel_num;
-					if (temp_channel_num > 1)
+					channel_num = channel_num -1;
+					if (channel_num > 2 || channel_num<0)
 					{
-						channel_num = 0;
+						printf("channel number is wrong");
+						continue;
 					}
 					temp = strtok(NULL, delim);
 					if (temp == NULL)
@@ -1116,9 +1156,11 @@ int main(void)
 				{
 					int temp_channel_num = atoi(temp);
 					channel_num = (uint8_t) temp_channel_num;
-					if (temp_channel_num > 1)
+					channel_num = channel_num -1;
+					if (channel_num > 2 || channel_num<0)
 					{
-						channel_num = 0;
+						printf("channel number is wrong\n");
+						continue;
 					}
 					temp = strtok(NULL, delim);
 					if (temp == NULL)
@@ -1188,7 +1230,7 @@ int main(void)
 			}
 			else if (strcmp(command, "adc_iq") == 0)
 			{
-				pna_adc();
+				pna_adc(PNA_MODE_ADC);
 			}
 			else if (strcmp(command, "cpl_sw") == 0)
 			{

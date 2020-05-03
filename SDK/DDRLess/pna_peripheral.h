@@ -5,18 +5,22 @@
 #include "xgpio.h"
 #include "ad9361.h"
 
-#define GPIO_SW_TX_A1 1<<9
-#define GPIO_SW_TX_B1 1<<8
 #define GPIO_SW_P1 1<<11
 #define GPIO_SW_CP_P1 1<<10
+#define GPIO_SW_TX_A1 1<<9
+#define GPIO_SW_TX_B1 1<<8
 
-#define GPIO_SW_TX_A2 1<<5
-#define GPIO_SW_TX_B2 1<<4
 #define GPIO_SW_P2 1<<7
 #define GPIO_SW_CP_P2 1<<6
+#define GPIO_SW_TX_A2 1<<5
+#define GPIO_SW_TX_B2 1<<4
 
-#define GPIO_SW_CPL 1<<2
 #define GPIO_SW_LNA 1<<3
+#define GPIO_SW_CPL 1<<2
+
+#define GPIO_SW_12V 1<<1
+#define GPIO_SW_5V 1<<0
+
 
 #define GPIO_LED_DEVICE_ID	XPAR_AXI_GPIO_LED_DEVICE_ID
 #define GPIO_SW_DEVICE_ID	XPAR_AXI_GPIO_SW_DEVICE_ID
@@ -43,6 +47,9 @@ enum pna_enable_disable {
 };
 
 int32_t pna_init_gpio_sw(XGpio *GpioOutputSw,int channel);
+
+void pna_sw_lna_pow12(XGpio *gpio_sw, uint8_t en, uint16_t *value);
+void pna_sw_lna_pow5(XGpio *gpio_sw, uint8_t en, uint16_t *value);
 
 void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
 void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);

@@ -143,6 +143,9 @@
 #define IRQ_TRANSFER_QUEUED				(1 << 0)
 #define IRQ_TRANSFER_COMPLETED			(1 << 1)
 
+#define PNA_MODE_ADC 1
+#define PNA_MODE_VNA 2
+
 struct adc_state
 {
 	bool rx2tx2;
@@ -172,6 +175,6 @@ int32_t adc_get_calib_phase(struct ad9361_rf_phy *phy,
 							int32_t *val,
 							int32_t *val2);
 
-void pna_adc();
+void pna_adc(int mode);
 
 #endif

@@ -5,12 +5,11 @@
 
 int32_t pna_init_gpio_sw(XGpio *GpioOutputSw, int channel) {
 	int Status = XGpio_Initialize(GpioOutputSw, GPIO_SW_DEVICE_ID);
-
-	uint16_t value = 0;
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
 
+	uint16_t value = 0;
 	if (channel == 2) {
 		value |= GPIO_SW_TX_A1;
 		value |= GPIO_SW_P1;
@@ -26,6 +25,36 @@ int32_t pna_init_gpio_sw(XGpio *GpioOutputSw, int channel) {
 	return value;
 }
 
+void pna_sw_lna_pow12(XGpio *gpio_sw, uint8_t en, uint16_t *value)
+{
+	uint16_t temp = *value;
+	if(en == 1)
+	{
+		temp |= GPIO_SW_12V;
+	}
+	else
+	{
+		temp &= ~GPIO_SW_12V;
+	}
+	*value = temp;
+	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+}
+
+void pna_sw_lna_pow5(XGpio *gpio_sw, uint8_t en, uint16_t *value)
+{
+	uint16_t temp = *value;
+	if(en == 1)
+	{
+		temp |= GPIO_SW_5V;
+	}
+	else
+	{
+		temp &= ~GPIO_SW_5V;
+	}
+	*value = temp;
+	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+}
+
 void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 {
 	uint16_t temp = *value;
@@ -39,6 +68,7 @@ void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
 }
 
 void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -54,6 +84,7 @@ void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x0C);//Rx1_B, Rx2_B balanced
 }
 
 void pna_s21(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -69,6 +100,7 @@ void pna_s21(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_p1(temp, (uint8_t) PORT_2);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
 }
 
 void pna_s22(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -84,6 +116,7 @@ void pna_s22(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x0C);//Rx1_B, Rx2_B balanced
 }
 
 uint16_t pna_sw_tx_a1(uint16_t value,uint8_t port)
