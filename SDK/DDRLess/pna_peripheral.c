@@ -216,3 +216,22 @@ void pna_get_command(char* command) {
 	XUartPs_SendByte(XPS_UART1_BASEADDR,'\n');
 	command[char_number] = '\0';
 }
+
+int pna_get_signal(char* command, int samples) {
+	char		  received_char	= 0;
+	unsigned int  char_number	= 0;
+	while(char_number < samples) {
+		received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
+		command[char_number++] = received_char;
+		printf("%c",received_char);
+		fflush(stdout);
+//		else if()
+	}
+	received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
+	if(received_char != 0)
+		return -1;
+	received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
+	if(received_char != 0)
+		return -1;
+	return char_number;
+}

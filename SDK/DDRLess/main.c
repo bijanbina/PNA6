@@ -88,6 +88,8 @@ char received_cmd[30] =
 #endif
 #ifdef DDR_LESS
 #ifndef CONSOLE_COMMANDS
+#define MAX_AWG_DATA 1024
+char awg_data[4*MAX_AWG_DATA];
 char received_cmd[30] =
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0 };
@@ -1048,6 +1050,30 @@ int main(void)
 					printf(
 							"result=%" PRId32 ", set_rx_lo_freq=%" PRIu64 " KHz\n",
 							result, lo_freq_hz/1000);
+				}
+			}
+			else if (strcmp(command, "awg") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint64_t tx_samples;
+				
+				if (temp == NULL)
+				{
+					printf("not enough arguments for awg command\n");
+					continue;
+				}
+				else
+				{
+					tx_samples = atoi(temp);
+					printf("\n>>");
+					int ret = pna_get_signal(awg_data, tx_samples);
+					if(ret<0)
+					{
+						printf("3<========= ridi pesaram!\n");
+						continue;
+					}
+					pna_dac_awg(ad9361_phy, awg_data, tx_samples);
+					printf("\n>>");
 				}
 			}
 			else if (strcmp(command, "s11") == 0)

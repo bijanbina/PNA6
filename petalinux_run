@@ -25,7 +25,7 @@ while true; do
 		printf "Configure Hardware?[y/N]: "
 		read config_response
 		if [ "$config_response" = "y" ]; then
-			petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+			petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft_fast_sqrt/zc702/fft_zc702.sdk"
 		else
 			petalinux-config
 		fi

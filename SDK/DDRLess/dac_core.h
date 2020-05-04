@@ -207,6 +207,7 @@ int32_t dds_get_calib_phase(struct ad9361_rf_phy *phy,
 							int32_t *val,
 							int32_t *val2);
 
+void pna_dac_awg(struct ad9361_rf_phy *phy, char *data, int sample_size);
 void pna_dac_sin(struct ad9361_rf_phy *phy, double amp);
 void pna_dac_pulse(struct ad9361_rf_phy *phy, double amp);
 void pna_dac_dc(struct ad9361_rf_phy *phy, int16_t dc);

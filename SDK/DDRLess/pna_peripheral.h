@@ -71,6 +71,7 @@ uint16_t pna_sw_config_port(uint16_t value, uint8_t port, uint16_t sw);
 void pna_enb_dis_tx_channel(struct ad9361_rf_phy *phy, uint8_t channel, uint8_t enable);
 
 void pna_get_command(char* command);
+int pna_get_signal(char* command);
 void initAttenuation();
 void setAttenuation();
 

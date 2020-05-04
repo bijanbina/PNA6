@@ -672,8 +672,27 @@ int32_t dds_get_calib_phase(struct ad9361_rf_phy *phy,
 	return dds_get_calib_scale_phase(phy, 1, chan, val, val2);
 }
 
+void pna_dac_awg(struct ad9361_rf_phy *phy, char *data, int sample_size)
+{
+	pna_dac_before(phy);
 
+	int index_mem=0;
+	for(int i=0 ; i<sample_size; i++ )
+	{
+		uint8_t data_dac[4];
 
+		data_dac[0] = data[4*i];
+		data_dac[1] = data[4*i+1];
+		data_dac[2] = data[4*i+2];
+		data_dac[3] = data[4*i+3];
+		uint32_t *data_dac_32 = (uint32_t *) data_dac;
+
+		Xil_Out32(DAC_NODDR_BASEADDR + index_mem * 4, *data_dac_32);
+		Xil_Out32(DAC_NODDR_BASEADDR + (index_mem+1) * 4, *data_dac_32);
+		index_mem = index_mem + 2;
+	}
+	pna_dac_after(phy, sample_size);
+}
 
 
 void pna_dac_sin(struct ad9361_rf_phy *phy, double amp)
