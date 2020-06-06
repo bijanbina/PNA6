@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<board_part board_name="e310" board_revision="1.0" board_part="part0" schema_version="1.0" vendor="ettus.com" version="1.0">
+
+  <part_info part_name="xc7z020clg484-1" jtag_position="1" silicon_version="1.0"/>
+
+  <board_info description="Ettus E310" display_name="Ettus E310" url="www.ettus.com"/>
+
+  <interfaces>
+    <interface mode="master" name="ps7_fixedio" type="xilinx.com:display_processing_system7:fixedio_rtl:1.0">
+      <preset_file name="ps7.tcl"/>
+    </interface>
+  </interfaces>
+
+  <ports>
+  </ports>
+
+</board_part>
