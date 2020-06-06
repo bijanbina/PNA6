@@ -741,7 +741,7 @@ long long get_vga_gain(int channel_num)
 
 void set_lna_gain(int channel_num, long long lna_gain)
 {
-	pna_printf("channel num : %d \r\n", channel_num);
+//	pna_printf("channel num : %d \r\n", channel_num);
 	if(channel_num == 2)
 	{
 		iio_channel_attr_write_longlong(rx_dev_ch1, "hardwaregain", lna_gain);
