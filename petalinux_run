@@ -14,7 +14,7 @@ cd "$PETALINUX_PROJECT"
 while true; do
 	echo "-------------------------------------"
 	echo "0 - Config PetaLinux"
-	echo "1 - Build $PETALINUX_PROJECT"
+	echo "1 - Build $RUN_PETALINUX_PROJECT"
 	echo "2 - Package & boot on board"
 	echo "3 - Reboot if bitfile program failed"
 	echo "4 - Attach USB-IP Device"
@@ -53,8 +53,8 @@ while true; do
 	if [[ "$response" == *"5"* ]]; then
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force;
 		cd "$CURRENT_DIR"
-		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/"
-		cd "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/"
+		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
 		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
 		xsdb -eval "source zc702.tcl"
 	fi
