@@ -80,6 +80,13 @@ char received_cmd[30] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 #endif
 #endif
+#ifdef DDR_LESS
+#ifndef CONSOLE_COMMANDS
+char received_cmd[30] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint16_t value = 0;
+#endif
+#endif
 #if HAVE_AD9361_API
 AD9361_InitParam default_init_param = {
 /* Device selection */
@@ -727,6 +734,8 @@ int main(void) {
 	Xil_DCacheEnable();
 #endif
 
+	printf("sajad\r\n");
+
 #ifdef ALTERA_PLATFORM
 	if (altera_bridge_init()) {
 		printf("Altera Bridge Init Error!\n");
@@ -932,6 +941,23 @@ int main(void) {
 		}
 	}
 #endif
+#endif
+
+#ifdef DDR_LESS
+	while(1) {
+		printf("ddrless@root>> ");
+		char		  received_char	= 0;
+		unsigned char char_number	= 0;
+		while((received_char != '\n') && (received_char != '\r'))
+		{
+			received_char = getchar();
+			printf("\n %c",received_char);
+//			uart_read_char(&received_char);
+			received_cmd[char_number++] = received_char;
+		}
+//		received_cmd[char_number] = 0;
+		printf("value: 0x%x\n",value);
+	}
 #endif
 
 	printf("Done.\n");

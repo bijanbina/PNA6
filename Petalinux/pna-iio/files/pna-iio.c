@@ -20,6 +20,7 @@ void print_error(char *function, int error_code);
 
 int main (int argc, char **argv)
 {
+//	pna_printf("Hello world\r\n");
 	char buffer[1000];
 	const char delim[2] = " ";
 	char* token;
@@ -125,13 +126,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_bandwidth: %lld \r\n", get_bandwidth(__TX));
+				pna_printf("tx_bandwidth: %lld\r\n", get_bandwidth(__TX));
 			}
 			else
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__TX, bandwidth);
-				pna_printf("tx_bandwidth: %lld \r\n", bandwidth);
+				pna_printf("tx_bandwidth: %lld\r\n", bandwidth);
 			}
 		}
 		else if( strcmp(token, "rx_bandwidth")==0 )
@@ -139,13 +140,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("rx_bandwidth: %lld \r\n",  get_bandwidth(__RX));
+				pna_printf("rx_bandwidth: %lld\r\n",  get_bandwidth(__RX));
 			}
 			else
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__RX, bandwidth);
-				pna_printf("rx_bandwidth: %lld \r\n", bandwidth);
+				pna_printf("rx_bandwidth: %lld\r\n", bandwidth);
 			}
 		}
 		else if( strcmp(token, "st")==0 ) // sweep time
@@ -193,14 +194,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("vga_gain: %lld \r\n", get_vga_gain(channel_num));
+				pna_printf("vga_gain: %lld\r\n", get_vga_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
-				long long vga_gain = strtoll(token, &sz, 10);
+				long long vga_gain = -strtoll(token, &sz, 10);
 				set_vga_gain(channel_num, vga_gain);
-				pna_printf("vga_gain: %lld \r\n", vga_gain);
+				pna_printf("vga_gain: %lld\r\n", vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
@@ -219,14 +220,14 @@ int main (int argc, char **argv)
 			// char buf[100];
 			if(token==NULL)
 			{
-				pna_printf("lna_gain: %lld \r\n", get_lna_gain(channel_num));
+				pna_printf("lna_gain: %lld\r\n", get_lna_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
 				set_lna_gain(channel_num, lna_gain);
-				pna_printf("lna_gain: %lld \r\n", lna_gain);
+				pna_printf("lna_gain: %lld\r\n", lna_gain);
 			}
 		}
 		else if( strcmp(token, "gain_control_mode")==0 )
@@ -259,13 +260,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_sample_rate: %lld \r\n", get_sample_rate(__TX));
+				pna_printf("tx_sample_rate: %lld\r\n", get_sample_rate(__TX));
 			}
 			else
 			{
 				long long sampling_frequency = get_frequency(token);
 				set_sample_rate(__TX, sampling_frequency);
-				pna_printf("tx_sample_rate: %lld \r\n", sampling_frequency);
+				pna_printf("tx_sample_rate: %lld\r\n", sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "rx_sample_rate")==0 )
@@ -274,13 +275,13 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				rx_sampling_frequency = get_sample_rate(__RX);
-				pna_printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
+				pna_printf("rx_sample_rate: %lld\r\n", rx_sampling_frequency);
 			}
 			else
 			{
 				rx_sampling_frequency = get_frequency(token);
 				set_sample_rate(__RX, rx_sampling_frequency);
-				pna_printf("rx_sample_rate: %lld \r\n", rx_sampling_frequency);
+				pna_printf("rx_sample_rate: %lld\r\n", rx_sampling_frequency);
 			}
 		}
 		else if( strcmp(token, "rx_sample_size")==0 )
@@ -288,7 +289,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("rx_sample_size: %d \r\n", fft_size);
+				pna_printf("rx_sample_size: %d\r\n", fft_size);
 			}
 			else
 			{
@@ -301,7 +302,7 @@ int main (int argc, char **argv)
 				{
 					return -1;
 				}
-				pna_printf("rx_sample_size: %d \r\n", fft_size);
+				pna_printf("rx_sample_size: %d\r\n", fft_size);
 			}
 		}
 		else if( strcmp(token, "tx_sample_size")==0 )
@@ -309,12 +310,12 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_sample_size: %d \r\n", dds_sample_size);
+				pna_printf("tx_sample_size: %d\r\n", dds_sample_size);
 			}
 			else
 			{
 				dds_sample_size = atoi(token);
-				pna_printf("tx_sample_size: %d \r\n", dds_sample_size);
+				pna_printf("tx_sample_size: %d\r\n", dds_sample_size);
 			}
 		}
 		else if( strcmp(token, "tx_freq")==0 )
@@ -322,13 +323,13 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_freq: %lld \r\n", get_lo_freq(__TX));
+				pna_printf("tx_freq: %lld\r\n", get_lo_freq(__TX));
 			}
 			else
 			{
 				long long freq = get_frequency(token);
 				set_lo_freq(__TX, freq);
-				pna_printf("tx_freq: %lld \r\n", freq);
+				pna_printf("tx_freq: %lld\r\n", freq);
 			}
 		}
 		else if( strcmp(token, "rx_freq")==0 )
@@ -337,13 +338,13 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				rx_freq = get_lo_freq(__RX);
-				pna_printf("rx_freq: %lld \r\n", rx_freq);
+				pna_printf("rx_freq: %lld\r\n", rx_freq);
 			}
 			else
 			{
 				rx_freq = get_frequency(token);
 				set_lo_freq(__RX, rx_freq);
-				pna_printf("rx_freq: %lld \r\n", rx_freq);
+				pna_printf("rx_freq: %lld\r\n", rx_freq);
 			}
 		}
 		else if( strcmp(token, "rx_port")==0 )
@@ -616,6 +617,18 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"sweep2") == 0)
 		{
 			int channel_num;
+
+			long long sw_span;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("sweep", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				sw_span = get_frequency(token);
+			}
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -631,7 +644,7 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			long long sw_span;
+			int compression_enable;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -640,19 +653,8 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				sw_span = get_frequency(token);
-			}
-			int compression_enable;
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				compression_enable = 1;
-			}
-			else
-			{
 				compression_enable = atoi(token);
 			}
-
 			if(sw_span < 0)
 				sw_span = 80E6;
 			double span_mhz = sw_span/1E6;
@@ -741,7 +743,7 @@ int main (int argc, char **argv)
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
 			pna_write(uart_tx_buffer, 2*uart_size);
-			pna_printf("\r\n", 2*uart_size);
+			pna_printf("\r\n");
 			free(sweep_buf);
 			free(uart_tx_buffer);
 		}
