@@ -92,6 +92,7 @@ int main (int argc, char **argv)
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
 	rx_sampling_frequency = get_sample_rate(__RX);
+	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
 
@@ -190,10 +191,8 @@ int main (int argc, char **argv)
 		{
 			pna_printf("sweep_time: %lf \r\n",  sweep_time);
 		}
-		else if( strcmp(token, "fillpro")==0 ) // sweep time
+		else if( strcmp(token, "fillpro")==0 )
 		{
-			double rx_freq_mhz = rx_freq / 1E6;
-			long long sw_span;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -205,8 +204,25 @@ int main (int argc, char **argv)
 			}
 			else
 			{
+				rx_freq = get_frequency(token);
+			}
+			double rx_freq_mhz = rx_freq / 1E6;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("---------------------------------------------------------------\r\n"
+								"sweep: arguments are not enough.\r\n"
+								"Capture spectrum of signal from port argument.\r\n"
+								"Usage:\r\n    fillpro [port#][span][profile_flag]\r\n");
+				continue;
+			}
+			else
+			{
 				sw_span = get_frequency(token);
 			}
+			rx_sampling_frequency = 60E6;
+			set_sample_rate(__RX, rx_sampling_frequency);
+			usleep(10);
 			is_profile_empty = false;
 			double span_mhz = sw_span/1E6;
 			double lo_start_freq = rx_freq_mhz - span_mhz/2;
@@ -641,18 +657,6 @@ int main (int argc, char **argv)
 		else if(strcmp(token,"sweep2") == 0)
 		{
 			int channel_num;
-
-			long long sw_span;
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				print_error("sweep", ERROR_ARG);
-				continue;
-			}
-			else
-			{
-				sw_span = get_frequency(token);
-			}
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -867,7 +871,7 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"fft_span") == 0)
 		{
-			long long span;
+			double span_ratio;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -876,7 +880,7 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				span = get_frequency(token);
+				span_ratio = atof(token);
 			}
 			int channel_num;
 			token = strtok(NULL, delim);
@@ -906,12 +910,10 @@ int main (int argc, char **argv)
 			}
 			
 			int32_t *spectrum;
-			double span_mhz = (double)span/1E6;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
-			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
-			if(span_mhz > rx_sampling_frequency_mhz || span_mhz < 1E-3)
-				span_mhz = rx_sampling_frequency_mhz;
-			int removed_span = fft_size*(rx_sampling_frequency_mhz - span_mhz)/rx_sampling_frequency_mhz/2;
+			if(span_ratio>1 || span_ratio<=0)
+				span_ratio = 1;
+			int removed_span = fft_size*(1-span_ratio)/2;
 			// pna_printf("rx-freq %lf, span %f\r\n",rx_sampling_frequency_mhz, span);
 
 			gettimeofday(&tv1, NULL);
@@ -926,7 +928,7 @@ int main (int argc, char **argv)
 			}
 			if(spectrum == NULL)
 				return -1;
-			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
+			int spectrum_size = fft_size*span_ratio;
 			int uart_size;
 			if(compression_enable)
 			{
