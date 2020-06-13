@@ -157,7 +157,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				print_error("emio", ERROR_ARG);
 				continue;
 			}
 			else
@@ -167,7 +167,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				print_error("emio", ERROR_ARG);
 				continue;
 			}
 			else
@@ -177,7 +177,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				print_error("emio", ERROR_ARG);
 				continue;
 			}
 			else
@@ -196,10 +196,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    sweep [port#][span][profile_flag]\r\n");
+				print_error("fill profile", ERROR_ARG);
 				continue;
 			}
 			else
@@ -210,10 +207,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sweep: arguments are not enough.\r\n"
-								"Capture spectrum of signal from port argument.\r\n"
-								"Usage:\r\n    fillpro [port#][span][profile_flag]\r\n");
+				print_error("fill profile", ERROR_ARG);
 				continue;
 			}
 			else
@@ -237,10 +231,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"vga_gain: arguments are not enough.\r\n"
-								"Read/Write vga_gain with port and value arguments.\r\n"
-								"Usage:\r\n    vga_gain [port#] [value]\r\n");
+				print_error("vga gain", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
@@ -262,10 +253,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"lna_gain: arguments are not enough.\r\n"
-								"Read/Write lna_gain with port and value arguments.\r\n"
-								"Usage:\r\n    lna_gain [port#] [value]\r\n");
+				print_error("lna gain", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
@@ -288,10 +276,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"gain_control_mode: arguments are not enough.\r\n"
-								"Read/Write gain_control_mode with port and value arguments.\r\n"
-								"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
+				print_error("lna gain", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
@@ -534,10 +519,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"adc: arguments are not enough.\r\n"
-								"Capture receiver signal from port argument.\r\n"
-								"Usage:\r\n    adc [port#]\r\n");
+				print_error("adc", ERROR_ARG);
 				continue;
 			}
 			else
@@ -545,10 +527,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"adc: Channel number should be 1 or 2.\r\n"
-									"Capture receiver signal from port argument.\r\n"
-									"Usage:\r\n    adc [port#]\r\n");
+					print_error("adc", ERROR_CH);
 					continue;
 				}
 			}
@@ -567,10 +546,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"adc: arguments are not enough.\r\n"
-								"Capture receiver signal from port argument.\r\n"
-								"Usage:\r\n    adc_iq [port#]\r\n");
+				print_error("adc", ERROR_ARG);
 				continue;
 			}
 			else
@@ -578,10 +554,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"adc: Channel number should be 1 or 2.\r\n"
-									"Capture receiver signal from port argument.\r\n"
-									"Usage:\r\n    adc_iq [port#]\r\n");
+					print_error("adc", ERROR_CH);
 					continue;
 				}
 			}
@@ -627,10 +600,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"adc: arguments are not enough.\r\n"
-								"Capture receiver signal from port argument.\r\n"
-								"Usage:\r\n    adc_fft [port#]\r\n");
+				print_error("adc", ERROR_ARG);
 				continue;
 			}
 			else
@@ -638,10 +608,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"adc: Channel number should be 1 or 2.\r\n"
-									"Capture receiver signal from port argument.\r\n"
-									"Usage:\r\n    adc_fft [port#]\r\n");
+					print_error("adc", ERROR_CH);
 					continue;
 				}
 			}
@@ -968,18 +935,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"fft4: There is not enough arguments\r\n"
-								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
+				print_error("fft4", ERROR_ARG);
 				continue;
 			}
 			int rwfunc = atoi(token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"fft4: There is not enough arguments\r\n"
-								"Usage:\r\n    fft4 [r0/w1] [bytes]\r\n");
+				print_error("fft4", ERROR_ARG);
 				continue;
 			}
 			int num_bytes = atoi(token);
@@ -1013,7 +976,7 @@ int main (int argc, char **argv)
 
 			if (temp == NULL)
 			{
-				printf("not enough arguments for awg command\n");
+				print_error("awg", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1024,7 +987,7 @@ int main (int argc, char **argv)
 				int ret = pna_get_signal(awg_data, 4*tx_samples); //
 				if(ret<0)
 				{
-					printf("error on last check characters!\n");
+					printf("error on last check characters!\r\n");
 					continue;
 				}
 //					int16_t test = (int16_t) awg_data[4*512+1];
@@ -1042,10 +1005,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"pulse: arguments are not enough.\r\n"
-								"Generate pulse signal with period, amplitude and port arguments.\r\n"
-								"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
+				print_error("pulse", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1083,10 +1043,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"pulse: Channel number should be 1 or 2.\r\n"
-									"Generate pulse signal with period, amplitude and port arguments.\r\n"
-									"Usage:\r\n    pulse [period] [amplitude] [port#]\r\n");
+					print_error("pulse", ERROR_CH);
 					continue;
 				}
 			}
@@ -1123,10 +1080,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("---------------------------------------------------------------\r\n"
-								"sin: arguments are not enough.\r\n"
-								"Generate sinous signal with port, period and amplitude arguments.\r\n"
-								"Usage:\r\n    sin [port#] [period] [amplitude]\r\n");
+				print_error("sin", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1154,10 +1108,7 @@ int main (int argc, char **argv)
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					pna_printf("---------------------------------------------------------------\r\n"
-									"sin: Channel number should be 1 or 2.\r\n"
-									"Generate sinous signal with port, period and amplitude arguments.\r\n"
-									"Usage:\r\n    sin [period] [amplitude] [port#]\r\n");
+					print_error("sin", ERROR_CH);
 					continue;
 				}
 			}
@@ -1394,11 +1345,53 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Capture spectrum of signal.");
 		strcpy(cmd_name, "fft_span");
 	}
+	else if(!strcmp(function, "fft4"))
+	{
+		strcpy(arg_buf, "[r0/w1][bytes]");
+		strcpy(usage, "FFT module read/write test.");
+		strcpy(cmd_name, "fft4");
+	}
+	else if(!strcmp(function, "adc"))
+	{
+		strcpy(arg_buf, "[port#][compression enable]");
+		strcpy(usage, "Capture receiver signal from port.");
+		strcpy(cmd_name, "adc_iq");
+	}
+	else if(!strcmp(function, "awg"))
+	{
+		strcpy(arg_buf, "[sample]");
+		strcpy(usage, "Arbitrary wave generator with samples argument.");
+		strcpy(cmd_name, "awg");
+	}
 	else if(!strcmp(function, "fill profile"))
 	{
 		strcpy(arg_buf, "[span]");
 		strcpy(usage, "Fill FastLock profiles before sweep.");
 		strcpy(cmd_name, "fillpro");
+	}
+	else if(!strcmp(function, "vga gain"))
+	{
+		strcpy(arg_buf, "[port#][value]");
+		strcpy(usage, "Read/Write vga_gain with port and value arguments.");
+		strcpy(cmd_name, "vga_gain");
+	}
+	else if(!strcmp(function, "lna gain"))
+	{
+		strcpy(arg_buf, "[port#][value]");
+		strcpy(usage, "Read/Write lna gain with port and value arguments.");
+		strcpy(cmd_name, "lna_gain");
+	}
+	else if(!strcmp(function, "agc"))
+	{
+		strcpy(arg_buf, "[port#][value]");
+		strcpy(usage, "Read/Write agc with port and value arguments.");
+		strcpy(cmd_name, "agc");
+	}
+	else if(!strcmp(function, "emio"))
+	{
+		strcpy(arg_buf, "[base][nchannel][value]");
+		strcpy(usage, "Write emio with base, nchannel and value arguments.");
+		strcpy(cmd_name, "emio");
 	}
 	else if(!strcmp(function, "register"))
 	{
@@ -1423,6 +1416,18 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Generate DC signal.");
 		strcpy(arg_buf, "[amplitude][port#]");
 		strcpy(cmd_name, "dc");
+	}
+	else if(!strcmp(function, "pulse"))
+	{
+		strcpy(usage, "Generate pulse signal with period, amplitude, duty cycle and port arguments.");
+		strcpy(arg_buf, "[period][amplitude][duty cycle][port#]");
+		strcpy(cmd_name, "pulse");
+	}
+	else if(!strcmp(function, "sin"))
+	{
+		strcpy(usage, "Generate sinous signal with period, amplitude and port arguments.");
+		strcpy(arg_buf, "[period][amplitude][port#]");
+		strcpy(cmd_name, "sin");
 	}
 
 	pna_printf("---------------------------------------------------------------\r\n"
