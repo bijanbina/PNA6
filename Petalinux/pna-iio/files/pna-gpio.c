@@ -45,6 +45,31 @@ int open_gpio_channel(int gpio_base)
 	return nchannel;
 }
 
+void open_gpio(int gpio_base, int gpio_nchannel)
+{
+	int gpio_max;
+	char *cptr;
+	int c;
+	char channel_str[5];
+
+	char *gpio_export_file = "/sys/class/gpio/export";
+	int export_fd=0;
+
+	export_fd=open(gpio_export_file, O_WRONLY);
+		if (export_fd < 0) {
+			fprintf(stderr, "Cannot open GPIO to export %d\n", gpio_base);
+			return;
+		}
+
+		gpio_max = gpio_base + gpio_nchannel;
+		for(c = gpio_base; c < gpio_max; c++) {
+			sprintf(channel_str, "%d", c);
+			write(export_fd, channel_str, (strlen(channel_str)+1));
+		}
+		close(export_fd);
+		return;
+}
+
 int close_gpio_channel(int gpio_base)
 {
 	char gpio_nchan_file[128];
@@ -121,10 +146,12 @@ int set_gpio_value(int gpio_base, int nchannel, int value)
 
 	gpio_max = gpio_base + nchannel;
 
-	for(c = gpio_base; c < gpio_max; c++) {
+	for(c = gpio_base; c < gpio_max; c++)
+	{
 		sprintf(gpio_val_file, "/sys/class/gpio/gpio%d/value",c);
 		val_fd=open(gpio_val_file, O_RDWR);
-		if (val_fd < 0) {
+		if (val_fd < 0)
+		{
 			fprintf(stderr, "Cannot open the value file of GPIO %d\n", c);
 			return -1;
 		}

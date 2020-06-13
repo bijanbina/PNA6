@@ -601,6 +601,22 @@ void gpio_fft(int gpio_value)
 	gpio_fft_valid();
 }
 
+void gpio_emio(int base, int nchannel, int gpio_value)
+{
+	int gpio_base_emio = base + GPIO_BASE_EMIO;
+
+	if(nchannel > GPIO_NCHANNEL_EMIO)
+	{
+		pna_printf("Error : base+nchannel is greater than total EMIO-nchannel\r\n");
+		return;
+	}
+
+	open_gpio(gpio_base_emio, nchannel);
+	set_gpio_direction(gpio_base_emio, nchannel, "out");
+	set_gpio_value(gpio_base_emio, nchannel, gpio_value);
+	usleep(10);
+}
+
 uint8_t gpio_fft_status()
 {
 	int gl_gpio_base = GPIO_BASE_STATUS;
@@ -633,7 +649,7 @@ void gpio_fft_valid()
 
 void init_all_gpio()
 {
-	int gpio_base_reset = GPIO_BASE_RESET, nchannel_reset;
+//	int gpio_base_reset = GPIO_BASE_RESET, nchannel_reset;
 	int gpio_base_valid = GPIO_BASE_VALID, nchannel_valid;
 	int gpio_base_cfft = GPIO_BASE_CFFT, nchannel_cfft;
 	int gpio_base_status = GPIO_BASE_STATUS, nchannel_status;

@@ -78,6 +78,7 @@ long long get_frequency(char *token);
 void create_dds_buffer(int8_t *data, int sample_size);
 void create_adc_buffer(unsigned int fft_size);
 void gpio_fft(int gpio_value);
+void gpio_emio(int gpio_value, int base, int nchannel);
 uint8_t gpio_fft_status();
 void gpio_fft_reset();
 void init_all_gpio();

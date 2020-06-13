@@ -18,7 +18,11 @@
 #define GPIO_BASE_STATUS 999
 #define GPIO_NCHANNEL_STATUS 7
 
+#define GPIO_BASE_EMIO 903
+#define GPIO_NCHANNEL_EMIO 64
+
 int open_gpio_channel(int gpio_base);
+void open_gpio(int gpio_base, int gpio_nchannel);
 int close_gpio_channel(int gpio_base);
 int set_gpio_direction(int gpio_base, int nchannel, char *direction);
 int set_gpio_value(int gpio_base, int nchannel, int value);

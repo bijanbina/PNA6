@@ -822,3 +822,25 @@ void pna_adc_fft(int32_t *data_in, unsigned int fft_size)
 	pna_write(uart_tx_buffer, 4*uart_size);
 	pna_printf("\r\n");
 }
+
+//Chizama dahanet
+int pna_get_signal(char* awg_data, int samples)
+{
+	char received_char = 0;
+	unsigned int  char_number = 0;
+
+	while(char_number < samples)
+	{
+		pna_read((unsigned char*)&received_char, 1);
+		awg_data[char_number++] = received_char;
+	}
+
+	pna_read((unsigned char*)&received_char, 1);
+	if(received_char != '<')
+		return -1;
+	pna_read((unsigned char*)&received_char, 1);
+	if(received_char != '>')
+		return -1;
+
+	return char_number;
+}

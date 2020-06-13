@@ -36,5 +36,6 @@ void pna_adc(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq2(int32_t *data_in, unsigned int fft_size);
 void pna_adc_fft(int32_t *data_in, unsigned int fft_size);
+int pna_get_signal(char* awg_data, int samples);
 
 #endif //__PNA_CAPTURE_H__

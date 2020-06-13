@@ -88,7 +88,6 @@ int main (int argc, char **argv)
 		return 0;
 	}
 	
-	double span;
 	long long rx_sampling_frequency;
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
@@ -149,6 +148,44 @@ int main (int argc, char **argv)
 				pna_printf("rx_bandwidth: %lld\r\n", bandwidth);
 			}
 		}
+		else if( strcmp(token, "emio")==0 )
+		{
+			int emio_base;
+			int emio_nchannel;
+			int emio_value;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				continue;
+			}
+			else
+			{
+				emio_base = atoi(token);
+			}
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				continue;
+			}
+			else
+			{
+				emio_nchannel = atoi(token);
+			}
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("Error : not enough arguments\r\n\temio [base] [nchannel] [value]\r\n");
+				continue;
+			}
+			else
+			{
+				emio_value = atoi(token);
+			}
+			gpio_emio(emio_base, emio_nchannel, emio_value);
+			pna_printf("emio[%d:%d]=%d\r\n", emio_base + emio_nchannel - 1, emio_base, emio_value);
+		}
 		else if( strcmp(token, "st")==0 ) // sweep time
 		{
 			pna_printf("sweep_time: %lf \r\n",  sweep_time);
@@ -194,14 +231,14 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("vga_gain: %lld\r\n", get_vga_gain(channel_num));
+				pna_printf("vga_gain: %d, %lld\r\n", channel_num, get_vga_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
 				long long vga_gain = -strtoll(token, &sz, 10);
 				set_vga_gain(channel_num, vga_gain);
-				pna_printf("vga_gain: %lld\r\n", vga_gain);
+				pna_printf("vga_gain: %d, %lld\r\n", channel_num, vga_gain);
 			}
 		}
 		else if( strcmp(token, "lna_gain")==0 )
@@ -220,17 +257,17 @@ int main (int argc, char **argv)
 			// char buf[100];
 			if(token==NULL)
 			{
-				pna_printf("lna_gain: %lld\r\n", get_lna_gain(channel_num));
+				pna_printf("lna_gain: %d, %lld\r\n", channel_num, get_lna_gain(channel_num));
 			}
 			else
 			{
 				char *sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
 				set_lna_gain(channel_num, lna_gain);
-				pna_printf("lna_gain: %lld\r\n", lna_gain);
+				pna_printf("lna_gain: %d, %lld\r\n", channel_num, lna_gain);
 			}
 		}
-		else if( strcmp(token, "gain_control_mode")==0 )
+		else if( strcmp(token, "agc")==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -247,12 +284,12 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				get_gain_control_mode(channel_num, buf);
-				pna_printf("gain_control_mode: %s\r\n", buf);
+				pna_printf("agc: %d, %s\r\n", channel_num,  buf);
 			}
 			else
 			{
 				set_gain_control_mode(channel_num, token);
-				pna_printf("gain_control_mode: %s\r\n", token);
+				pna_printf("agc: %d ,%.*s\r\n", channel_num, 3, token);
 			}
 		}
 		else if( strcmp(token, "tx_sample_rate")==0 )
@@ -460,19 +497,6 @@ int main (int argc, char **argv)
 				pna_printf("quad_enable: %d \r\n", quad_en);
 			}
 		}
-		else if( strcmp(token, "span")==0 )
-		{
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				pna_printf("span: %lf \r\n", span);
-			}
-			else
-			{
-				span = atof(token);
-				pna_printf("span: %lf \r\n", span);
-			}
-		}
 		else if(strcmp(token,"test") == 0)
 		{
 			for( int i=0; i<fft_size; i++ )
@@ -483,7 +507,7 @@ int main (int argc, char **argv)
 			}
 			pna_printf("\r\n");
 		}
-		else if(strcmp(token,"freset") == 0)
+        else if(strcmp(token,"freset") == 0)
 		{
 			gpio_fft_reset();
 			pna_printf("\r\n");
@@ -843,6 +867,17 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"fft_span") == 0)
 		{
+			long long span;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("fft", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				span = get_frequency(token);
+			}
 			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -871,11 +906,12 @@ int main (int argc, char **argv)
 			}
 			
 			int32_t *spectrum;
+			double span_mhz = (double)span/1E6;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
-			if(span > rx_sampling_frequency_mhz || span < 1E-3)
-				span = rx_sampling_frequency_mhz;
-			int removed_span = fft_size*(rx_sampling_frequency_mhz - span)/rx_sampling_frequency_mhz/2;
+			if(span_mhz > rx_sampling_frequency_mhz || span_mhz < 1E-3)
+				span_mhz = rx_sampling_frequency_mhz;
+			int removed_span = fft_size*(rx_sampling_frequency_mhz - span_mhz)/rx_sampling_frequency_mhz/2;
 			// pna_printf("rx-freq %lf, span %f\r\n",rx_sampling_frequency_mhz, span);
 
 			gettimeofday(&tv1, NULL);
@@ -890,7 +926,7 @@ int main (int argc, char **argv)
 			}
 			if(spectrum == NULL)
 				return -1;
-			int spectrum_size = fft_size*span/rx_sampling_frequency_mhz;
+			int spectrum_size = fft_size*span_mhz/rx_sampling_frequency_mhz;
 			int uart_size;
 			if(compression_enable)
 			{
@@ -964,7 +1000,40 @@ int main (int argc, char **argv)
 			pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
 			pna_printf("\r\n");
 		}
-		else if (strcmp(token, "pulse")==0 )
+		else if (strcmp(token, "awg") == 0)
+		{
+			char* temp = strtok(NULL, delim);
+			uint64_t tx_samples;
+			//////////////////////////////////////////FIXME
+			int MAX_AWG_DATA = 1024;
+			/////////////////////////////////////////
+			char *awg_data = (char *)malloc(4*MAX_AWG_DATA * sizeof(char));
+
+			if (temp == NULL)
+			{
+				printf("not enough arguments for awg command\n");
+				continue;
+			}
+			else
+			{
+				tx_samples = atoi(temp);
+				printf("\n>>");
+				fflush(stdout);
+				int ret = pna_get_signal(awg_data, 4*tx_samples); //
+				if(ret<0)
+				{
+					printf("error on last check characters!\n");
+					continue;
+				}
+//					int16_t test = (int16_t) awg_data[4*512+1];
+//					test = test & 0x0F;
+//					test = test << 8;
+//					test = test | awg_data[4*512];
+//					printf("512.lsb: %u, msb: %u, data:%d\r\n", awg_data[4*512], awg_data[4*512+1], test);
+//				pna_dac_awg(ad9361_phy, awg_data, tx_samples);
+			}
+		}
+        else if (strcmp(token, "pulse")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
 			int period_num;
@@ -1313,7 +1382,7 @@ void print_error(char *function, int error_code)
 
 	if(!strcmp(function, "sweep"))
 	{
-		strcpy(arg_buf, "[port#][span][compression enable]");
+		strcpy(arg_buf, "[span][port#][compression enable]");
 		strcpy(usage, "Capture spectrum of signal while sweeping.");
 		strcpy(cmd_name, "sweep");
 	}
