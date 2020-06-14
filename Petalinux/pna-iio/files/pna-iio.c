@@ -88,10 +88,8 @@ int main (int argc, char **argv)
 		return 0;
 	}
 	
-	long long rx_sampling_frequency;
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
-	rx_sampling_frequency = get_sample_rate(__RX);
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
@@ -214,8 +212,22 @@ int main (int argc, char **argv)
 			{
 				sw_span = get_frequency(token);
 			}
-			rx_sampling_frequency = 60E6;
+			long long rx_sampling_frequency = 60E6;
 			set_sample_rate(__RX, rx_sampling_frequency);
+			long long bandwidth = 56E6;
+			set_bandwidth(__RX, bandwidth);
+			if(fft_size != 1024)
+			{
+				fft_size = 1024;
+				gpio_fft(fft_size);
+				init_rx_channel(fft_size);
+				usleep(10000);
+				int ret = fft_changed(fft_size);
+				if(ret < 0)
+				{
+					return -1;
+				}
+			}
 			usleep(10);
 			is_profile_empty = false;
 			double span_mhz = sw_span/1E6;
@@ -309,6 +321,7 @@ int main (int argc, char **argv)
 		}
 		else if( strcmp(token, "rx_sample_rate")==0 )
 		{
+			long long rx_sampling_frequency;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -665,7 +678,7 @@ int main (int argc, char **argv)
 			int32_t *spectrum;
 			int sweep_index = 0;
 			// unsigned char uart_tx_buffer[2*UART_LENGTH];
-			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			double rx_sampling_frequency_mhz = 60.0;
 			
 			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
 			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
@@ -777,7 +790,7 @@ int main (int argc, char **argv)
 			int32_t *spectrum;
 			int sweep_index = 0;
 			unsigned char uart_tx_buffer[2*UART_LENGTH];
-			double rx_sampling_frequency_mhz = rx_sampling_frequency/1E6;
+			double rx_sampling_frequency_mhz = 60.0;
 			if(sw_span < 0)
 				sw_span = 80E6;
 			double span_mhz = sw_span / 1E6;
@@ -1335,7 +1348,7 @@ void print_error(char *function, int error_code)
 
 	if(!strcmp(function, "sweep"))
 	{
-		strcpy(arg_buf, "[span][port#][compression enable]");
+		strcpy(arg_buf, "[port#][compression enable]");
 		strcpy(usage, "Capture spectrum of signal while sweeping.");
 		strcpy(cmd_name, "sweep");
 	}
@@ -1365,7 +1378,7 @@ void print_error(char *function, int error_code)
 	}
 	else if(!strcmp(function, "fill profile"))
 	{
-		strcpy(arg_buf, "[span]");
+		strcpy(arg_buf, "[rx_freq][span]");
 		strcpy(usage, "Fill FastLock profiles before sweep.");
 		strcpy(cmd_name, "fillpro");
 	}
