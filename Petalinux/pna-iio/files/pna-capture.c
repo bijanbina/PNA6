@@ -540,8 +540,8 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 			free(fft_spanned);
 			return NULL;
 		}
-		fft_spanned[i] = fft_abs[fft_size/2 + removed_span + i];
-		fft_spanned[i+fft_size/2-removed_span] = fft_abs[i];
+		fft_spanned[i] = fft_abs[fft_size/2 + removed_span + i]/fft_size;
+		fft_spanned[i+fft_size/2-removed_span] = fft_abs[i]/fft_size;
     }
 	return fft_spanned;
 }
