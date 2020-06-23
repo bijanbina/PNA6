@@ -1,7 +1,7 @@
 #ifndef __PNA_CAPTURE_H__
 #define __PNA_CAPTURE_H__
 
-#define SWEEP_SPAN 20
+#define SWEEP_SPAN 10 // 10 if rxfsampling = 30M | 20 if rxfsampling = 60M
 #define SET_LO_DELAY 200
 
 #include <time.h>

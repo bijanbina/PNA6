@@ -252,7 +252,7 @@ int main (int argc, char **argv)
 			{
 				sw_span = get_frequency(token);
 			}
-			long long rx_sampling_frequency = 60E6;
+			long long rx_sampling_frequency = 30E6; // 30M for ettus | 60M for others
 			set_sample_rate(__RX, rx_sampling_frequency);
 			long long bandwidth = 56E6;
 			set_bandwidth(__RX, bandwidth);
@@ -734,7 +734,7 @@ int main (int argc, char **argv)
 			int32_t *spectrum;
 			int sweep_index = 0;
 			// unsigned char uart_tx_buffer[2*UART_LENGTH];
-			double rx_sampling_frequency_mhz = 60.0;
+			double rx_sampling_frequency_mhz = 30.0; // 30 for Ettus | 60 for others
 			
 			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
 			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
