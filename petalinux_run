@@ -9,7 +9,7 @@ CURRENT_DIR=$(pwd)
 # if [ "$response" = "y" ]; then
 cd "$PETALINUX_INSTALL_DIR"
 source settings.sh
-cd "$PETALINUX_PROJECT"
+cd "$RUN_PETALINUX_PROJECT"
 
 while true; do
 	echo "-------------------------------------"

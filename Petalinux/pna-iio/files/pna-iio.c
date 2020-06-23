@@ -1036,59 +1036,90 @@ int main (int argc, char **argv)
 		}
 		else if (strcmp(token, "awg") == 0)
 		{
-			token = strtok(NULL, delim);
-			int tx_samples;
-			//////////////////////////////////////////FIXME
-			int MAX_AWG_DATA = 1024;
-			/////////////////////////////////////////
-			if (token == NULL)
-			{
-				print_error("awg", ERROR_ARG);
-				continue;
-			}
-			tx_samples = atoi(token);
-			int channel_num;
+			int s_size = iio_device_get_sample_size(iio_dac);
+			int sig_iq;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				print_error("awg", ERROR_ARG);
 				continue;
 			}
-			channel_num = atoi(token) - 1;
-			if(!(channel_num == 1 || channel_num == 0))
+			else
 			{
-				print_error("awg", ERROR_CH);
+				sig_iq = atoi(token);
+			}
+			int period_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("awg", ERROR_ARG);
 				continue;
 			}
-//			char *awg_data = (char *)malloc(4*5000 * sizeof(char));
-//			printf("awg: %d\r\n>>",tx_samples);
-//			fflush(stdout);
-//		    set_input_mode();
-//			int ret = pna_get_signal(awg_data, 4*tx_samples); //
-//			if(ret<0)
-//			{
-//				printf("error on last check characters!\r\n");
-//				free(awg_data);
-//				continue;
-//			}
-//			reset_input_mode();
-//			pna_printf("flag4");
-//			free(awg_data);
-//			int16_t test = (int16_t) awg_data[4*512+1];
-//			test = test & 0x0F;
-//			test = test << 8;
-//			test = test | awg_data[4*512];
-//			printf("512.lsb: %u, msb: %u, data:%d\r\n", awg_data[4*512], awg_data[4*512+1], test);
-//
-//			int s_size = iio_device_get_sample_size(iio_dac);
-//			for (int i=0 ; i<1024 ; i++)
-//			{
-//					dac_buf[ i*s_size + channel_num*4+0 ] = (int8_t)(awg_data[4*i]);   // LSB(I)
-//					dac_buf[ i*s_size + channel_num*4+1 ] = (int8_t)(awg_data[4*i+1]);     // MSB(I)
-//					dac_buf[ i*s_size + channel_num*4+2 ] = (int8_t)(awg_data[4*i+2]);     // LSB(Q)
-//					dac_buf[ i*s_size + channel_num*4+3 ] = (int8_t)(awg_data[4*i+3]);     // MSB(Q
-//			}
-//			create_dds_buffer(dac_buf, tx_samples);
+			else
+			{
+				period_num = atoi(token);
+			}
+			float amplitude;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("awg", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				amplitude = atof(token);
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				channel_num = 0;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("awg", ERROR_CH);
+					continue;
+				}
+			}
+			int amplitude_int = amplitude*DAC_MAX_VAL/2;
+			int period_sample_count = dds_sample_size/period_num;
+			for (int i=0 ; i<period_num ; i++)
+			{
+				double sinous, cosinous;
+				for(int j=0; j<period_sample_count; j++)
+				{
+					double x = j*2*PI;
+					x = x/period_sample_count;
+					if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
+					{
+						sinous = sin(x)*amplitude_int;
+					}
+					else
+					{
+						sinous = 0;
+					}
+					if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
+					{
+						cosinous = cos(x)*amplitude_int;
+					}
+					else
+					{
+						cosinous = 0;
+					}
+					int16_t sin_int = (int16_t)(sinous);
+					int16_t cos_int = (int16_t)(cosinous);
+
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
+				}
+			}
+			create_dds_buffer(dac_buf, dds_sample_size);
 		}
 
 		else if(strcmp(token, "sajad") == 0)
@@ -1462,8 +1493,8 @@ void print_error(char *function, int error_code)
 	}
 	else if(!strcmp(function, "awg"))
 	{
-		strcpy(arg_buf, "[sample]");
-		strcpy(usage, "Arbitrary wave generator with samples argument.");
+		strcpy(arg_buf, "[i/q][period][amplitude][port#]");
+		strcpy(usage, "Arbitrary wave generator (sin) with samples argument.");
 		strcpy(cmd_name, "awg");
 	}
 	else if(!strcmp(function, "fill profile"))

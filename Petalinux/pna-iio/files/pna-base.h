@@ -30,6 +30,10 @@
 #define __RX 1
 #define __TX 0
 
+#define SIGNAL_INPHASE_ENABLED 1
+#define SIGNAL_QUAD_ENABLED    2
+#define SIGNAL_IQ_ENABLED      3
+
 struct extra_dev_info
 {
 	bool input_device;
