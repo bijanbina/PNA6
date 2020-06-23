@@ -801,7 +801,7 @@ void set_gain_control_mode(int channel_num, char *gain_control_mode)
 	else
 	{
 		pna_printf( "---------------------------------------------------------------\r\n"
-				"gain_control_mode: arguments are not valid.\r\n"
+				"gain_control_mode: channel argument is not valid.\r\n"
 				"Read/Write gain_control_mode with port and value arguments.\r\n"
 				"Usage:\r\n    gain_control_mode [port#] [value]\r\n");
 	}

@@ -826,21 +826,39 @@ void pna_adc_fft(int32_t *data_in, unsigned int fft_size)
 //Chizama dahanet
 int pna_get_signal(char* awg_data, int samples)
 {
-	char received_char = 0;
+	unsigned char received_char = 0;
 	unsigned int  char_number = 0;
 
-	while(char_number < samples)
+//	size_t number = pna_read((unsigned char *) awg_data, samples + 2);
+//	pna_printf("\nread: %d, %d\n", number, samples +2);
+
+	fflush(stdin);
+	while(char_number<samples+1)
 	{
-		pna_read((unsigned char*)&received_char, 1);
+		fread(&received_char, sizeof(unsigned char), 1, stdin);
+		printf("%d,", received_char);
+//		fflush(stdout);
+//		pna_read(&received_char, 1);
+//		pna_printf("sl0");
 		awg_data[char_number++] = received_char;
+//		if(received_char=='\0')
+//		{
+//			pna_printf("fl0");
+//		}
 	}
 
-	pna_read((unsigned char*)&received_char, 1);
-	if(received_char != '<')
-		return -1;
-	pna_read((unsigned char*)&received_char, 1);
-	if(received_char != '>')
-		return -1;
+//	pna_read((unsigned char*)&received_char, 1);
+//	if(received_char != '<')
+//		return -1;
+//	pna_read((unsigned char*)&received_char, 1);
+//	if(received_char != '>')
+//		return -1;
+//	pna_printf("flag1");
+//	pna_read((unsigned char*)&received_char, 1);
+//	if(received_char != '\n')
+//		return -1;
+//	pna_printf("flag2");
 
 	return char_number;
 }
+

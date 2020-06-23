@@ -1,5 +1,11 @@
 #include "pna-base.h"
 
+
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <termios.h>
+
 extern struct iio_context *ctx;
 extern struct iio_device *dev, *dds, *cap;
 
@@ -18,10 +24,42 @@ extern int fd_dma;
 
 void print_error(char *function, int error_code);
 
+
+struct termios saved_attributes;
+
+void reset_input_mode (void)
+{
+	tcsetattr (STDIN_FILENO, TCSANOW, &saved_attributes);
+}
+
+void set_input_mode (void)
+{
+  struct termios tattr;
+  char *name;
+
+  /* Make sure stdin is a terminal. */
+  if (!isatty (STDIN_FILENO))
+    {
+      fprintf (stderr, "Not a terminal.\n");
+      exit (EXIT_FAILURE);
+    }
+
+  /* Save the terminal attributes so we can restore them later. */
+  tcgetattr (STDIN_FILENO, &saved_attributes);
+  atexit (reset_input_mode);
+
+  /* Set the funny terminal modes. */
+  tcgetattr (STDIN_FILENO, &tattr);
+  tattr.c_lflag &= ~(ICANON|ECHO); /* Clear ICANON and ECHO. */
+  tattr.c_cc[VMIN] = 1;
+  tattr.c_cc[VTIME] = 0;
+  tcsetattr (STDIN_FILENO, TCSAFLUSH, &tattr);
+}
+
 int main (int argc, char **argv)
 {
 //	pna_printf("Hello world\r\n");
-	char buffer[1000];
+	char buffer[100000];
 	const char delim[2] = " ";
 	char* token;
 	bool is_profile_empty = true;
@@ -105,8 +143,9 @@ int main (int argc, char **argv)
 	while(1)
 	{
 		pna_printf(">>");
+		fflush(stdin);
 		//scanf("%s\r", buffer);
-		int ret = pna_gets(buffer, 1000);
+		int ret = pna_gets(buffer, 100000);
 		if(ret < 0)
 		{
 			pna_printf("Error while trying to read from console/tcp\r\n");
@@ -116,6 +155,7 @@ int main (int argc, char **argv)
 		
 		if(strcmp(buffer,"")==0)
 		{
+//			pna_printf("ridiiiii");
 			break;
 		}
 		token = strtok(buffer, delim);
@@ -247,6 +287,11 @@ int main (int argc, char **argv)
 				continue;
 			}
 			int channel_num = atoi(token);
+			if(!(channel_num == 2 || channel_num == 1))
+			{
+				print_error("vga gain", ERROR_CH);
+				continue;
+			}
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -269,6 +314,11 @@ int main (int argc, char **argv)
 				continue;
 			}
 			int channel_num = atoi(token);
+			if(!(channel_num == 2 || channel_num == 1))
+			{
+				print_error("lna gain", ERROR_CH);
+				continue;
+			}
 			token = strtok(NULL, delim);
 			// char buf[100];
 			if(token==NULL)
@@ -286,12 +336,18 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "agc")==0 )
 		{
 			token = strtok(NULL, delim);
+			int channel_num;
 			if(token==NULL)
 			{
-				print_error("lna gain", ERROR_ARG);
+				print_error("agc", ERROR_ARG);
 				continue;
 			}
-			int channel_num = atoi(token);
+			channel_num = atoi(token);
+			if(!(channel_num == 2 || channel_num == 1))
+			{
+				print_error("agc", ERROR_CH);
+				continue;
+			}
 			token = strtok(NULL, delim);
 			char buf[1024];
 			if(token==NULL)
@@ -980,38 +1036,72 @@ int main (int argc, char **argv)
 		}
 		else if (strcmp(token, "awg") == 0)
 		{
-			char* temp = strtok(NULL, delim);
-			uint64_t tx_samples;
+			token = strtok(NULL, delim);
+			int tx_samples;
 			//////////////////////////////////////////FIXME
 			int MAX_AWG_DATA = 1024;
 			/////////////////////////////////////////
-			char *awg_data = (char *)malloc(4*MAX_AWG_DATA * sizeof(char));
-
-			if (temp == NULL)
+			if (token == NULL)
 			{
 				print_error("awg", ERROR_ARG);
 				continue;
 			}
-			else
+			tx_samples = atoi(token);
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
 			{
-				tx_samples = atoi(temp);
-				printf("\n>>");
-				fflush(stdout);
-				int ret = pna_get_signal(awg_data, 4*tx_samples); //
-				if(ret<0)
-				{
-					printf("error on last check characters!\r\n");
-					continue;
-				}
-//					int16_t test = (int16_t) awg_data[4*512+1];
-//					test = test & 0x0F;
-//					test = test << 8;
-//					test = test | awg_data[4*512];
-//					printf("512.lsb: %u, msb: %u, data:%d\r\n", awg_data[4*512], awg_data[4*512+1], test);
-//				pna_dac_awg(ad9361_phy, awg_data, tx_samples);
+				print_error("awg", ERROR_ARG);
+				continue;
 			}
+			channel_num = atoi(token) - 1;
+			if(!(channel_num == 1 || channel_num == 0))
+			{
+				print_error("awg", ERROR_CH);
+				continue;
+			}
+//			char *awg_data = (char *)malloc(4*5000 * sizeof(char));
+//			printf("awg: %d\r\n>>",tx_samples);
+//			fflush(stdout);
+//		    set_input_mode();
+//			int ret = pna_get_signal(awg_data, 4*tx_samples); //
+//			if(ret<0)
+//			{
+//				printf("error on last check characters!\r\n");
+//				free(awg_data);
+//				continue;
+//			}
+//			reset_input_mode();
+//			pna_printf("flag4");
+//			free(awg_data);
+//			int16_t test = (int16_t) awg_data[4*512+1];
+//			test = test & 0x0F;
+//			test = test << 8;
+//			test = test | awg_data[4*512];
+//			printf("512.lsb: %u, msb: %u, data:%d\r\n", awg_data[4*512], awg_data[4*512+1], test);
+//
+//			int s_size = iio_device_get_sample_size(iio_dac);
+//			for (int i=0 ; i<1024 ; i++)
+//			{
+//					dac_buf[ i*s_size + channel_num*4+0 ] = (int8_t)(awg_data[4*i]);   // LSB(I)
+//					dac_buf[ i*s_size + channel_num*4+1 ] = (int8_t)(awg_data[4*i+1]);     // MSB(I)
+//					dac_buf[ i*s_size + channel_num*4+2 ] = (int8_t)(awg_data[4*i+2]);     // LSB(Q)
+//					dac_buf[ i*s_size + channel_num*4+3 ] = (int8_t)(awg_data[4*i+3]);     // MSB(Q
+//			}
+//			create_dds_buffer(dac_buf, tx_samples);
 		}
-        else if (strcmp(token, "pulse")==0 )
+
+		else if(strcmp(token, "sajad") == 0)
+		{
+			unsigned char *awg_data = (unsigned char *)malloc(4*1024 * sizeof(unsigned char));
+//			while(received_char != '\n')
+//			{
+			pna_read(awg_data, 10);
+//				awg_data[char_number++] = received_char;
+//			}
+			printf("sajad: %s", awg_data);
+		}
+		else if (strcmp(token, "pulse")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
 			int period_num;

@@ -66,16 +66,17 @@ int pna_gets(char *buffer, int max_len)
     
 }
 
-void pna_read(unsigned char *data, int len)
+size_t pna_read(unsigned char *data, int len)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
-        fread(data, 1, len, stdout);
+        return fread(data, 1, len, stdin);
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
         read(connfd, data, len);
     }
+    return 1;
 }
 
 
