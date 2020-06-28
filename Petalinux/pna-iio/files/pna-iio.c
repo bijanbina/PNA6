@@ -1034,14 +1034,14 @@ int main (int argc, char **argv)
 			pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
 			pna_printf("\r\n");
 		}
-		else if (strcmp(token, "awg") == 0)
+		else if (strcmp(token, "sin_iq") == 0)
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
 			int sig_iq;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("awg", ERROR_ARG);
+				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1052,7 +1052,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("awg", ERROR_ARG);
+				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1063,7 +1063,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("awg", ERROR_ARG);
+				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1074,14 +1074,15 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 0;
+				print_error("sin_iq", ERROR_CH);
+				continue;
 			}
 			else
 			{
 				channel_num = atoi(token) - 1;
 				if(!(channel_num == 1 || channel_num == 0))
 				{
-					print_error("awg", ERROR_CH);
+					print_error("sin_iq", ERROR_CH);
 					continue;
 				}
 			}
@@ -1102,7 +1103,7 @@ int main (int argc, char **argv)
 					{
 						sinous = 0;
 					}
-					if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
+					if(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
 					{
 						cosinous = cos(x)*amplitude_int;
 					}
@@ -1121,7 +1122,145 @@ int main (int argc, char **argv)
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 		}
+		else if (strcmp(token, "pulse_iq") == 0)
+		{
+			int s_size = iio_device_get_sample_size(iio_dac);
+			int sig_iq;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				sig_iq = atoi(token);
+			}
+			int period_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				period_num = atoi(token);
+			}
+			float amplitude;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				amplitude = atof(token);
+			}
+			float duty_cycle;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				duty_cycle = atof(token);
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("pulse_iq", ERROR_CH);
+					continue;
+				}
+			}
 
+			double pulse, p_hilbert;
+			int amplitude_int = amplitude*DAC_MAX_VAL/2;
+			int period_samples = dds_sample_size/period_num;
+			int on_pulse_samples = duty_cycle*period_samples;
+
+			for (int i=0; i<dds_sample_size; i++)
+			{
+				//// Real Part
+				if(i%period_samples < on_pulse_samples &&
+						(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED))
+				{
+					pulse = amplitude_int;
+				}
+				else
+				{
+					pulse = 0;
+				}
+
+				//// Imaginary Part
+				p_hilbert = 0;
+				if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
+				{
+					for(int j=-2; j<period_num+2; j++)
+					{
+						double num = i - j*period_samples;
+						double denum = i -  j*period_samples - on_pulse_samples;
+						if(num == 0) // log(0)
+						{
+							num = (i-1) - j*period_samples;
+						}
+						if(denum == 0) // log(x/0)
+						{
+							denum = i-1 -  j*period_samples - on_pulse_samples;
+						}
+						p_hilbert += amplitude_int*log(fabs(num/denum))/PI;
+					}
+				}
+				else
+				{
+					p_hilbert = 0;
+				}
+
+				int16_t pulse_int = (int16_t)(pulse);
+				int16_t p_hilbert_int = (int16_t)(p_hilbert);
+
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(p_hilbert_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(p_hilbert_int/256);     // MSB
+			}
+//			for (int i=0 ; i<period_num ; i++)
+//			{
+//				double pulse;
+//				for(int j=0; j<period_sample_count; j++)
+//				{
+//					if ( j<period_sample_count*duty_cycle &&
+//							(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED))
+//					{
+//						pulse = amplitude_int;
+//					}
+//					else
+//					{
+//						pulse = 0;
+//					}
+//					int16_t pulse_int = (int16_t)(pulse);
+//
+//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
+//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
+//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // MSB
+//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
+//				}
+//			}
+
+			create_dds_buffer(dac_buf, dds_sample_size);
+		}
 		else if(strcmp(token, "sajad") == 0)
 		{
 			unsigned char *awg_data = (unsigned char *)malloc(4*1024 * sizeof(unsigned char));
@@ -1496,6 +1635,18 @@ void print_error(char *function, int error_code)
 		strcpy(arg_buf, "[i/q][period][amplitude][port#]");
 		strcpy(usage, "Arbitrary wave generator (sin) with samples argument.");
 		strcpy(cmd_name, "awg");
+	}
+	else if(!strcmp(function, "sin_iq"))
+	{
+		strcpy(arg_buf, "[i/q][period][amplitude][port#]");
+		strcpy(usage, "generates sinous.");
+		strcpy(cmd_name, "sin_iq");
+	}
+	else if(!strcmp(function, "pulse_iq"))
+	{
+		strcpy(arg_buf, "[i/q][period][amplitude][duty cycle][port#]");
+		strcpy(usage, "generates pulse.");
+		strcpy(cmd_name, "pulse_iq");
 	}
 	else if(!strcmp(function, "fill profile"))
 	{

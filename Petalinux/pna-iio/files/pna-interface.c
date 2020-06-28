@@ -1,5 +1,7 @@
 #include "pna-interface.h"
 #include <stdarg.h>
+#include <sys/time.h>
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +26,7 @@ void pna_printf(char *format, ...)
         char buffer[1000];
         vsprintf(buffer, format, args);
         write(connfd, buffer, strlen(buffer));
+
     }
     va_end(args);
 }
@@ -88,7 +91,15 @@ void pna_write(unsigned char *data, int len)
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
-        write(connfd, data, len);
+        int write_len = send(connfd, data, len, 0);
+//        fixme : use usleep
+        //usleep(100);
+	     printf("ERROR: %d \n",    write_len);
+        if(write_len != len)
+        {
+		     printf("ERROR: written bytes %d is not the same as len=%d \n",
+		    		    write_len, len);
+        }
     }
 }
 
@@ -157,7 +168,7 @@ void pna_init_interface(int id)
         }
         else
         {
-            printf("Server listening..\n");
+        	pna_printf("Server listening..\n>>");
         }
 
         // Accept the data packet from client and verification
