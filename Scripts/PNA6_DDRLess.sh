@@ -88,21 +88,22 @@ while true; do
 		if [ -z "$CHECK_PRE" ]; then
 			WRITE_LN=$(grep -i -n "file://pl-delete-nodes-vc707_fmcjesdadc1.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
 			WRITE_LN=$(($WRITE_LN+1))
-			sed -i "$WRITE_LN"'i\ \ \ \ file://pl-delete-nodes-zynq-pna6.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+			sed -i "$WRITE_LN"'i\    file://pl-delete-nodes-zynq-pna6.dtsi \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 		fi
-		CHECK_PRE=$(grep 'zynq-zc702-adv7511-ad9361-fmcomms2-3 \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
+		CHECK_PRE=$(grep 'zynq-zc702-adv7511-ad9361-fmcomms2-3 \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend")
 		if [ -z "$CHECK_PRE" ]; then
-			WRITE_LN=$(grep -i -n 'zynq-adrv9361-z7035-box \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
+			WRITE_LN=$(grep -i -n 'zynq-adrv9361-z7035-box \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend" | awk -F : '{printf $1}')
 			WRITE_LN=$(($WRITE_LN+1))
-			sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ \ \ \ \ zynq-zc702-adv7511-ad9361-fmcomms2-3 \' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+			sed -i "$WRITE_LN"'i\            zynq-zc702-adv7511-ad9361-fmcomms2-3 \\' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 		fi
 
-		#FIXME: fix echo bug
-		sed -i 's/KERNEL_DTB = "zynq-zed-adv7511-ad9361-fmcomms2-3"/KERNEL_DTB = "zynq-pna6"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
+		#fix echo bug
+		sed -i 's/^KERNEL_DTB = .*/KERNEL_DTB = "zynq-pna6"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 		sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 		sed -i 's/echo -e/echo/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/device-tree.bbappend"
 	#	sed -i 's/SRCREV = "${AUTOREV}"/SRCREV = "6184afd426f0eb2d0fa588da8fe2e21975b18c6f"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 		cp "$CURRENT_DIR/Meta-ADI/linux-xlnx_%.bbappend" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/"
+		sed -i 's/^KBUILD_DEFCONFIG_zynq = .*/KBUILD_DEFCONFIG_zynq = "zynq_pna_defconfig"/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 		sed -i "s|LINUX_KERNEL_DIRECTORY|$LINUX_KERNEL_DIR|g" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 
 		cd "$CURRENT_DIR"
@@ -122,10 +123,10 @@ while true; do
 		source settings.sh
 		petalinux-create --type project --template zynq --name $PETALINUX_PROJECT
 		cd $PETALINUX_PROJECT
-		#petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
-	#	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
+#		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+# 		petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
 #	    petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/ettus/e310/ettus_e310.sdk"
-		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
+#		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
 		
 		CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config")
 		if [ -z "$CHECK_PRE" ]; then

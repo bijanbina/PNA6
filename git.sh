@@ -13,10 +13,11 @@ if [ "$response" = "0" ]; then
 	printf "Copy Files from git?[p/s/N]: "
 	read response
 
-	if [ "$response" = "p" ]; then
+	if [[ "$response" == *"p"* ]]; then
 		cp -R Petalinux/pna-iio "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps"
 		cp -R Petalinux/pnadmc "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
-	elif [ "$response" = "s" ]; then
+	fi
+	if [[ "$response" == *"s"* ]]; then
 		cp -R Petalinux/pna-iio/files/* $GIT_SDK_PETALINUX_PROJECT/
 	fi
 
@@ -31,10 +32,11 @@ elif [ "$response" = "1" ]; then
 	printf "Copy Files to git?[p/s/N]: "
 	read response
 
-	if [ "$response" = "p" ]; then
+	if [[ "$response" == *"p"* ]]; then
 		cp -R "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/" Petalinux/
 		cp -R "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/" Petalinux/
-	elif [ "$response" = "s" ]; then
+	fi
+	if [[ "$response" == *"s"* ]]; then
 		cp -R $GIT_SDK_PETALINUX_PROJECT/* Petalinux/pna-iio/files/
 	fi
 

@@ -13,15 +13,17 @@ cd "$RUN_PETALINUX_PROJECT"
 
 while true; do
 	echo "-------------------------------------"
-	echo "0 - Config PetaLinux"
-	echo "1 - Build $RUN_PETALINUX_PROJECT"
-	echo "2 - Package & boot on board"
-	echo "3 - Reboot if bitfile program failed"
-	echo "4 - Attach USB-IP Device"
-	echo "5 - Remote Package and boot"
+	echo "1 - Config PetaLinux"
+	echo "2 - Build $RUN_PETALINUX_PROJECT"
+	echo "3 - Package & boot on board"
+	echo "4 - Reboot if bitfile program failed"
+	echo "5 - Attach USB-IP Device"
+	echo "6 - Remote Package and boot"
+	echo "7 - Make .BIN files for SD"
+	echo "0 - Exit"
 	echo "-------------------------------------"
 	read response
-	if [[ "$response" == *"0"* ]]; then
+	if [[ "$response" == *"1"* ]]; then
 		printf "Configure Hardware?[y/N]: "
 		read config_response
 		if [ "$config_response" = "y" ]; then
@@ -31,16 +33,16 @@ while true; do
 			petalinux-config
 		fi
 	fi
-	if [[ "$response" == *"1"* ]]; then
+	if [[ "$response" == *"2"* ]]; then
 		petalinux-build
 	fi
-	if [[ "$response" == *"2"* ]]; then
+	if [[ "$response" == *"3"* ]]; then
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
-	if [[ "$response" == *"3"* ]]; then
+	if [[ "$response" == *"4"* ]]; then
 		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
-	if [[ "$response" == *"4"* ]]; then
+	if [[ "$response" == *"5"* ]]; then
 		printf "Probe VHCI-HCD?[y/N]: "
 		read usb_response
 		if [ "$usb_response" = "y" ]; then
@@ -50,13 +52,19 @@ while true; do
 		sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-3
 #		sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-14
 	fi
-	if [[ "$response" == *"5"* ]]; then
+	if [[ "$response" == *"6"* ]]; then
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force;
 		cd "$CURRENT_DIR"
 		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
 		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
 		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
 		xsdb -eval "source zc702.tcl"
+	fi
+	if [[ "$response" == *"7"* ]]; then
+		petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
+	fi
+	if [[ "$response" == *"0"* ]]; then
+		break
 	fi
 done
 # fi
