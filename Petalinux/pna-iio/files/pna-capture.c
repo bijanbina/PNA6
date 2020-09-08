@@ -9,8 +9,11 @@ int CHUNK_C = 1024/6;
 int32_t *output_data;
 int32_t *fft_phase;
 int32_t *fft_abs;
+int16_t *window_coef;
 uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
+
+double avg_I = 0, avg_Q = 0; // set after windowing
 
 int fft_changed(int fft_size)
 {
@@ -39,6 +42,16 @@ int fft_changed(int fft_size)
 		free(fft_abs);
 		return -1;
 	}
+	window_coef = (int16_t *) malloc(fft_size * sizeof(int16_t));
+	if(window_coef == NULL)
+	{
+		printf("memory allocation failed in changed_fft function\r\n");
+		free(output_data);
+		free(fft_abs);
+		free(fft_phase);
+		return -1;
+	}
+	calculate_flat_top_coeff(fft_size);
 	return 0;
 }
 
@@ -525,6 +538,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 		// pna_printf("st: %lf \r\n", sweep_time);
 	}
+//	flat_top_window(data_in, fft_size);
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
 #elif FFT_16_BIT
@@ -612,6 +626,60 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size)
 	pna_printf("\r\n");
 }
 
+void flat_top_window(int32_t *data, unsigned int fft_size)
+{
+	int32_t winOut_I, winOut_Q;
+	int16_t dataIn_I, dataIn_Q;
+	int16_t dataOut_I, dataOut_Q;
+	int16_t avgLast_I = (int16_t)floor(avg_I);
+	int16_t avgLast_Q = (int16_t)floor(avg_Q);
+
+	avg_I = 0;
+	avg_Q = 0;
+
+	for(int i=0; i < fft_size; i++)
+	{
+		dataIn_I = data[i] & 0x0000ffff;
+		dataIn_Q = (data[i] & 0xffff0000) >> 16;
+		winOut_I = dataIn_I * window_coef[i];
+		winOut_Q = dataIn_Q * window_coef[i];
+		winOut_I = winOut_I >> 16;
+		winOut_Q = winOut_Q >> 16;
+		dataOut_I = (int16_t) winOut_I;
+		dataOut_Q = (int16_t) winOut_Q;
+		avg_I += dataOut_I;
+		avg_Q += dataOut_Q;
+		dataOut_I -= avgLast_I;
+		dataOut_Q -= avgLast_Q;
+		data[i] = dataOut_I;
+		data[i] &= 0x0000FFFF;
+		data[i] |= (dataOut_Q << 16);
+	}
+	avg_I = avg_I / fft_size;
+	avg_Q = avg_Q / fft_size;
+}
+
+void pna_print_avg()
+{
+	pna_printf("I: %lf , Q: %lf \r\n>>", avg_I, avg_Q);
+}
+
+void calculate_flat_top_coeff(unsigned int fft_size)
+{
+	int max_size = 4096;
+
+	const double a0 = 0.21557895 * max_size;
+	const double a1 = 0.41663158 * max_size;
+	const double a2 = 0.27726315 * max_size;
+	const double a3 = 0.08357894 * max_size;
+	const double a4 = 0.00694736 * max_size;
+
+	for(int i=0; i <= fft_size; i++)
+	{
+		window_coef[i] = a0 - a1*cos(2.0*PI*i/fft_size) + a2*cos(4.0*PI*i/fft_size) - a3*cos(6.0*PI*i/fft_size) + a4*cos(8.0*PI*i/fft_size);
+	}
+}
+
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size)
 {
 	int output_size = 1024;
@@ -649,8 +717,8 @@ int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int dat
 		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
 		rx_buffer_iu = (uint32_t)rx_buffer_i;
 		rx_buffer_qu = (uint32_t)rx_buffer_q;
-		uint16_t iu= (uint16_t)i;
-		uint8_t first_byte = iu%256;
+//		uint16_t iu= (uint16_t)i;
+		uint8_t first_byte = rx_buffer_iu%256;
 		uint8_t second_byte = rx_buffer_iu/256;
 		uint8_t third_byte = rx_buffer_qu%256;
 		uint8_t fourth_byte = rx_buffer_qu/256;
