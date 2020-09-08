@@ -515,7 +515,11 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 	gettimeofday(&tv1, NULL);
 	for(int i=0; i<5; i++)
 	{
+#ifdef SINGLE_PORT
+		fill_rx_buffer_single(fft_size);
+#else
 		fill_rx_buffer(fft_size);
+#endif
 		gettimeofday(&tv2, NULL);
 		sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
@@ -577,6 +581,7 @@ void pna_fft2(int32_t *data_in, unsigned int fft_size)
       uart_tx_buffer[2*i+1] = second_byte;
     }
   }
+  pna_printf("PLOT");
   pna_write(uart_tx_buffer, 2*uart_size);
   pna_printf("\r\n");
 }
@@ -585,14 +590,24 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size)
 {
 	int uart_size = UART_LENGTH;
 	unsigned char uart_tx_buffer[4*UART_LENGTH];
-	printf("umadim inja\r\n");
-	for( int i=0; i<8; i++ )
+	//printf("umadim inja\r\n");
+	for (int j = 0; j < 1024; j++)
 	{
-		for (int j = 0; j < 255; j++)
-		{
-			uart_tx_buffer[j+256*i] = j;
-		}
+		    int chert = j*5 - 20*512;
+		    uint16_t ch16u = (uint16_t)chert;
+		    uint8_t first_byte = ch16u%256;
+		    uint8_t second_byte = ch16u/256;
+			uart_tx_buffer[2*j] = first_byte;
+			uart_tx_buffer[2*j+1] = second_byte;
 	}
+//	for(int j=0; j<8; j++)
+//	{
+//		for(int i=0; i<256; i++)
+//		{
+//			uart_tx_buffer[256*j+i] = i;
+//		}
+//	}
+	pna_printf("PLOT");
 	pna_write(uart_tx_buffer, 2*uart_size);
 	pna_printf("\r\n");
 }
@@ -609,6 +624,8 @@ int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int dat
 	double avg_adc_window_q;
 	int32_t rx_buffer_i;
 	int32_t rx_buffer_q;
+	uint32_t rx_buffer_iu;
+	uint32_t rx_buffer_qu;
 	int16_t rx_buffer_i_16;
 	int16_t rx_buffer_q_16;
 	for(int i=0; i<output_size; i++)
@@ -630,10 +647,13 @@ int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int dat
 		rx_buffer_q = floor(avg_adc_window_q);
 		rx_buffer_i = rx_buffer_i & 0x0000FFFF;
 		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
-		char first_byte = rx_buffer_i%256;
-		char second_byte = rx_buffer_i/256;
-		char third_byte = rx_buffer_q%256;
-		char fourth_byte = rx_buffer_q/256;
+		rx_buffer_iu = (uint32_t)rx_buffer_i;
+		rx_buffer_qu = (uint32_t)rx_buffer_q;
+		uint16_t iu= (uint16_t)i;
+		uint8_t first_byte = iu%256;
+		uint8_t second_byte = rx_buffer_iu/256;
+		uint8_t third_byte = rx_buffer_qu%256;
+		uint8_t fourth_byte = rx_buffer_qu/256;
 		data_out[4*i] = first_byte;
 		data_out[4*i+1] = second_byte;
 		data_out[4*i+2] = third_byte;
@@ -646,6 +666,8 @@ void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned i
 {
 	int32_t rx_buffer_i;
 	int32_t rx_buffer_q;
+	uint32_t rx_buffer_iu;
+	uint32_t rx_buffer_qu;
 	int16_t rx_buffer_i_16;
 	int16_t rx_buffer_q_16;
 	char first_byte, second_byte, third_byte, fourth_byte;
@@ -656,11 +678,13 @@ void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned i
 		rx_buffer_q_16 = (data_in[i] >> 16) & 0x0000FFFF;
 		rx_buffer_q = rx_buffer_q_16;
 		rx_buffer_i = rx_buffer_i & 0x0000FFFF;
+		rx_buffer_iu = (uint32_t)rx_buffer_i;
 		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
-		first_byte = rx_buffer_i%256;
-		second_byte = rx_buffer_i/256;
-		third_byte = rx_buffer_q%256;
-		fourth_byte = rx_buffer_q/256;
+		rx_buffer_qu = (uint32_t)rx_buffer_q;
+		first_byte = rx_buffer_iu%256;
+		second_byte = rx_buffer_iu/256;
+		third_byte = rx_buffer_qu%256;
+		fourth_byte = rx_buffer_qu/256;
 		data_out[4*i] = first_byte;
 		data_out[4*i+1] = second_byte;
 		data_out[4*i+2] = third_byte;
@@ -700,6 +724,7 @@ void pna_adc(int32_t *data_in, unsigned int fft_size)
 		// pna_printf("%c%c\r\n",first_byte, second_byte);
 		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
+	pna_printf("PLOT");
 	pna_write(uart_tx_buffer, 2*uart_size);
 	pna_printf("\r\n");
 }
@@ -750,6 +775,7 @@ void pna_adc_iq2(int32_t *data_in, unsigned int fft_size)
 		// pna_printf("%c%c\r\n",first_byte, second_byte);
 		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
+	pna_printf("PLOT");
 	pna_write(uart_tx_buffer, 4*uart_size);
 	pna_printf("\r\n");
 }
@@ -785,6 +811,7 @@ void pna_adc_iq(int32_t *data_in, unsigned int fft_size)
 		// pna_printf("%c%c\r\n",first_byte, second_byte);
 		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
+	pna_printf("PLOT");
 	pna_write(uart_tx_buffer, 4*uart_size);
 	pna_printf("\r\n");
 }
@@ -819,6 +846,7 @@ void pna_adc_fft(int32_t *data_in, unsigned int fft_size)
 		// pna_printf("%c%c\r\n",first_byte, second_byte);
 		// pna_printf("%d : %d\r\n", i, rx_buffer_i);
 	}
+	pna_printf("PLOT");
 	pna_write(uart_tx_buffer, 4*uart_size);
 	pna_printf("\r\n");
 }

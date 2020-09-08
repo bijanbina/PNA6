@@ -1,6 +1,5 @@
 #include "pna-base.h"
 
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +68,26 @@ int main (int argc, char **argv)
 	double sweep_time = 0;
 
 	unsigned int fft_size = 1024; //16bit(I)+16bit(Q) = 32bit data
+
+	FILE *f;
+	f = fopen("fft_config", "r");
+	if(f != NULL)
+	{
+		// obtain file size:
+		fseek (f , 0 , SEEK_END);
+		long file_size = ftell (f);
+		rewind (f);
+//		pna_printf("AAA : %d\n", fft_size);
+
+		if(file_size > 0 || file_size < 5)
+		{
+			char fft_size_str[10];
+			fread(fft_size_str, 1, file_size, f);
+			fft_size = atoi(fft_size_str);
+//			pna_printf("@@@ : %d\n", fft_size);
+		}
+	}
+
 	// fft_size = atoi(argv[1]);
 	dds_sample_size = fft_size;
 	// pna_printf("fft_size=%d\n", fft_size );
@@ -140,6 +159,7 @@ int main (int argc, char **argv)
 	{
 		return -1;
 	}
+	pna_printf(START_OF_PACKET "\r\n"); // :D
 	while(1)
 	{
 		pna_printf(">>");
@@ -158,6 +178,7 @@ int main (int argc, char **argv)
 //			pna_printf("ridiiiii");
 			break;
 		}
+		pna_printf(START_OF_PACKET);
 		token = strtok(buffer, delim);
 		if( strcmp(token, "tx_bandwidth")==0 )
 		{
@@ -225,7 +246,7 @@ int main (int argc, char **argv)
 			gpio_emio(emio_base, emio_nchannel, emio_value);
 			pna_printf("emio[%d:%d]=%d\r\n", emio_base + emio_nchannel - 1, emio_base, emio_value);
 		}
-		else if( strcmp(token, "st")==0 ) // sweep time
+		else if( strcmp(token, "sweep_time")==0 ) // sweep time
 		{
 			pna_printf("sweep_time: %lf \r\n",  sweep_time);
 		}
@@ -273,10 +294,12 @@ int main (int argc, char **argv)
 			double span_mhz = sw_span/1E6;
 			double lo_start_freq = rx_freq_mhz - span_mhz/2;
 			fill_profiles(lo_start_freq, span_mhz);
+			pna_printf("\r\n");
 		}
 		else if( strcmp(token, "loadpro")==0 ) // sweep time
 		{
 			load_profile(0);
+			pna_printf("\r\n");
 		}
 		else if( strcmp(token, "vga_gain")==0 )
 		{
@@ -494,7 +517,7 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				;
+				pna_printf("\r\n");
 			}
 		}
 		else if( strcmp(token, "rx_fir_en")==0 )
@@ -637,7 +660,11 @@ int main (int argc, char **argv)
 			{
 				compression_enable = atoi(token);
 			}
+#ifdef SINGLE_PORT
+			fill_rx_buffer_single(fft_size);
+#else
 			fill_rx_buffer(fft_size);
+#endif
 			int uart_size;
 			int32_t *adc_data;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
@@ -660,6 +687,7 @@ int main (int argc, char **argv)
 				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size);
 				uart_size = fft_size;
 			}
+			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 4*uart_size);
 			pna_printf("\r\n");
 		}
@@ -806,6 +834,7 @@ int main (int argc, char **argv)
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
+			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 2*uart_size);
 			pna_printf("\r\n");
 			free(sweep_buf);
@@ -898,6 +927,7 @@ int main (int argc, char **argv)
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 
+			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 2*uart_size);
 			set_lo_freq(__RX, rx_freq);
 			usleep(SET_LO_DELAY);
@@ -978,6 +1008,7 @@ int main (int argc, char **argv)
 			gettimeofday(&tv2, NULL);
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 2*uart_size);
 			pna_printf("\r\n"); // \r\n%d  , 2*uart_size
 			free(spectrum);
@@ -987,6 +1018,7 @@ int main (int argc, char **argv)
 			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size);
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
 			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size);
+			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 2*uart_size);
 			pna_printf("\r\n");
 			free(spectrum);
@@ -1121,6 +1153,7 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if (strcmp(token, "pulse_iq") == 0)
 		{
@@ -1260,6 +1293,7 @@ int main (int argc, char **argv)
 //			}
 
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if(strcmp(token, "sajad") == 0)
 		{
@@ -1269,7 +1303,7 @@ int main (int argc, char **argv)
 			pna_read(awg_data, 10);
 //				awg_data[char_number++] = received_char;
 //			}
-			printf("sajad: %s", awg_data);
+			printf("sajad: %s\r\n", awg_data);
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -1345,6 +1379,7 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if (strcmp(token, "sin")==0 )
 		{
@@ -1364,7 +1399,8 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				amplitude = .5;
+				print_error("sin", ERROR_ARG);
+				continue;
 			}
 			else
 			{
@@ -1374,7 +1410,8 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 0;
+				print_error("sin", ERROR_ARG);
+				continue;
 			}
 			else
 			{
@@ -1407,6 +1444,7 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if (strcmp(token, "dc")==0 )
 		{
@@ -1450,6 +1488,7 @@ int main (int argc, char **argv)
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if (strcmp(token, "sinc")==0 )
 		{
@@ -1518,6 +1557,7 @@ int main (int argc, char **argv)
 				pna_printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("\r\n");
 		}
 		else if( strcmp(token, "dbg")==0 )
 		{
@@ -1577,6 +1617,7 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "fir_coef")==0 )
 		{
 			load_fir_filter("filter.ftr", dev);
+			pna_printf("\r\n");
 		}
 		else if( strcmp(token, "exit")==0 )
 		{

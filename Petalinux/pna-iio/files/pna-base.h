@@ -11,6 +11,7 @@
 #include "pna-interface.h"
 #include <stdio.h>
 
+#define SINGLE_PORT // comment if board set to two port mode
 #define HANNING_ENBW 1.50
 #define MAX_FFT_LENGTH 8192 //FFT output on UART size (should be 1024 FIX)
 #define FFT_24_BIT 3 // 24bit = 3byte
@@ -33,6 +34,8 @@
 #define SIGNAL_INPHASE_ENABLED 1
 #define SIGNAL_QUAD_ENABLED    2
 #define SIGNAL_IQ_ENABLED      3
+
+#define START_OF_PACKET "\r\r\r\r\r"
 
 struct extra_dev_info
 {
@@ -71,6 +74,7 @@ ssize_t demux_sample(const struct iio_channel *chn,
 					 void *sample, size_t size, void *d);
 void init_rx_channel(unsigned int fft_size);
 void fill_rx_buffer(unsigned int fft_size);
+void fill_rx_buffer_single(unsigned int fft_size);
 bool device_type_get(const struct iio_device *dev, int type);
 void device_set_rx_sampling_freq(struct iio_device *dev,
 								                 long long freq_hz);
