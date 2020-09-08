@@ -299,6 +299,41 @@ void fill_rx_buffer(unsigned int fft_size)
 	}
 }
 
+void fill_rx_buffer_single(unsigned int fft_size)
+{
+	// unsigned int i;
+	// struct iio_channel *chn;
+	// struct extra_info *info;
+
+	/* Get captured data */
+	ssize_t ret = iio_buffer_refill(capture_buffer);
+	//pna_printf("ret=%d\n", ret);
+	if (ret < 0)
+	{
+		pna_printf("Error while refilling iio buffer, return=%d \n", ret);
+	}
+	else
+	{
+		// iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
+		rx_indx = 0;
+		int16_t *capture_pointer = (int *)iio_buffer_start(capture_buffer);
+		for(int i=0; i<fft_size; i++)
+		{
+			int16_t val_i = *(capture_pointer);
+			int16_t val_q = *(capture_pointer+1);
+
+			val_i = val_i & 0xFFFF;
+			val_q = val_q & 0xFFFF;
+
+			rx1_buffer[rx_indx] = val_i;
+			rx1_buffer[rx_indx] &= 0x0000FFFF;
+			rx1_buffer[rx_indx] |= (val_q << 16);
+			rx_indx++;
+			capture_pointer += 2;
+		}
+	}
+}
+
 /*
  * Check if a device has scan elements and if it is an output device (type = 0)
  * or an input device (type = 1).

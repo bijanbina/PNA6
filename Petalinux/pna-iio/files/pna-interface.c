@@ -82,7 +82,6 @@ size_t pna_read(unsigned char *data, int len)
     return 1;
 }
 
-
 void pna_write(unsigned char *data, int len)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
@@ -123,11 +122,12 @@ void pna_init_interface(int id)
     if(interface_id == PNA_INTERFACE_TCP)
     {
         struct sockaddr_in servaddr, cli;
+        printf("\r\r\r\r\r");
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd == -1)
         {
-            printf("socket creation failed...\n");
+            printf("socket creation failed...\r\n>>");
             return;
         }
         else
@@ -145,30 +145,31 @@ void pna_init_interface(int id)
         int ret = setsockopt(sockfd, SOL_SOCKET, (SO_REUSEPORT | SO_REUSEADDR), (char*)&option, sizeof(option));
         if(ret < 0)
         {
-            printf("setsockopt failed\r\n");
+            printf("setsockopt failed\r\n>>");
+            return;
         }
 
         ret = bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr));
         if (ret != 0)
         {
-            printf("socket bind failed...\r\n");
+            printf("socket bind failed...\r\n>>");
             exit(0);
         }
         else
         {
-            printf("Socket successfully binded..\r\n");
+            printf("Socket successfully binded...\n");
         }
 
         // Now server is ready to listen and verification
         ret = listen(sockfd, 5);
         if (ret != 0)
         {
-            printf("Listen failed...\n");
+            printf("Listen failed...\r\n>>");
             exit(0);
         }
         else
         {
-        	pna_printf("Server listening..\n>>");
+        	pna_printf("Server listening...\r\n>>");
         }
 
         // Accept the data packet from client and verification
