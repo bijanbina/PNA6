@@ -147,6 +147,9 @@ int main (int argc, char **argv)
 	
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
+#ifdef ETTUS_E310
+	set_rx_switches(rx_freq);
+#endif
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
@@ -320,7 +323,7 @@ int main (int argc, char **argv)
 				continue;
 			}
 			token = strtok(NULL, delim);
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 			channel_num = 1;
 #endif
 			if(token==NULL)
@@ -351,7 +354,7 @@ int main (int argc, char **argv)
 			}
 			token = strtok(NULL, delim);
 			// char buf[100];
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				channel_num = 1;
 #endif
 			if(token==NULL)
@@ -383,7 +386,7 @@ int main (int argc, char **argv)
 			}
 			token = strtok(NULL, delim);
 			char buf[1024];
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				channel_num = 1;
 #endif
 			if(token==NULL)
@@ -673,7 +676,7 @@ int main (int argc, char **argv)
 			{
 				compression_enable = atoi(token);
 			}
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 			fill_rx_buffer_single(fft_size);
 #else
 			fill_rx_buffer(fft_size);
@@ -684,7 +687,7 @@ int main (int argc, char **argv)
 
 			if(channel_num)
 			{
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				adc_data = rx1_buffer;
 #else
 				adc_data = rx2_buffer;
@@ -818,7 +821,7 @@ int main (int argc, char **argv)
 			{
 				if(channel_num)
 				{
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i);
 #else
 					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i);
@@ -997,7 +1000,7 @@ int main (int argc, char **argv)
 			{
 				compression_enable = atoi(token);
 			}
-			
+
 			int32_t *spectrum;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 			if(span_ratio>1 || span_ratio<=0)
@@ -1009,7 +1012,7 @@ int main (int argc, char **argv)
 
 			if(channel_num)
 			{
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
 #else
 				spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
@@ -1173,7 +1176,7 @@ int main (int argc, char **argv)
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
 
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
@@ -1298,7 +1301,7 @@ int main (int argc, char **argv)
 				int16_t pulse_int = (int16_t)(pulse);
 				int16_t p_hilbert_int = (int16_t)(p_hilbert);
 
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+2] = (int8_t)(p_hilbert_int%256);   // LSB
@@ -1413,7 +1416,7 @@ int main (int argc, char **argv)
 					}
 					int16_t pulse_int = (int16_t)(pulse);
 
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(pulse_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(pulse_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+2] = 0;     // MSB
@@ -1484,7 +1487,7 @@ int main (int argc, char **argv)
 					cosinous = cos(x)*amplitude_int;
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
@@ -1535,7 +1538,7 @@ int main (int argc, char **argv)
 			{
 				double pulse = amplitude_int;
 				int16_t pulse_int = (int16_t)(pulse);
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+2] = 0;     // MSB
@@ -1599,7 +1602,7 @@ int main (int argc, char **argv)
 				}
 				int16_t sinc_int = (int16_t)(sinc);
 
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 				dac_buf[i*s_size] = (int8_t)(sinc_int%256);   // LSB
 				dac_buf[i*s_size+1] = (int8_t)(sinc_int/256);     // MSB
 				dac_buf[i*s_size+2] = 0;     // MSB

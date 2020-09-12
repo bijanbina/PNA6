@@ -723,6 +723,53 @@ ssize_t fastlock_recall(int slot)
 	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_recall_name, slot);
 }
 
+#ifdef ETTUS_E310
+void set_rx_switches(long long freq)
+{
+	int freq_MHz = freq / 1E6;
+	if(freq_MHz <= 450)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 4);
+		gpio_emio(16, 2, 2);
+	}
+	else if(freq_MHz > 450 && freq_MHz <= 700)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 2);
+		gpio_emio(16, 2, 3);
+	}
+	else if(freq_MHz > 700 && freq_MHz <= 1200)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 0);
+		gpio_emio(16, 2, 1);
+	}
+	else if(freq_MHz > 1200 && freq_MHz <= 1800)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 1);
+		gpio_emio(18, 2, 2);
+	}
+	else if(freq_MHz > 1800 && freq_MHz <= 2350)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 3);
+		gpio_emio(18, 2, 3);
+	}
+	else if(freq_MHz > 2350 && freq_MHz <= 2600)
+	{
+		gpio_emio(58, 2, 1);
+		gpio_emio(20, 3, 5);
+		gpio_emio(18, 2, 1);
+	}
+	else
+	{
+		gpio_emio(58, 2, 2);
+	}
+}
+#endif //ETTUS_E310
+
 void set_bandwidth(int direction, long long bandwidth)
 {
 	if(direction == __RX)
@@ -897,6 +944,9 @@ void set_lo_freq(int direction, long long freq)
 	if(direction == __RX)
 	{
 		iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
+#ifdef ETTUS_E310
+		set_rx_switches(freq);
+#endif
 	}
 	else if(direction == __TX)
 	{
