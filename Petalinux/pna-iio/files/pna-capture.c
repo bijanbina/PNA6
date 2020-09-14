@@ -538,7 +538,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 		// pna_printf("st: %lf \r\n", sweep_time);
 	}
-//	flat_top_window(data_in, fft_size);
+	flat_top_window(data_in, fft_size);
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
 #elif FFT_16_BIT

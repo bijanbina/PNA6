@@ -102,6 +102,7 @@ ssize_t fastlock_load(char* data);
 ssize_t fastlock_recall(int slot);
 
 void set_rx_switches(long long freq);
+void set_tx_switches();
 
 void set_bandwidth(int direction, long long bandwidth);
 long long get_bandwidth(int direction);

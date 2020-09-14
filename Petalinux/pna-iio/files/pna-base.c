@@ -325,7 +325,8 @@ void fill_rx_buffer_single(unsigned int fft_size)
 			val_i = val_i & 0xFFFF;
 			val_q = val_q & 0xFFFF;
 
-			rx1_buffer[rx_indx] = val_i;
+			int16_t i2 = i*2 - 1024;
+			rx1_buffer[rx_indx] = i2;
 			rx1_buffer[rx_indx] &= 0x0000FFFF;
 			rx1_buffer[rx_indx] |= (val_q << 16);
 			rx_indx++;
@@ -724,6 +725,12 @@ ssize_t fastlock_recall(int slot)
 }
 
 #ifdef ETTUS_E310
+void set_tx_switches()
+{
+	gpio_emio(60, 2, 3);
+	gpio_emio(30, 1, 1);
+}
+
 void set_rx_switches(long long freq)
 {
 	int freq_MHz = freq / 1E6;

@@ -149,6 +149,7 @@ int main (int argc, char **argv)
 	rx_freq = get_lo_freq(__RX);
 #ifdef ETTUS_E310
 	set_rx_switches(rx_freq);
+	set_tx_switches();
 #endif
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
