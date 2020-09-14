@@ -409,7 +409,7 @@ int32_t* pna_ramp(long long lo_freq, int removed_span, int fft_size)
 }
 
 // calculate 40MHz spectrum without DC interference
-int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
+int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index, bool window_en)
 {
 	int sweep_offset = 0;
 	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
@@ -417,7 +417,7 @@ int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 	load_profile(2*index);
 	// usleep(SET_LO_DELAY);
 
-	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size, window_en);
 	if(spectrum == NULL)
 	{
 		return NULL;
@@ -433,7 +433,7 @@ int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 
 	load_profile(2*index+1);
 	// usleep(SET_LO_DELAY);
-	spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	spectrum = pna_fft(rx_buffer, removed_span, fft_size, window_en);
 	if(spectrum == NULL)
 	{
 		free(output_data);
@@ -449,7 +449,7 @@ int32_t* pna_fft_dcfixed2(int32_t *rx_buffer, int fft_size, int index)
 }
 
 // calculate 40MHz spectrum without DC interference
-int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
+int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size, bool window_en)
 {
 	long long freq = start_freq + 3*1E6*SWEEP_SPAN/4;
 	int sweep_offset = 0;
@@ -483,7 +483,7 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 	}
 
 	int removed_span = fft_size/4;// 1/4 = (3*SWEEP_SPAN/4)/rx_sampling_frequency_mhz
-	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	int32_t *spectrum = pna_fft(rx_buffer, removed_span, fft_size, window_en);
 	if(spectrum == NULL)
 		return NULL;
 	for(int j=0; j<CHUNK_C; j++)
@@ -496,7 +496,7 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 	freq = freq + SWEEP_SPAN/2*1E6;
 	set_lo_freq(__RX, freq);
 	usleep(SET_LO_DELAY);
-	spectrum = pna_fft(rx_buffer, removed_span, fft_size);
+	spectrum = pna_fft(rx_buffer, removed_span, fft_size, window_en);
 	if(spectrum == NULL)
 	{
 		free(output_data);
@@ -511,7 +511,7 @@ int32_t* pna_fft_dcfixed(int32_t *rx_buffer, long long start_freq, int fft_size)
 	return output_data;
 }
 
-int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
+int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size, bool window_en)
 {
 #ifdef FFT_24_BIT
 	int32_t *fft_spanned = (int32_t *) malloc(sizeof(int32_t) * (fft_size-2*removed_span));
@@ -538,7 +538,10 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 		// pna_printf("st: %lf \r\n", sweep_time);
 	}
-	flat_top_window(data_in, fft_size);
+	if(window_en)
+	{
+		flat_top_window(data_in, fft_size);
+	}
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
 #elif FFT_16_BIT

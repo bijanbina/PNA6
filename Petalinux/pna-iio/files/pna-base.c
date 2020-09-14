@@ -325,8 +325,8 @@ void fill_rx_buffer_single(unsigned int fft_size)
 			val_i = val_i & 0xFFFF;
 			val_q = val_q & 0xFFFF;
 
-			int16_t i2 = i*2 - 1024;
-			rx1_buffer[rx_indx] = i2;
+//			int16_t i2 = i*2 - 1024;
+			rx1_buffer[rx_indx] = val_i;
 			rx1_buffer[rx_indx] &= 0x0000FFFF;
 			rx1_buffer[rx_indx] |= (val_q << 16);
 			rx_indx++;

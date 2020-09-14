@@ -62,6 +62,7 @@ int main (int argc, char **argv)
 	const char delim[2] = " ";
 	char* token;
 	bool is_profile_empty = true;
+	bool window_en = true;
 
 	// calculating sweep time
 	struct timeval  tv1, tv2;
@@ -257,6 +258,19 @@ int main (int argc, char **argv)
 		else if( strcmp(token, "avg_window")==0 ) // sweep time
 		{
 			pna_print_avg();
+		}
+		else if( strcmp(token, "flat_top")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("flat_top: %d \r\n", window_en);
+			}
+			else
+			{
+				window_en = atoi(token);
+				pna_printf("flat_top: %d \r\n", window_en);
+			}
 		}
 		else if( strcmp(token, "fillpro")==0 )
 		{
@@ -699,7 +713,10 @@ int main (int argc, char **argv)
 				adc_data = rx1_buffer;
 			}
 
-//			flat_top_window(adc_data, fft_size);
+			if(window_en)
+			{
+				flat_top_window(adc_data, fft_size);
+			}
 
 			if(compression_enable)
 			{
@@ -823,14 +840,14 @@ int main (int argc, char **argv)
 				if(channel_num)
 				{
 #ifdef ETTUS_E310
-					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i);
+					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i, window_en);
 #else
-					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i);
+					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i, window_en);
 #endif
 				}
 				else
 				{
-					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i);
+					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i, window_en);
 				}
 				if(spectrum == NULL)
 				{
@@ -930,11 +947,11 @@ int main (int argc, char **argv)
 			{
 				if(channel_num)
 				{
-					spectrum = pna_fft_dcfixed(rx2_buffer, lo_start_freq, fft_size);
+					spectrum = pna_fft_dcfixed(rx2_buffer, lo_start_freq, fft_size, window_en);
 				}
 				else
 				{
-					spectrum = pna_fft_dcfixed(rx1_buffer, lo_start_freq, fft_size);
+					spectrum = pna_fft_dcfixed(rx1_buffer, lo_start_freq, fft_size, window_en);
 				}
 				if(spectrum == NULL)
 				{
@@ -1014,14 +1031,14 @@ int main (int argc, char **argv)
 			if(channel_num)
 			{
 #ifdef ETTUS_E310
-				spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
+				spectrum = pna_fft(rx2_buffer, removed_span, fft_size, window_en);
 #else
-				spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
+				spectrum = pna_fft(rx1_buffer, removed_span, fft_size, window_en);
 #endif
 			}
 			else
 			{
-				spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
+				spectrum = pna_fft(rx1_buffer, removed_span, fft_size, window_en);
 			}
 			if(spectrum == NULL)
 				return -1;
@@ -1046,7 +1063,7 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token,"fft") == 0)
 		{
-			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size);
+			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size, window_en);
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
 			int uart_size = compress_data(spectrum, uart_tx_buffer, fft_size);
 			pna_printf("PLOT");
