@@ -250,6 +250,10 @@ int main (int argc, char **argv)
 		{
 			pna_printf("sweep_time: %lf \r\n",  sweep_time);
 		}
+		else if( strcmp(token, "avg_window")==0 ) // sweep time
+		{
+			pna_print_avg();
+		}
 		else if( strcmp(token, "fillpro")==0 )
 		{
 			token = strtok(NULL, delim);
@@ -316,6 +320,9 @@ int main (int argc, char **argv)
 				continue;
 			}
 			token = strtok(NULL, delim);
+#ifdef SINGLE_PORT
+			channel_num = 1;
+#endif
 			if(token==NULL)
 			{
 				pna_printf("vga_gain: %d, %lld\r\n", channel_num, get_vga_gain(channel_num));
@@ -344,6 +351,9 @@ int main (int argc, char **argv)
 			}
 			token = strtok(NULL, delim);
 			// char buf[100];
+#ifdef SINGLE_PORT
+				channel_num = 1;
+#endif
 			if(token==NULL)
 			{
 				pna_printf("lna_gain: %d, %lld\r\n", channel_num, get_lna_gain(channel_num));
@@ -373,6 +383,9 @@ int main (int argc, char **argv)
 			}
 			token = strtok(NULL, delim);
 			char buf[1024];
+#ifdef SINGLE_PORT
+				channel_num = 1;
+#endif
 			if(token==NULL)
 			{
 				get_gain_control_mode(channel_num, buf);
@@ -671,12 +684,18 @@ int main (int argc, char **argv)
 
 			if(channel_num)
 			{
+#ifdef SINGLE_PORT
+				adc_data = rx1_buffer;
+#else
 				adc_data = rx2_buffer;
+#endif
 			}
 			else
 			{
 				adc_data = rx1_buffer;
 			}
+
+//			flat_top_window(adc_data, fft_size);
 
 			if(compression_enable)
 			{
@@ -799,7 +818,11 @@ int main (int argc, char **argv)
 			{
 				if(channel_num)
 				{
+#ifdef SINGLE_PORT
 					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i);
+#else
+					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i);
+#endif
 				}
 				else
 				{
@@ -986,7 +1009,11 @@ int main (int argc, char **argv)
 
 			if(channel_num)
 			{
+#ifdef SINGLE_PORT
 				spectrum = pna_fft(rx2_buffer, removed_span, fft_size);
+#else
+				spectrum = pna_fft(rx1_buffer, removed_span, fft_size);
+#endif
 			}
 			else
 			{
@@ -1146,10 +1173,17 @@ int main (int argc, char **argv)
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
 
+#ifdef SINGLE_PORT
+					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
+#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
+#endif
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
@@ -1264,10 +1298,17 @@ int main (int argc, char **argv)
 				int16_t pulse_int = (int16_t)(pulse);
 				int16_t p_hilbert_int = (int16_t)(p_hilbert);
 
+#ifdef SINGLE_PORT
+				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+2] = (int8_t)(p_hilbert_int%256);   // LSB
+				dac_buf[i*s_size+3] = (int8_t)(p_hilbert_int/256);     // MSB
+#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(p_hilbert_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(p_hilbert_int/256);     // MSB
+#endif
 			}
 //			for (int i=0 ; i<period_num ; i++)
 //			{
@@ -1372,10 +1413,17 @@ int main (int argc, char **argv)
 					}
 					int16_t pulse_int = (int16_t)(pulse);
 
+#ifdef SINGLE_PORT
+					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(pulse_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(pulse_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+2] = 0;     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+3] = 0;     // MSB
+#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
+#endif
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
@@ -1436,11 +1484,17 @@ int main (int argc, char **argv)
 					cosinous = cos(x)*amplitude_int;
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
-
+#ifdef SINGLE_PORT
+					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
+#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
+#endif
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
@@ -1481,11 +1535,17 @@ int main (int argc, char **argv)
 			{
 				double pulse = amplitude_int;
 				int16_t pulse_int = (int16_t)(pulse);
-
+#ifdef SINGLE_PORT
+				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+2] = 0;     // MSB
+				dac_buf[i*s_size+3] = 0;     // MSB
+#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
+#endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("\r\n");
@@ -1539,10 +1599,17 @@ int main (int argc, char **argv)
 				}
 				int16_t sinc_int = (int16_t)(sinc);
 
+#ifdef SINGLE_PORT
+				dac_buf[i*s_size] = (int8_t)(sinc_int%256);   // LSB
+				dac_buf[i*s_size+1] = (int8_t)(sinc_int/256);     // MSB
+				dac_buf[i*s_size+2] = 0;     // MSB
+				dac_buf[i*s_size+3] = 0;     // MSB
+#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(sinc_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(sinc_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
+#endif
 				// pna_printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
 			}
 			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;
