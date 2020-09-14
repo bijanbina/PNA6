@@ -9,7 +9,7 @@ int CHUNK_C = 1024/6;
 int32_t *output_data;
 int32_t *fft_phase;
 int32_t *fft_abs;
-int16_t *window_coef;
+double *window_coef;
 uint8_t fft_buffer_in[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 uint8_t fft_buffer_out[FFT_24_BIT * 2 * MAX_FFT_LENGTH];
 
@@ -42,7 +42,7 @@ int fft_changed(int fft_size)
 		free(fft_abs);
 		return -1;
 	}
-	window_coef = (int16_t *) malloc(fft_size * sizeof(int16_t));
+	window_coef = (double *) malloc(fft_size * sizeof(double));
 	if(window_coef == NULL)
 	{
 		printf("memory allocation failed in changed_fft function\r\n");
@@ -528,7 +528,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 	gettimeofday(&tv1, NULL);
 	for(int i=0; i<5; i++)
 	{
-#ifdef SINGLE_PORT
+#ifdef ETTUS_E310
 		fill_rx_buffer_single(fft_size);
 #else
 		fill_rx_buffer(fft_size);
@@ -538,7 +538,7 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size)
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
 		// pna_printf("st: %lf \r\n", sweep_time);
 	}
-//	flat_top_window(data_in, fft_size);
+	flat_top_window(data_in, fft_size);
 #ifdef FFT_24_BIT
   	calc_fft_dma24(data_in, fft_abs, fft_phase, 0, fft_size);
 #elif FFT_16_BIT
@@ -628,7 +628,7 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size)
 
 void flat_top_window(int32_t *data, unsigned int fft_size)
 {
-	int32_t winOut_I, winOut_Q;
+	double winOut_I, winOut_Q;
 	int16_t dataIn_I, dataIn_Q;
 	int16_t dataOut_I, dataOut_Q;
 	int16_t avgLast_I = (int16_t)floor(avg_I);
@@ -641,16 +641,18 @@ void flat_top_window(int32_t *data, unsigned int fft_size)
 	{
 		dataIn_I = data[i] & 0x0000ffff;
 		dataIn_Q = (data[i] & 0xffff0000) >> 16;
+		avg_I += dataIn_I;
+		avg_Q += dataIn_Q;
+		dataIn_I -= avgLast_I;
+		dataIn_Q -= avgLast_Q;
 		winOut_I = dataIn_I * window_coef[i];
 		winOut_Q = dataIn_Q * window_coef[i];
-		winOut_I = winOut_I >> 16;
-		winOut_Q = winOut_Q >> 16;
-		dataOut_I = (int16_t) winOut_I;
-		dataOut_Q = (int16_t) winOut_Q;
-		avg_I += dataOut_I;
-		avg_Q += dataOut_Q;
-		dataOut_I -= avgLast_I;
-		dataOut_Q -= avgLast_Q;
+//		winOut_I = 2048 * window_coef[i];
+//		winOut_Q = 2048 * window_coef[i];
+		dataOut_I = (int16_t) floor(winOut_I);
+		dataOut_Q = (int16_t) floor(winOut_Q);
+//		dataOut_I -= avgLast_I;
+//		dataOut_Q -= avgLast_Q;
 		data[i] = dataOut_I;
 		data[i] &= 0x0000FFFF;
 		data[i] |= (dataOut_Q << 16);
@@ -666,15 +668,21 @@ void pna_print_avg()
 
 void calculate_flat_top_coeff(unsigned int fft_size)
 {
-	int max_size = 4096;
+//	int max_size = 4096;
 
-	const double a0 = 0.21557895 * max_size;
-	const double a1 = 0.41663158 * max_size;
-	const double a2 = 0.27726315 * max_size;
-	const double a3 = 0.08357894 * max_size;
-	const double a4 = 0.00694736 * max_size;
+//	const double a0 = 0.21557895 * max_size;
+//	const double a1 = 0.41663158 * max_size;
+//	const double a2 = 0.27726315 * max_size;
+//	const double a3 = 0.08357894 * max_size;
+//	const double a4 = 0.00694736 * max_size;
+	double a0 = 0.21557895;
+	double a1 = 0.41663158;
+	double a2 = 0.27726315;
+	double a3 = 0.08357894;
+	double a4 = 0.00694736;
 
-	for(int i=0; i <= fft_size; i++)
+
+	for(int i=0; i < fft_size; i++)
 	{
 		window_coef[i] = a0 - a1*cos(2.0*PI*i/fft_size) + a2*cos(4.0*PI*i/fft_size) - a3*cos(6.0*PI*i/fft_size) + a4*cos(8.0*PI*i/fft_size);
 	}
