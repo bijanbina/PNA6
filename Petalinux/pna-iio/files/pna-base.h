@@ -12,7 +12,7 @@
 #include <stdio.h>
 
 // define board name before compiling
-#define ETTUS_E310
+//#define ETTUS_E310
 //#define XILINX_ZC702
 
 #define HANNING_ENBW 1.50

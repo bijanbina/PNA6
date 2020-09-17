@@ -1357,15 +1357,92 @@ int main (int argc, char **argv)
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("\r\n");
 		}
-		else if(strcmp(token, "sajad") == 0)
+		else if(strcmp(token, "awg") == 0)
 		{
-			unsigned char *awg_data = (unsigned char *)malloc(4*1024 * sizeof(unsigned char));
-//			while(received_char != '\n')
-//			{
-			pna_read(awg_data, 10);
+			int len_awg;
+			const int step_receive = 32;
+			const int num_width = 4;
+			int s_size = iio_device_get_sample_size(iio_dac);
+
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("awg", ERROR_ARG);
+				continue;
+			}
+			len_awg = atoi(token);
+			int total_len = num_width * len_awg * 2; // 2 for [I/Q]
+			if(len_awg < 4 || len_awg > 8192)
+			{
+				print_error("awg", ERROR_ARG);
+				continue;
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("awg", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("awg", ERROR_CH);
+					continue;
+				}
+			}
+
+			unsigned char *awg_data = (unsigned char *)malloc(total_len * sizeof(unsigned char));
+			for(int i=0; i<total_len; i++)
+			{
+				awg_data[i] = 0;
+			}
+
+			pna_printf("\r\n>>");
+
+			for(int i=0; i<total_len; i+=step_receive)
+			{
+				pna_read(awg_data + i, step_receive);
+			}
+
+//			printf("data: %s\r\n", awg_data);
+
+			for(int i=0; i<total_len; i+=2*num_width) // 2 for [I/Q]
+			{
+				char number_str[num_width+1];
+				memcpy(number_str, awg_data+i, num_width);
+				number_str[4] = 0;
+				int number_i = atoi(number_str);
+				int16_t number16_i = (int16_t)(number_i - 2048);
+
+				memcpy(number_str, awg_data + i + num_width, num_width);
+				number_str[4] = 0;
+				int number_q = atoi(number_str);
+				int16_t number16_q = (int16_t)(number_q - 2048);
+
+//				if(i<200 || i>900)
+//				{
+//					printf("%d) I: %4d Q: %4d\n", i, number16_i, number16_q);
+//				}
+#ifdef ETTUS_E310
+				dac_buf[i*s_size] = (int8_t)(number16_i%256);   // LSB
+				dac_buf[i*s_size+1] = (int8_t)(number16_i/256);      // MSB
+				dac_buf[i*s_size+2] = (int8_t)(number16_q%256);   // LSB
+				dac_buf[i*s_size+3] = (int8_t)(number16_q/256);     // MSB
+#else
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(number16_i%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(number16_i/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(number16_q%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(number16_q/256);     // MSB
+#endif
+			}
+			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf(START_OF_PACKET "\r\n");
 //				awg_data[char_number++] = received_char;
 //			}
-			printf("sajad: %s\r\n", awg_data);
+//			printf("sajad: %s\r\n", awg_data);
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -1437,7 +1514,7 @@ int main (int argc, char **argv)
 #ifdef ETTUS_E310
 					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(pulse_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(pulse_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+2] = 0;     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+2] = 0;     // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+3] = 0;     // MSB
 #else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
@@ -1761,8 +1838,8 @@ void print_error(char *function, int error_code)
 	}
 	else if(!strcmp(function, "awg"))
 	{
-		strcpy(arg_buf, "[i/q][period][amplitude][port#]");
-		strcpy(usage, "Arbitrary wave generator (sin) with samples argument.");
+		strcpy(arg_buf, "[sample_size][i/q][port#]");
+		strcpy(usage, "Arbitrary wave generator with samples, i/q and port arguments.");
 		strcpy(cmd_name, "awg");
 	}
 	else if(!strcmp(function, "sin_iq"))
