@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 int interface_id = PNA_INTERFACE_CONSOLE;
 int connfd, sockfd;
@@ -73,11 +74,14 @@ size_t pna_read(unsigned char *data, int len)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
+    	// 1 denote number of bytes in each read
         return fread(data, 1, len, stdin);
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
-        read(connfd, data, len);
+        int ret = read(connfd, data, len);
+//        printf("==|)- %d\n", ret);
+//        fread(data, 1, len, connfd);
     }
     return 1;
 }
@@ -93,7 +97,7 @@ void pna_write(unsigned char *data, int len)
         int write_len = send(connfd, data, len, 0);
 //        fixme : use usleep
         //usleep(100);
-	     printf("ERROR: %d \n",    write_len);
+//	     printf("ERROR: %d \n",    write_len);
         if(write_len != len)
         {
 		     printf("ERROR: written bytes %d is not the same as len=%d \n",
@@ -183,6 +187,8 @@ void pna_init_interface(int id)
         else
         {
             printf("server acccept the client...\n");
+            int iMode = 0;
+            ioctl(connfd, FIONBIO, &iMode);
         }
     }
 }

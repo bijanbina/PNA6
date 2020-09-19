@@ -739,40 +739,47 @@ void set_rx_switches(long long freq)
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 4);
 		gpio_emio(16, 2, 2);
+		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 450 && freq_MHz <= 700)
 	{
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 2);
 		gpio_emio(16, 2, 3);
+		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 700 && freq_MHz <= 1200)
 	{
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 0);
 		gpio_emio(16, 2, 1);
+		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 1200 && freq_MHz <= 1800)
 	{
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 1);
 		gpio_emio(18, 2, 2);
+		set_port(__RX, "B_BALANCED");
 	}
 	else if(freq_MHz > 1800 && freq_MHz <= 2350)
 	{
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 3);
 		gpio_emio(18, 2, 3);
+		set_port(__RX, "B_BALANCED");
 	}
 	else if(freq_MHz > 2350 && freq_MHz <= 2600)
 	{
 		gpio_emio(58, 2, 1);
 		gpio_emio(20, 3, 5);
 		gpio_emio(18, 2, 1);
+		set_port(__RX, "B_BALANCED");
 	}
 	else
 	{
 		gpio_emio(58, 2, 2);
+		set_port(__RX, "A_BALANCED");
 	}
 }
 #endif //ETTUS_E310

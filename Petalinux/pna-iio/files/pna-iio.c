@@ -156,6 +156,8 @@ int main (int argc, char **argv)
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
 
+	unsigned char *awg_data = (unsigned char *)malloc(MAX_FFT_LENGTH * sizeof(unsigned char));
+
 	gpio_fft(256);
 	gpio_fft_reset();
 	gpio_fft(fft_size);
@@ -1331,29 +1333,6 @@ int main (int argc, char **argv)
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(p_hilbert_int/256);     // MSB
 #endif
 			}
-//			for (int i=0 ; i<period_num ; i++)
-//			{
-//				double pulse;
-//				for(int j=0; j<period_sample_count; j++)
-//				{
-//					if ( j<period_sample_count*duty_cycle &&
-//							(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED))
-//					{
-//						pulse = amplitude_int;
-//					}
-//					else
-//					{
-//						pulse = 0;
-//					}
-//					int16_t pulse_int = (int16_t)(pulse);
-//
-//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
-//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // MSB
-//					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
-//				}
-//			}
-
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("\r\n");
 		}
@@ -1394,7 +1373,6 @@ int main (int argc, char **argv)
 				}
 			}
 
-			unsigned char *awg_data = (unsigned char *)malloc(total_len * sizeof(unsigned char));
 			for(int i=0; i<total_len; i++)
 			{
 				awg_data[i] = 0;
@@ -1402,29 +1380,28 @@ int main (int argc, char **argv)
 
 			pna_printf("\r\n>>");
 
-			for(int i=0; i<total_len; i+=step_receive)
+			for(int i=0; i<total_len-step_receive; i+=step_receive)
 			{
 				pna_read(awg_data + i, step_receive);
 			}
 
 //			printf("data: %s\r\n", awg_data);
-
-			for(int i=0; i<total_len; i+=2*num_width) // 2 for [I/Q]
+//			pna_printf("len_awg=%d, total_len=%d, s_size=%d\n" , len_awg, total_len, s_size);
+			for(int i=0; i<len_awg; i++) // 2 for [I/Q]
 			{
-				char number_str[num_width+1];
-				memcpy(number_str, awg_data+i, num_width);
+				char number_str[5];
+				memcpy(number_str, awg_data+2*i*num_width, num_width);
 				number_str[4] = 0;
-				int number_i = atoi(number_str);
-				int16_t number16_i = (int16_t)(number_i - 2048);
+				int number_i = atoi(number_str) - 2048;
+				int16_t number16_i = (int16_t)(number_i*16);
 
-				memcpy(number_str, awg_data + i + num_width, num_width);
+				memcpy(number_str, awg_data + (2*i+1)*num_width, num_width);
 				number_str[4] = 0;
-				int number_q = atoi(number_str);
-				int16_t number16_q = (int16_t)(number_q - 2048);
-
+				int number_q = atoi(number_str) - 2048;
+				int16_t number16_q = (int16_t)(number_q*16);
 //				if(i<200 || i>900)
 //				{
-//					printf("%d) I: %4d Q: %4d\n", i, number16_i, number16_q);
+//					pna_printf("%d) I: %4d Q: %4d\n", i, number16_i, number16_q);
 //				}
 #ifdef ETTUS_E310
 				dac_buf[i*s_size] = (int8_t)(number16_i%256);   // LSB
@@ -1438,11 +1415,10 @@ int main (int argc, char **argv)
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(number16_q/256);     // MSB
 #endif
 			}
+			dds_sample_size = len_awg;
+
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf(START_OF_PACKET "\r\n");
-//				awg_data[char_number++] = received_char;
-//			}
-//			printf("sajad: %s\r\n", awg_data);
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -1789,6 +1765,10 @@ int main (int argc, char **argv)
 			close(fd_dma);
 			pna_close_interface();
 			return 0;
+		}
+		else
+		{
+			pna_printf("\r\n");
 		}
 	}
 	close(fd_dma);
