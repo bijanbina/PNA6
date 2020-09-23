@@ -725,10 +725,18 @@ ssize_t fastlock_recall(int slot)
 }
 
 #ifdef ETTUS_E310
-void set_tx_switches()
+void set_tx_switches(bool enable)
 {
-	gpio_emio(60, 2, 3);
-	gpio_emio(30, 1, 1);
+	if(enable)
+	{
+		gpio_emio(60, 2, 3);
+		gpio_emio(30, 1, 1);
+	}
+	else
+	{
+		gpio_emio(60, 2, 0);
+		gpio_emio(30, 1, 0);
+	}
 }
 
 void set_rx_switches(long long freq)

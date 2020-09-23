@@ -150,7 +150,7 @@ int main (int argc, char **argv)
 	rx_freq = get_lo_freq(__RX);
 #ifdef ETTUS_E310
 	set_rx_switches(rx_freq);
-	set_tx_switches();
+	set_tx_switches(false);
 #endif
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
@@ -214,6 +214,18 @@ int main (int argc, char **argv)
 				set_bandwidth(__RX, bandwidth);
 				pna_printf("rx_bandwidth: %lld\r\n", bandwidth);
 			}
+		}
+		else if( strcmp(token, "sig_rf_out") == 0)
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("sig rf out", ERROR_ARG);
+				continue;
+			}
+			bool enable = atoi(token);
+			set_tx_switches(enable);
+			pna_printf("sig_rf_out: %d\r\n", enable);
 		}
 		else if( strcmp(token, "emio")==0 )
 		{
@@ -370,7 +382,6 @@ int main (int argc, char **argv)
 				continue;
 			}
 			token = strtok(NULL, delim);
-			// char buf[100];
 #ifdef ETTUS_E310
 				channel_num = 1;
 #endif
@@ -1839,6 +1850,12 @@ void print_error(char *function, int error_code)
 		strcpy(arg_buf, "[rx_freq][span]");
 		strcpy(usage, "Fill FastLock profiles before sweep.");
 		strcpy(cmd_name, "fillpro");
+	}
+	else if(!strcmp(function, "sig rf out"))
+	{
+		strcpy(arg_buf, "[enable]");
+		strcpy(usage, "Enable/Disable RF out at Tx.");
+		strcpy(cmd_name, "sig_rf_out");
 	}
 	else if(!strcmp(function, "vga gain"))
 	{

@@ -632,34 +632,43 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size)
 void flat_top_window(int32_t *data, unsigned int fft_size)
 {
 	double winOut_I, winOut_Q;
-	int16_t dataIn_I, dataIn_Q;
-	int16_t dataOut_I, dataOut_Q;
-	int16_t avgLast_I = (int16_t)floor(avg_I);
-	int16_t avgLast_Q = (int16_t)floor(avg_Q);
+	int16_t dataIn16_I, dataIn16_Q;
+	int32_t dataIn32_I, dataIn32_Q;
+	int32_t dataOut_I, dataOut_Q;
+	int32_t avgLast_I = (int32_t)floor(avg_I);
+	int32_t avgLast_Q = (int32_t)floor(avg_Q);
+
+//	int32_t max_in=0, max_out=0;
+//	double max_win_out=0.0;
 
 	avg_I = 0;
 	avg_Q = 0;
 
 	for(int i=0; i < fft_size; i++)
 	{
-		dataIn_I = data[i] & 0x0000ffff;
-		dataIn_Q = (data[i] & 0xffff0000) >> 16;
-		avg_I += dataIn_I;
-		avg_Q += dataIn_Q;
-		dataIn_I -= avgLast_I;
-		dataIn_Q -= avgLast_Q;
-		winOut_I = dataIn_I * window_coef[i];
-		winOut_Q = dataIn_Q * window_coef[i];
-//		winOut_I = 2048 * window_coef[i];
-//		winOut_Q = 2048 * window_coef[i];
-		dataOut_I = (int16_t) floor(winOut_I);
-		dataOut_Q = (int16_t) floor(winOut_Q);
-//		dataOut_I -= avgLast_I;
-//		dataOut_Q -= avgLast_Q;
-		data[i] = dataOut_I;
-		data[i] &= 0x0000FFFF;
-		data[i] |= (dataOut_Q << 16);
+		dataIn16_I = (data[i] & 0x0000FFFF);
+		dataIn16_Q = (data[i] >> 16) & 0x0000FFFF;
+		dataIn32_I = (int32_t)dataIn16_I;
+		dataIn32_Q = (int32_t)dataIn16_Q;
+		avg_I += dataIn32_I;
+		avg_Q += dataIn32_Q;
+		dataIn32_I -= avgLast_I;
+		dataIn32_Q -= avgLast_Q;
+		winOut_I = dataIn32_I * window_coef[i];
+		winOut_Q = dataIn32_Q * window_coef[i];
+		dataOut_I = (int32_t) floor(winOut_I * 16.0);
+		dataOut_Q = (int32_t) floor(winOut_Q * 16.0);
+
+//		max_in = (dataIn32_I > max_in) ? dataIn32_I : max_in;
+//		max_out = (dataOut_I > max_out) ? dataOut_I : max_out;
+//		max_win_out = (winOut_I > max_win_out) ? winOut_I : max_win_out;
+
+		data[i] = dataOut_I & 0x0000FFFF;
+		data[i] |= ((dataOut_Q << 16) &  0xFFFF0000);
 	}
+
+//	printf("in-i: %d | out-i(f): %lf | out-i(d): %d\n",  max_in, max_win_out, max_out);
+
 	avg_I = avg_I / fft_size;
 	avg_Q = avg_Q / fft_size;
 }
@@ -687,7 +696,7 @@ void calculate_flat_top_coeff(unsigned int fft_size)
 
 	for(int i=0; i < fft_size; i++)
 	{
-		window_coef[i] = a0 - a1*cos(2.0*PI*i/fft_size) + a2*cos(4.0*PI*i/fft_size) - a3*cos(6.0*PI*i/fft_size) + a4*cos(8.0*PI*i/fft_size);
+		window_coef[i] = a0 - a1*cos(2.0*PI*i/(double)fft_size) + a2*cos(4.0*PI*i/(double)fft_size) - a3*cos(6.0*PI*i/(double)fft_size) + a4*cos(8.0*PI*i/(double)fft_size);
 	}
 }
 
