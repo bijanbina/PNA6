@@ -16,6 +16,7 @@ if [ "$response" = "0" ]; then
 	if [[ "$response" == *"p"* ]]; then
 		cp -R Petalinux/pna-iio "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps"
 		cp -R Petalinux/pnadmc "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-modules"
+		cp -R Petalinux/pna-startup "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps"
 	fi
 	if [[ "$response" == *"s"* ]]; then
 		cp -R Petalinux/pna-iio/files/* $GIT_SDK_PETALINUX_PROJECT/
@@ -35,6 +36,7 @@ elif [ "$response" = "1" ]; then
 	if [[ "$response" == *"p"* ]]; then
 		cp -R "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/" Petalinux/
 		cp -R "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/" Petalinux/
+		cp -R "$PETALINUX_INSTALL_DIR/$GIT_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/" Petalinux/
 	fi
 	if [[ "$response" == *"s"* ]]; then
 		cp -R $GIT_SDK_PETALINUX_PROJECT/* Petalinux/pna-iio/files/

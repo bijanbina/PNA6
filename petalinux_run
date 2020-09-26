@@ -62,6 +62,31 @@ while true; do
 	fi
 	if [[ "$response" == *"7"* ]]; then
 		petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
+		
+		echo "-------------------------------------"
+		printf "Enter SD location to copy image: "
+		read sd_loc_response
+		
+		if [ -z "$sd_loc_response" ]; then
+			echo "response was empty, image created but not copy to SD"
+			echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
+			echo "copy pna-startup.sh script from github/petalinux/pna-startup/files"
+			echo "or from petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
+		else
+			if [ -d "$sd_loc_response" ]; then
+				rm "$sd_loc_response/BOOT.BIN"
+				rm "$sd_loc_response/image.ub"
+				rm "$sd_loc_response/pna-startup.sh"
+				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/BOOT.BIN" "$sd_loc_response"
+				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/image.ub" "$sd_loc_response"
+				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna-startup.sh" "$sd_loc_response"
+			else
+				echo "SD location not found, image created but not copy to SD"
+				echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
+				echo "copy pna-startup.sh script from github/petalinux/pna-startup/files"
+				echo "or from petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
+			fi
+		fi
 	fi
 	if [[ "$response" == *"0"* ]]; then
 		break

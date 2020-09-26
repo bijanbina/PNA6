@@ -1,0 +1,47 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:           load-config
+# Required-Start      
+# Required-Stop       
+# Default-Start       S
+# Default-Stop:       
+# Short-Description:  PNA-Startup
+### END INIT INFO
+
+S=/mnt/sdcard
+D=/etc/startup_script
+C=pna-startup.sh
+
+echo "PNA-Startup script by Dr.Bros started ..."
+
+if [ "$1" != "start" ]; then
+    exit 0
+fi
+
+# create directories/files
+mkdir -p ${S}
+mkdir -p ${D}
+
+# mount the sd card
+mount /dev/mmcblk0p1 ${S}
+
+if [ -f ${S}/${C} ]; then
+    echo "Running pna-startup script"
+    cp ${S}/${C} ${D}/${C}
+    source ${D}/${C}
+else
+    echo "No startup script file found"
+fi
+
+# Load /etc files
+if [ -d ${S}/etc ]; then
+    echo "Loading /etc from SD"
+    cp -rv ${S}/etc/* /etc/
+fi
+
+umount ${S}
+
+# set hostname again, in case it changed
+/etc/init.d/hostname.sh
+
+exit 0

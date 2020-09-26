@@ -190,6 +190,8 @@ while true; do
 			sed -i 's/# CONFIG_imagefeature-debug-tweaks is not set/CONFIG_imagefeature-debug-tweaks=y/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 			WRITE_LN=$(($WRITE_LN+1))
 			sed -i "$WRITE_LN"'iCONFIG_pna-iio=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
+			WRITE_LN=$(($WRITE_LN+1))
+			sed -i "$WRITE_LN"'iCONFIG_pna-startup=y' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 			WRITE_LN=$(($WRITE_LN+2))
 			sed -i "$WRITE_LN"'i#' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config"
 			WRITE_LN=$(($WRITE_LN+1))
@@ -212,13 +214,15 @@ while true; do
 			WRITE_LN=$(($WRITE_LN+1))
 			sed -i "$WRITE_LN"'iCONFIG_USER_LAYER_2=""' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 			sed -i 's/CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200=y/# CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200 is not set/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
-			sed -i 's/# CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_921600 is not set/CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_115200=y/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
+			sed -i 's/# CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_921600 is not set/CONFIG_SUBSYSTEM_SERIAL_PS7_UART_1_BAUDRATE_921600=y/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/config"
 		fi
 
 		CHECK_PRE=$(grep 'IMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend")
 		if [ -z "$CHECK_PRE" ]; then
 			WRITE_LN=$(grep -i -n 'IMAGE_INSTALL_append = " gpio-demo"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend" | awk -F : '{printf $1}')
 			sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pna-iio"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
+			WRITE_LN=$(($WRITE_LN+1))
+			sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pna-startup"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
 			WRITE_LN=$(($WRITE_LN+1))
 			sed -i "$WRITE_LN"'iIMAGE_INSTALL_append = " pnadmc"' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-core/images/petalinux-image-full.bbappend"
 		fi
@@ -230,6 +234,7 @@ while true; do
 		fi
 		cp -R Petalinux/pna-iio/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-iio/"
 		cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/"
+		cp -R Petalinux/pna-startup/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/"
 
 		# add support for offline build
 		printf "Add support for offline build?[y/N]: "
