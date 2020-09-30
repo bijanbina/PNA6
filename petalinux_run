@@ -76,10 +76,10 @@ while true; do
 			if [ -d "$sd_loc_response" ]; then
 				rm "$sd_loc_response/BOOT.BIN"
 				rm "$sd_loc_response/image.ub"
-				rm "$sd_loc_response/pna-startup.sh"
+				rm "$sd_loc_response/pna-ip"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/BOOT.BIN" "$sd_loc_response"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/image.ub" "$sd_loc_response"
-				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna-startup.sh" "$sd_loc_response"
+				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna-ip" "$sd_loc_response"
 			else
 				echo "SD location not found, image created but not copy to SD"
 				echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"

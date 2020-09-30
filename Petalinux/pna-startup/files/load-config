@@ -3,7 +3,7 @@
 # Provides:           load-config
 # Required-Start      
 # Required-Stop       
-# Default-Start       S
+# Default-Start       5
 # Default-Stop:       
 # Short-Description:  PNA-Startup
 ### END INIT INFO
@@ -25,6 +25,12 @@ mkdir -p ${D}
 # mount the sd card
 mount /dev/mmcblk0p1 ${S}
 
+# Load ip file
+if [ -f ${S}/pna_ip ]; then
+    echo "Loading ip from SD"
+    cp -v ${S}pna_ip /home/root/pna_ip
+fi
+
 if [ -f ${S}/${C} ]; then
     echo "Running pna-startup script"
     cp ${S}/${C} ${D}/${C}
@@ -33,10 +39,24 @@ else
     echo "No startup script file found"
 fi
 
-# Load /etc files
-if [ -d ${S}/etc ]; then
-    echo "Loading /etc from SD"
-    cp -rv ${S}/etc/* /etc/
+#!/bin/sh
+
+ifconfig eth0 down
+ifconfig eth0 hw ether 12:13:14:15:16:17
+ifconfig eth0 up
+if [ -f /home/root/pna_ip ]; then
+	PNA_IP=$(cat /etc/pna_ip)
+    sleep 1
+    ifconfig eth0 $PNA_IP
+    
+	WRITE_LN=$(grep -i -n 'iface eth0 inet dhcp' "/etc/network/interfaces" | awk -F : '{printf $1}')
+	sed -i 's/iface eth0 inet dhcp/iface eth0 inet static/' "/etc/network/interfaces"
+	WRITE_LN=$(($WRITE_LN+1))
+	sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ address '"$PNA_IP" "/etc/network/interfaces"
+	WRITE_LN=$(($WRITE_LN+1))
+	sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ netmask 255.255.255.0' "/etc/network/interfaces"
+	WRITE_LN=$(($WRITE_LN+1))
+	sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ gateway 192.168.1.1' "/etc/network/interfaces"
 fi
 
 umount ${S}

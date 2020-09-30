@@ -13,7 +13,7 @@ SRC_URI = "file://load-config \
 inherit update-rc.d
 
 INITSCRIPT_NAME = "load-config"
-INITSCRIPT_PARAMS = "defaults 00"
+INITSCRIPT_PARAMS = "defaults 99"
 
 S = "${WORKDIR}"
 
