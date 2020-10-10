@@ -12,8 +12,8 @@
 #include <stdio.h>
 
 // define board name before compiling
-#define ETTUS_E310
-//#define XILINX_ZC702
+//#define ETTUS_E310
+#define XILINX_ZC702
 
 #define HANNING_ENBW 1.50
 #define MAX_FFT_LENGTH 8192 //FFT output on UART size (should be 1024 FIX)
@@ -90,7 +90,8 @@ long long get_frequency(char *token);
 void create_dds_buffer(int8_t *data, int sample_size);
 void create_adc_buffer(unsigned int fft_size);
 void gpio_fft(int gpio_value);
-void gpio_emio(int gpio_value, int base, int nchannel);
+void set_gpio_emio(int base, int nchannel, int gpio_value);
+uint8_t get_gpio_emio(int base, int nchannel);
 uint8_t gpio_fft_status();
 void gpio_fft_reset();
 void init_all_gpio();
@@ -101,8 +102,11 @@ ssize_t fastlock_read_cal(char *data);
 ssize_t fastlock_load(char* data);
 ssize_t fastlock_recall(int slot);
 
+#ifdef ETTUS_E310
 void set_rx_switches(long long freq);
 void set_tx_switches(bool enable);
+bool get_tx_switches();
+#endif
 
 void set_bandwidth(int direction, long long bandwidth);
 long long get_bandwidth(int direction);

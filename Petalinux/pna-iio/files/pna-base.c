@@ -637,7 +637,7 @@ void gpio_fft(int gpio_value)
 	gpio_fft_valid();
 }
 
-void gpio_emio(int base, int nchannel, int gpio_value)
+void set_gpio_emio(int base, int nchannel, int gpio_value)
 {
 	int gpio_base_emio = base + GPIO_BASE_EMIO;
 
@@ -651,6 +651,18 @@ void gpio_emio(int base, int nchannel, int gpio_value)
 	set_gpio_direction(gpio_base_emio, nchannel, "out");
 	set_gpio_value(gpio_base_emio, nchannel, gpio_value);
 	usleep(10);
+}
+
+uint8_t get_gpio_emio(int base, int nchannel)
+{
+	int gpio_base_emio = base + GPIO_BASE_EMIO;
+
+	if(nchannel > GPIO_NCHANNEL_EMIO)
+	{
+		pna_printf("Error : base+nchannel is greater than total EMIO-nchannel\r\n");
+		return;
+	}
+	return get_gpio_value(gpio_base_emio, nchannel);
 }
 
 uint8_t gpio_fft_status()
@@ -725,17 +737,32 @@ ssize_t fastlock_recall(int slot)
 }
 
 #ifdef ETTUS_E310
+bool get_tx_switches()
+{
+	int8_t tx_switch = get_gpio_emio(60, 2);
+	int8_t tx_amp = get_gpio_emio(30, 1);
+
+	if(tx_switch == 3 && tx_amp == 1)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void set_tx_switches(bool enable)
 {
 	if(enable)
 	{
-		gpio_emio(60, 2, 3);
-		gpio_emio(30, 1, 1);
+		set_gpio_emio(60, 2, 3);
+		set_gpio_emio(30, 1, 1);
 	}
 	else
 	{
-		gpio_emio(60, 2, 0);
-		gpio_emio(30, 1, 0);
+		set_gpio_emio(60, 2, 0);
+		set_gpio_emio(30, 1, 0);
 	}
 }
 
@@ -744,49 +771,49 @@ void set_rx_switches(long long freq)
 	int freq_MHz = freq / 1E6;
 	if(freq_MHz <= 450)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 4);
-		gpio_emio(16, 2, 2);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 4);
+		set_gpio_emio(16, 2, 2);
 		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 450 && freq_MHz <= 700)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 2);
-		gpio_emio(16, 2, 3);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 2);
+		set_gpio_emio(16, 2, 3);
 		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 700 && freq_MHz <= 1200)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 0);
-		gpio_emio(16, 2, 1);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 0);
+		set_gpio_emio(16, 2, 1);
 		set_port(__RX, "C_BALANCED");
 	}
 	else if(freq_MHz > 1200 && freq_MHz <= 1800)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 1);
-		gpio_emio(18, 2, 2);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 1);
+		set_gpio_emio(18, 2, 2);
 		set_port(__RX, "B_BALANCED");
 	}
 	else if(freq_MHz > 1800 && freq_MHz <= 2350)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 3);
-		gpio_emio(18, 2, 3);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 3);
+		set_gpio_emio(18, 2, 3);
 		set_port(__RX, "B_BALANCED");
 	}
 	else if(freq_MHz > 2350 && freq_MHz <= 2600)
 	{
-		gpio_emio(58, 2, 1);
-		gpio_emio(20, 3, 5);
-		gpio_emio(18, 2, 1);
+		set_gpio_emio(58, 2, 1);
+		set_gpio_emio(20, 3, 5);
+		set_gpio_emio(18, 2, 1);
 		set_port(__RX, "B_BALANCED");
 	}
 	else
 	{
-		gpio_emio(58, 2, 2);
+		set_gpio_emio(58, 2, 2);
 		set_port(__RX, "A_BALANCED");
 	}
 }

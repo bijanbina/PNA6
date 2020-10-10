@@ -150,7 +150,7 @@ int main (int argc, char **argv)
 	rx_freq = get_lo_freq(__RX);
 #ifdef ETTUS_E310
 	set_rx_switches(rx_freq);
-	set_tx_switches(false);
+	// set_tx_switches(false);
 #endif
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
@@ -220,12 +220,19 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("sig rf out", ERROR_ARG);
-				continue;
+				pna_printf("sig_rf_out: 1\r\n");
+#ifdef ETTUS_E310
+				pna_printf("sig_rf_out: %d\r\n", get_tx_switches());
+#endif
 			}
-			bool enable = atoi(token);
-			set_tx_switches(enable);
-			pna_printf("sig_rf_out: %d\r\n", enable);
+			else
+			{
+				bool enable = atoi(token);
+#ifdef ETTUS_E310
+				set_tx_switches(enable);
+#endif
+				pna_printf("sig_rf_out: %d\r\n", enable);
+			}
 		}
 		else if( strcmp(token, "emio")==0 )
 		{
@@ -262,7 +269,7 @@ int main (int argc, char **argv)
 			{
 				emio_value = atoi(token);
 			}
-			gpio_emio(emio_base, emio_nchannel, emio_value);
+			set_gpio_emio(emio_base, emio_nchannel, emio_value);
 			pna_printf("emio[%d:%d]=%d\r\n", emio_base + emio_nchannel - 1, emio_base, emio_value);
 		}
 		else if( strcmp(token, "sweep_time")==0 ) // sweep time
@@ -1213,10 +1220,10 @@ int main (int argc, char **argv)
 					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
 #else
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
 #endif
 				}
 			}
@@ -1575,10 +1582,10 @@ int main (int argc, char **argv)
 					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
 #else
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*2+3] = (int8_t)(cos_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
 #endif
 				}
 			}

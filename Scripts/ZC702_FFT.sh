@@ -106,11 +106,9 @@ while true; do
 		source settings.sh
 		petalinux-create --type project --template zynq --name $PETALINUX_PROJECT
 		cd $PETALINUX_PROJECT
-#		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
-		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft_fast_sqrt/zc702/fft_zc702.sdk"
+		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
+#		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft_fast_sqrt/zc702/fft_zc702.sdk"
 #		petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
-#	    petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/ettus/e310/ettus_e310.sdk"
-#		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
 		
 		CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config")
 		if [ -z "$CHECK_PRE" ]; then

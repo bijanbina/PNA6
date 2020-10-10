@@ -24,6 +24,7 @@ while true; do
 	echo "-------------------------------------"
 	read response
 	if [[ "$response" == *"1"* ]]; then
+		echo "----------------------Config PetaLinux---------------------"
 		printf "Configure Hardware?[y/N]: "
 		read config_response
 		if [ "$config_response" = "y" ]; then
@@ -34,15 +35,19 @@ while true; do
 		fi
 	fi
 	if [[ "$response" == *"2"* ]]; then
+		echo "-----------------Build $RUN_PETALINUX_PROJECT-----------------"
 		petalinux-build
 	fi
 	if [[ "$response" == *"3"* ]]; then
+		echo "------------------Package & boot on board------------------"
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force; petalinux-boot --jtag --prebuilt 3 -v; petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
 	if [[ "$response" == *"4"* ]]; then
+		echo "-------------Reboot if bitfile program failed--------------"
 		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
 	if [[ "$response" == *"5"* ]]; then
+		echo "-------------------Attach USB-IP Device--------------------"
 		printf "Probe VHCI-HCD?[y/N]: "
 		read usb_response
 		if [ "$usb_response" = "y" ]; then
@@ -53,6 +58,7 @@ while true; do
 #		sudo /usr/lib/linux-tools/4.15.0-23-generic/usbip attach -r 192.168.1.122 -b 1-14
 	fi
 	if [[ "$response" == *"6"* ]]; then
+		echo "------------------Remote Package and boot------------------"
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force;
 		cd "$CURRENT_DIR"
 		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
@@ -63,28 +69,32 @@ while true; do
 	if [[ "$response" == *"7"* ]]; then
 		petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
 		
-		echo "-------------------------------------"
+		echo "------------------Make .BIN files for SD-------------------"
 		printf "Enter SD location to copy image: "
 		read sd_loc_response
 		
 		if [ -z "$sd_loc_response" ]; then
 			echo "response was empty, image created but not copy to SD"
 			echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
-			echo "copy pna-startup.sh script from github/petalinux/pna-startup/files"
-			echo "or from petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
+			echo "copy elf file from SDK/Debug and also copy pna_ip from"
+			echo "github/petalinux/pna-startup/files or from "
+			echo "petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
 		else
 			if [ -d "$sd_loc_response" ]; then
 				rm "$sd_loc_response/BOOT.BIN"
 				rm "$sd_loc_response/image.ub"
-				rm "$sd_loc_response/pna-ip"
+				rm "$sd_loc_response/pna_ip"
+				rm "$sd_loc_response/fft_zc702_linux.elf"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/BOOT.BIN" "$sd_loc_response"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/image.ub" "$sd_loc_response"
-				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna-ip" "$sd_loc_response"
+				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna_ip" "$sd_loc_response"
+				cp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" "$sd_loc_response"
 			else
 				echo "SD location not found, image created but not copy to SD"
 				echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
-				echo "copy pna-startup.sh script from github/petalinux/pna-startup/files"
-				echo "or from petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
+				echo "copy elf file from SDK/Debug and also copy pna_ip from"
+				echo "github/petalinux/pna-startup/files or from "
+				echo "petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
 			fi
 		fi
 	fi

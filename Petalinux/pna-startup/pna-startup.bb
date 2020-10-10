@@ -18,8 +18,8 @@ INITSCRIPT_PARAMS = "defaults 99"
 S = "${WORKDIR}"
 
 do_install() {
-	     install -d ${D}${sysconfdir}/init.d/
-         install -m 0755 load-config ${D}${sysconfdir}/init.d/load-config
+		install -d ${D}${sysconfdir}/init.d/
+		install -m 0755 load-config ${D}${sysconfdir}/init.d/load-config
 }
 
 #${IMAGE_ROOTFS}/etc/inittab;"

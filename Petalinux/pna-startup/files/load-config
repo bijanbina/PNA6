@@ -12,7 +12,7 @@ S=/mnt/sdcard
 D=/etc/startup_script
 C=pna-startup.sh
 
-echo "PNA-Startup script by Dr.Bros started ..."
+echo "pna-startup: Dr.Bros App started ..."
 
 if [ "$1" != "start" ]; then
     exit 0
@@ -28,7 +28,7 @@ mount /dev/mmcblk0p1 ${S}
 # Load ip file
 if [ -f ${S}/pna_ip ]; then
     echo "Loading ip from SD"
-    cp -v ${S}pna_ip /home/root/pna_ip
+    cp -v ${S}/pna_ip /etc/pna_ip
 fi
 
 if [ -f ${S}/${C} ]; then
@@ -44,7 +44,9 @@ fi
 ifconfig eth0 down
 ifconfig eth0 hw ether 12:13:14:15:16:17
 ifconfig eth0 up
-if [ -f /home/root/pna_ip ]; then
+
+if [ -f /etc/pna_ip ]; then
+	echo "pna-startup: applying pna_ip ..."
 	PNA_IP=$(cat /etc/pna_ip)
     sleep 1
     ifconfig eth0 $PNA_IP
@@ -57,6 +59,11 @@ if [ -f /home/root/pna_ip ]; then
 	sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ netmask 255.255.255.0' "/etc/network/interfaces"
 	WRITE_LN=$(($WRITE_LN+1))
 	sed -i "$WRITE_LN"'i\ \ \ \ \ \ \ \ gateway 192.168.1.1' "/etc/network/interfaces"
+fi
+
+if [ -f /etc/pna_ip ]; then
+	echo "pna-startup: adding elf file ..."
+	cp -v "${S}/fft_zc702_linux.elf" "/home/root/fft_zc702_linux.elf"
 fi
 
 umount ${S}
