@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include "pna-gpio.h"
 #include "pna-capture.h"
-#include "pna-fir.h"
+#include "pna-prepare.h"
 #include "pna-interface.h"
 #include <stdio.h>
 
@@ -16,11 +16,9 @@
 #define XILINX_ZC702
 
 #define HANNING_ENBW 1.50
-#define MAX_FFT_LENGTH 8192 //FFT output on UART size (should be 1024 FIX)
 #define FFT_24_BIT 3 // 24bit = 3byte
 // #define FFT_16_BIT
 #define UART_LENGTH 1024
-#define DAC_MAX_VAL 2047*16
 #define MAX_BW 56E6
 #define PI 3.14159265
 #define THIS_DRIVER "AD936X"
@@ -89,6 +87,7 @@ void fmcomms2_init(void);
 long long get_frequency(char *token);
 void create_dds_buffer(int8_t *data, int sample_size);
 void create_adc_buffer(unsigned int fft_size);
+
 void gpio_fft(int gpio_value);
 void set_gpio_emio(int base, int nchannel, int gpio_value);
 uint8_t get_gpio_emio(int base, int nchannel);

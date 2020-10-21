@@ -24,20 +24,20 @@ int fft_changed(int fft_size)
 	output_data = (int32_t *) malloc(CHUNK_C * 4 * sizeof(int32_t));
 	if(output_data == NULL)
 	{
-		printf("memory allocation failed in changed_fft function\r\n");
+		printf("memory allocation failed in changed_fft function, fft_size:%d\r\n", fft_size);
 		return -1;
 	}
 	fft_abs = (int32_t *) malloc(fft_size * sizeof(int32_t));
 	if(fft_abs == NULL)
 	{
-		printf("memory allocation failed in changed_fft function\r\n");
+		printf("memory allocation failed in changed_fft function, fft_size:%d\r\n", fft_size);
 		free(output_data);
 		return -1;
 	}
 	fft_phase = (int32_t *) malloc(fft_size * sizeof(int32_t));
 	if(fft_phase == NULL)
 	{
-		printf("memory allocation failed in changed_fft function\r\n");
+		printf("memory allocation failed in changed_fft function, fft_size:%d\r\n", fft_size);
 		free(output_data);
 		free(fft_abs);
 		return -1;
@@ -45,7 +45,7 @@ int fft_changed(int fft_size)
 	window_coef = (double *) malloc(fft_size * sizeof(double));
 	if(window_coef == NULL)
 	{
-		printf("memory allocation failed in changed_fft function\r\n");
+		printf("memory allocation failed in changed_fft function, fft_size:%d\r\n", fft_size);
 		free(output_data);
 		free(fft_abs);
 		free(fft_phase);

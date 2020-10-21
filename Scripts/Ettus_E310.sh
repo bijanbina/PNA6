@@ -14,6 +14,7 @@ while true; do
 	read response_main
 
 	if [[ "$response_main" == *"1"* ]]; then
+		echo "----------Install board files in Vivado------------"
 		cd $CURRENT_DIR
 		cp BoardFiles/component.xml "$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/data/ip/xilinx/processing_system7_v5_5/component.xml"
 		cp BoardFiles/e310/E310.tcl "$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/data/ip/xilinx/processing_system7_v5_5/preset/E310.tcl"
@@ -90,6 +91,7 @@ while true; do
 	fi
 
 	if [[ "$response_main" == *"2"* ]]; then
+		echo "----Add Project to Analog Device HDL Repository----"
 		cd $CURRENT_DIR
 
 		DIR="$ADI_HDL_PROJECT/projects/usrpe31x"
@@ -126,6 +128,7 @@ while true; do
 	fi
 
 	if [[ "$response_main" == *"3"* ]]; then
+		echo "---------------Synthesize projects-----------------"
 		cd "$ADI_HDL_PROJECT/projects/usrpe31x"
 		export PATH="$PATH:$XILINX_INSTALL_DIR/Vivado/$XILINX_VERSION/bin"
 		make
@@ -134,6 +137,7 @@ while true; do
 	# Modify Meta-ADI project
 
 	if [[ "$response_main" == *"4"* ]]; then
+		echo "-------------Modify Meta-ADI project---------------"
 		CHECK_PRE=$(grep "# EXTRA_USERS_PARAMS" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend")
 		if [ -z "$CHECK_PRE" ]; then
 			sed -i 's/EXTRA_USERS_PARAMS = "	\\/# EXTRA_USERS_PARAMS = "	\\/' "$META_ADI_PROJECT/meta-adi-xilinx/recipes-core/images/petalinux-user-image.bbappend"
@@ -168,21 +172,39 @@ while true; do
 	fi
 
 	if [[ "$response_main" == *"5"* ]]; then
+		echo "------------Create Petalinux project---------------"
 		printf "Enter Petalinux project name?[$PETALINUX_PROJECT]: "
 		read response
 
 		if [ -n "$response" ]; then
 			PETALINUX_PROJECT="$response"
 		fi
+		
+		printf "Add support for offline build?[y/N]: "
+		read response_offline
+		
+		if [ "$response_offline" = "y" ]; then
+			printf "Modify Meta-ADI to support offline?[y/N]: "
+			read response_meta_offline
+		fi
+		
+		printf "Need any modification in petalinux-config?(if no, continues with oldconfig)[y/N]: "
+		read response_oldconfig
+		
+		printf "Config Dynamic ip for PetaLinux?[y/N]: "
+		read response_dynamic_ip
 
 		cd "$PETALINUX_INSTALL_DIR"
 		source settings.sh
 		petalinux-create --type project --template zynq --name $PETALINUX_PROJECT
 		cd $PETALINUX_PROJECT
-		#petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk"
-	#	petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fmcomms2/zc702/fmcomms2_zc702.sdk"
+		
 #	    petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/ettus/e310/ettus_e310.sdk"
-		petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
+		if [ "$response_oldconfig" = "y" ]; then
+			petalinux-config --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
+		else
+			petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/usrpe31x/usrpe31x.sdk"
+		fi
 		
 		CHECK_PRE=$(grep "CONFIG_imagefeature-debug-tweaks=y" "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/configs/rootfs_config")
 		if [ -z "$CHECK_PRE" ]; then
@@ -236,20 +258,23 @@ while true; do
 		cp -R Petalinux/pnadmc/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-modules/pnadmc/"
 		cp -R Petalinux/pna-startup/ "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/"
 
-		# add support for offline build
-		printf "Add support for offline build?[y/N]: "
-		read response
+		# config static/dynamic ip
+		if [ "$response_dynamic_ip" = "y" ]; then
+			sed -i 's/install -m 0644 interfaces/#install -m 0644 interfaces/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/pna-startup.bb"
+			sed -i 's|#install -m 0644 ${WORKDIR}/interfaces|install -m 0644 ${WORKDIR}/interfaces|' "$PETALINUX_INSTALL_DIR/components/yocto/source/arm/layers/core/meta/recipes-core/init-ifupdown/init-ifupdown_1.0.bb"
+		else
+			sed -i 's/#install -m 0644 interfaces/install -m 0644 interfaces/' "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/pna-startup.bb"
+			sed -i 's|install -m 0644 ${WORKDIR}/interfaces|#install -m 0644 ${WORKDIR}/interfaces|' "$PETALINUX_INSTALL_DIR/components/yocto/source/arm/layers/core/meta/recipes-core/init-ifupdown/init-ifupdown_1.0.bb"
+		fi
 
-		if [ "$response" = "y" ]; then
+		# add support for offline build
+		if [ "$response_offline" = "y" ]; then
 			echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
 			echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
 			echo 'BB_NO_NETWORK = "1"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
 			echo '# BB_GENERATE_MIRROR_TARBALLS = "1"' >> "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
 
-			printf "Modify Meta-ADI to support offline?[y/N]: "
-			read response
-
-			if [ "$response" = "y" ]; then
+			if [ "$response_meta_offline" = "y" ]; then
 				cp -R Meta-ADI/fru-tools "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 				cp -R Meta-ADI/libad9361-iio "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 				cp -R Meta-ADI/jesd-status "$META_ADI_PROJECT/meta-adi-core/recipes-core/"

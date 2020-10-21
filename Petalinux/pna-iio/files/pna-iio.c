@@ -1,9 +1,9 @@
 #include "pna-base.h"
 
-#include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
+
+extern int errno;
 
 extern struct iio_context *ctx;
 extern struct iio_device *dev, *dds, *cap;
@@ -23,7 +23,6 @@ extern int fd_dma;
 
 void print_error(char *function, int error_code);
 
-
 struct termios saved_attributes;
 
 void reset_input_mode (void)
@@ -34,7 +33,7 @@ void reset_input_mode (void)
 void set_input_mode (void)
 {
   struct termios tattr;
-  char *name;
+//  char *name;
 
   /* Make sure stdin is a terminal. */
   if (!isatty (STDIN_FILENO))
@@ -63,30 +62,24 @@ int main (int argc, char **argv)
 	char* token;
 	bool is_profile_empty = true;
 	bool window_en = true;
+	double sig_pow[2];
 
 	// calculating sweep time
 	struct timeval  tv1, tv2;
 	double sweep_time = 0;
 
-	unsigned int fft_size = 1024; //16bit(I)+16bit(Q) = 32bit data
+	int fft_size, dac_max; //16bit(I)+16bit(Q) = 32bit data
 
-	FILE *f;
-	f = fopen("fft_config", "r");
-	if(f != NULL)
+	fft_size = load_rx_sample_size();
+	if(fft_size <= 0)
 	{
-		// obtain file size:
-		fseek (f , 0 , SEEK_END);
-		long file_size = ftell (f);
-		rewind (f);
-//		pna_printf("AAA : %d\n", fft_size);
-
-		if(file_size > 0 || file_size < 5)
-		{
-			char fft_size_str[10];
-			fread(fft_size_str, 1, file_size, f);
-			fft_size = atoi(fft_size_str);
-//			pna_printf("@@@ : %d\n", fft_size);
-		}
+		fft_size = 1024;
+	}
+	dac_max = load_dac_max();
+	if(dac_max <= 0)
+	{
+		dac_max = DAC_MAX_VAL;
+		save_dac_max(dac_max);
 	}
 
 	// fft_size = atoi(argv[1]);
@@ -166,6 +159,18 @@ int main (int argc, char **argv)
 	{
 		return -1;
 	}
+	sig_pow[0] = load_sig_pow(1);
+	if(sig_pow[0] > 0.0)
+	{
+		sig_pow[0] = get_vga_gain(1);
+		save_sig_pow(sig_pow[0], 1);
+	}
+	sig_pow[1] = load_sig_pow(2);
+	if(sig_pow[1] > 0.0)
+	{
+		sig_pow[1] = get_vga_gain(2);
+		save_sig_pow(sig_pow[1], 2);
+	}
 	pna_printf(START_OF_PACKET "\r\n"); // :D
 	while(1)
 	{
@@ -220,9 +225,10 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("sig_rf_out: 1\r\n");
 #ifdef ETTUS_E310
 				pna_printf("sig_rf_out: %d\r\n", get_tx_switches());
+#else
+				pna_printf("sig_rf_out: 1\r\n");
 #endif
 			}
 			else
@@ -343,6 +349,32 @@ int main (int argc, char **argv)
 		{
 			load_profile(0);
 			pna_printf("\r\n");
+		}
+		else if( strcmp(token, "sig_pow") == 0)
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("sig pow", ERROR_ARG);
+				continue;
+			}
+			int channel_num = atoi(token);
+			if(!(channel_num == 2 || channel_num == 1))
+			{
+				print_error("sig pow", ERROR_CH);
+				continue;
+			}
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("sig_pow: %d, %lf\r\n", channel_num, load_sig_pow(channel_num));
+			}
+			else
+			{
+				sig_pow[channel_num-1] = atof(token);
+				save_sig_pow(sig_pow[channel_num-1], channel_num);
+				pna_printf("sig_pow: %d, %lf\r\n", channel_num, sig_pow[channel_num-1]);
+			}
 		}
 		else if( strcmp(token, "vga_gain")==0 )
 		{
@@ -656,6 +688,20 @@ int main (int argc, char **argv)
 			gpio_fft_reset();
 			pna_printf("\r\n");
 		}
+        else if(strcmp(token,"dac_max") == 0)
+		{
+        	token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf("dac_max: %d \r\n", load_dac_max());
+			}
+			else
+			{
+				int dac_max = atoi(token);
+				save_dac_max(dac_max);
+				pna_printf("dac_max: %d \r\n", dac_max);
+			}
+		}
 		else if(strcmp(token,"adc") == 0)
 		{
 			int channel_num;
@@ -860,9 +906,9 @@ int main (int argc, char **argv)
 				if(channel_num)
 				{
 #ifdef ETTUS_E310
-					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i, window_en);
-#else
 					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i, window_en);
+#else
+					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i, window_en);
 #endif
 				}
 				else
@@ -1042,7 +1088,9 @@ int main (int argc, char **argv)
 			int32_t *spectrum;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 			if(span_ratio>1 || span_ratio<=0)
+			{
 				span_ratio = 1;
+			}
 			int removed_span = fft_size*(1-span_ratio)/2;
 			// pna_printf("rx-freq %lf, span %f\r\n",rx_sampling_frequency_mhz, span);
 
@@ -1051,9 +1099,9 @@ int main (int argc, char **argv)
 			if(channel_num)
 			{
 #ifdef ETTUS_E310
-				spectrum = pna_fft(rx2_buffer, removed_span, fft_size, window_en);
-#else
 				spectrum = pna_fft(rx1_buffer, removed_span, fft_size, window_en);
+#else
+				spectrum = pna_fft(rx2_buffer, removed_span, fft_size, window_en);
 #endif
 			}
 			else
@@ -1159,7 +1207,7 @@ int main (int argc, char **argv)
 			{
 				period_num = atoi(token);
 			}
-			float amplitude;
+			double sig_offset;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -1168,7 +1216,7 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				amplitude = atof(token);
+				sig_offset = atof(token);
 			}
 			int channel_num;
 			token = strtok(NULL, delim);
@@ -1186,7 +1234,29 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			int amplitude_int = amplitude*DAC_MAX_VAL/2;
+			double dig_pow, dig_amp;
+			if(sig_pow[channel_num] + sig_offset > -70.0)
+			{
+				long long vga_part = (long long)ceil(sig_pow[channel_num] + sig_offset);
+				set_vga_gain(channel_num+1, vga_part);
+				dig_pow =sig_pow[channel_num] + sig_offset - ceil(sig_pow[channel_num] + sig_offset);
+			}
+			else
+			{
+				set_vga_gain(channel_num+1, -70);
+				dig_pow = sig_pow[channel_num] + sig_offset + 70.0;
+			}
+			dig_amp = pow(10.0, dig_pow / 20.0);
+			token = strtok(NULL, delim);
+			if(token != NULL)
+			{
+				dig_amp = atof(token);
+			}
+			int amplitude_int = dig_amp*dac_max/2;
+
+//			double dc_offset = period_num*2 +140;
+//			period_num = 1;
+
 			int period_sample_count = dds_sample_size/period_num;
 			for (int i=0 ; i<period_num ; i++)
 			{
@@ -1197,7 +1267,7 @@ int main (int argc, char **argv)
 					x = x/period_sample_count;
 					if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
 					{
-						sinous = sin(x)*amplitude_int;
+						sinous = sin(x)*amplitude_int;// - dc_offset;
 					}
 					else
 					{
@@ -1205,7 +1275,7 @@ int main (int argc, char **argv)
 					}
 					if(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
 					{
-						cosinous = cos(x)*amplitude_int;
+						cosinous = cos(x)*amplitude_int;// - dc_offset;
 					}
 					else
 					{
@@ -1228,7 +1298,8 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[I/Q/SSB]: %d | [period]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
+					sig_iq, period_num, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
 		else if (strcmp(token, "pulse_iq") == 0)
 		{
@@ -1255,17 +1326,6 @@ int main (int argc, char **argv)
 			{
 				period_num = atoi(token);
 			}
-			float amplitude;
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				print_error("pulse_iq", ERROR_ARG);
-				continue;
-			}
-			else
-			{
-				amplitude = atof(token);
-			}
 			float duty_cycle;
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -1276,6 +1336,17 @@ int main (int argc, char **argv)
 			else
 			{
 				duty_cycle = atof(token);
+			}
+			double sig_offset;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse_iq", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				sig_offset = atof(token);
 			}
 			int channel_num;
 			token = strtok(NULL, delim);
@@ -1293,9 +1364,27 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			double dig_pow, dig_amp;
+			if(sig_pow[channel_num] + sig_offset > -70.0)
+			{
+				long long vga_part = (long long)ceil(sig_pow[channel_num] + sig_offset);
+				set_vga_gain(channel_num+1, vga_part);
+				dig_pow =sig_pow[channel_num] + sig_offset - ceil(sig_pow[channel_num] + sig_offset);
+			}
+			else
+			{
+				set_vga_gain(channel_num+1, -70);
+				dig_pow = sig_pow[channel_num] + sig_offset + 70.0;
+			}
+			dig_amp = pow(10.0, dig_pow / 20.0);
+			token = strtok(NULL, delim);
+			if(token != NULL)
+			{
+				dig_amp = atof(token);
+			}
 
 			double pulse, p_hilbert;
-			int amplitude_int = amplitude*DAC_MAX_VAL/2;
+			int amplitude_int = dig_amp*dac_max/2;
 			int period_samples = dds_sample_size/period_num;
 			int on_pulse_samples = duty_cycle*period_samples;
 
@@ -1352,7 +1441,8 @@ int main (int argc, char **argv)
 #endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[I/Q/SSB]: %d | [period]: %d | [duty-cycle]: %.2lf | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
+								sig_iq, period_num, duty_cycle, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
 		else if(strcmp(token, "awg") == 0)
 		{
@@ -1374,6 +1464,17 @@ int main (int argc, char **argv)
 				print_error("awg", ERROR_ARG);
 				continue;
 			}
+			double sig_offset;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("awg", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				sig_offset = atof(token);
+			}
 			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -1389,6 +1490,24 @@ int main (int argc, char **argv)
 					print_error("awg", ERROR_CH);
 					continue;
 				}
+			}
+			double dig_pow, dig_amp;
+			if(sig_pow[channel_num] + sig_offset > -70.0)
+			{
+				long long vga_part = (long long)ceil(sig_pow[channel_num] + sig_offset);
+				set_vga_gain(channel_num+1, vga_part);
+				dig_pow =sig_pow[channel_num] + sig_offset - ceil(sig_pow[channel_num] + sig_offset);
+			}
+			else
+			{
+				set_vga_gain(channel_num+1, -70);
+				dig_pow = sig_pow[channel_num] + sig_offset + 70.0;
+			}
+			dig_amp = pow(10.0, dig_pow / 20.0);
+			token = strtok(NULL, delim);
+			if(token != NULL)
+			{
+				dig_amp = atof(token);
 			}
 
 			for(int i=0; i<total_len; i++)
@@ -1411,11 +1530,17 @@ int main (int argc, char **argv)
 				memcpy(number_str, awg_data+2*i*num_width, num_width);
 				number_str[4] = 0;
 				int number_i = atoi(number_str) - 2048;
+				double number_float_i = (double)number_i;
+				number_float_i = number_float_i*dig_amp;
+				number_i = (int)floor(number_float_i);
 				int16_t number16_i = (int16_t)(number_i*16);
 
 				memcpy(number_str, awg_data + (2*i+1)*num_width, num_width);
 				number_str[4] = 0;
 				int number_q = atoi(number_str) - 2048;
+				double number_float_q = (double)number_q;
+				number_float_q = number_float_q*dig_amp;
+				number_q = (int)floor(number_float_q);
 				int16_t number16_q = (int16_t)(number_q*16);
 //				if(i<200 || i>900)
 //				{
@@ -1436,7 +1561,8 @@ int main (int argc, char **argv)
 			dds_sample_size = len_awg;
 
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf(START_OF_PACKET "\r\n");
+			pna_printf(START_OF_PACKET "[len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
+					len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -1452,16 +1578,6 @@ int main (int argc, char **argv)
 			{
 				period_num = atoi(token);
 			}
-			float amplitude;
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				amplitude = 0.5;
-			}
-			else
-			{
-				amplitude = atof(token);
-			}
 			float duty_cycle;
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -1471,6 +1587,17 @@ int main (int argc, char **argv)
 			else
 			{
 				duty_cycle = atof(token);
+			}
+			double dig_amp;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("pulse", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				dig_amp = atof(token);
 			}
 			int channel_num;
 			token = strtok(NULL, delim);
@@ -1487,7 +1614,7 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			int amplitude_int = amplitude*DAC_MAX_VAL;
+			int amplitude_int =dig_amp*dac_max/2;
 			int period_sample_count = dds_sample_size/period_num;
 
 			for (int i=0 ; i<period_num ; i++)
@@ -1519,7 +1646,8 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[period]: %d | [duty-cycle]: %.2lf | [port]: %d | [dig_amp]: %lf\r\n",
+											period_num, duty_cycle, channel_num, dig_amp);
 		}
 		else if (strcmp(token, "sin")==0 )
 		{
@@ -1535,7 +1663,7 @@ int main (int argc, char **argv)
 			{
 				period_num = atoi(token);
 			}
-			float amplitude;
+			double dig_amp;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -1544,7 +1672,7 @@ int main (int argc, char **argv)
 			}
 			else
 			{
-				amplitude = atof(token);
+				dig_amp = atof(token);
 			}
 			int channel_num;
 			token = strtok(NULL, delim);
@@ -1562,7 +1690,7 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			int amplitude_int = amplitude*DAC_MAX_VAL/2;
+			int amplitude_int = dig_amp*dac_max/2;
 			int period_sample_count = dds_sample_size/period_num;
 
 			for (int i=0 ; i<period_num ; i++)
@@ -1590,24 +1718,32 @@ int main (int argc, char **argv)
 				}
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[amplitude]: %.3lf | [period]: %d | [port]: %d\r\n", dig_amp, period_num, channel_num);
 		}
 		else if (strcmp(token, "dc")==0 )
 		{
 			int s_size = iio_device_get_sample_size(iio_dac);
-			float amplitude;
+			float amplitude_i, amplitude_q;
+			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("DC", ERROR_ARG);
+				print_error("dc", ERROR_ARG);
 				continue;
 			}
 			else
 			{
-				amplitude = atof(token);
+				amplitude_i = atof(token);
 			}
-			int channel_num;
-			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("dc", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				amplitude_q = atof(token);
+			}
 			if(token==NULL)
 			{
 				channel_num = 0;
@@ -1621,35 +1757,34 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			int amplitude_int = amplitude*DAC_MAX_VAL;
+			int amplitude_i_int = amplitude_i*dac_max/2;
+			int amplitude_q_int = amplitude_q*dac_max/2;
 
 			for (int i=0 ; i<dds_sample_size ; i++)
 			{
-				double pulse = amplitude_int;
-				int16_t pulse_int = (int16_t)(pulse);
+				double inphase = amplitude_i_int;
+				int16_t inphase_int = (int16_t)(inphase);
+				double quad = amplitude_q_int;
+				int16_t quad_int = (int16_t)(quad);
 #ifdef ETTUS_E310
 				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+2] = 0;     // MSB
 				dac_buf[i*s_size+3] = 0;     // MSB
 #else
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
-				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(inphase_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(inphase_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(quad_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(quad_int/256);     // MSB
 #endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[port]: %d | [amp_i]: %2.2lf | [amp_q]: %2.2lf\r\n",
+																	channel_num, amplitude_i, amplitude_q);
 		}
 		else if (strcmp(token, "sinc")==0 )
 		{
-			//echo 2450000000 > /sys/bus/iio/devices/iio\:device0/out_altvoltage0_RX_LO_frequency
-			//stty -F /dev/ttyPS0 -onlcr
-			//sample_rate 61400000
-			//bandwidth 56000000
 			//sinc 1 0.9 1               sinc 1 5 1
-			//echo 61400000 > /sys/bus/iio/devices/iio\:device0/out_voltage_sampling_frequency;pna-iio bandwidth 56000000;pna-iio sinc 1 0.9 1
 			int s_size = iio_device_get_sample_size(iio_dac);
 			double dds_freq;
 			token = strtok(NULL, delim);
@@ -1683,11 +1818,11 @@ int main (int argc, char **argv)
 				double sinc;
 				if ( x==0 )
 				{
-					sinc = DAC_MAX_VAL;
+					sinc = dac_max;
 				}
 				else
 				{
-					sinc = sin(x/dds_freq)/(x/dds_freq)*DAC_MAX_VAL;
+					sinc = sin(x/dds_freq)/(x/dds_freq)*dac_max;
 				}
 				int16_t sinc_int = (int16_t)(sinc);
 
@@ -1707,8 +1842,8 @@ int main (int argc, char **argv)
 			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;
 			//dac_buf[sample_count/2*s_size + channel_num*2] = 240;
 
-			pna_printf("Channel Num = %d\r\n", channel_num );
-			pna_printf("DDS Freq = %f\r\n", dds_freq);
+//			pna_printf("Channel Num = %d\r\n", channel_num );
+//			pna_printf("DDS Freq = %f\r\n", dds_freq);
 			pna_printf("Sample Count= %d\r\n", dds_sample_size);
 			pna_printf("Sample Size = %d\r\n", s_size );
 			for ( int i=dds_sample_size/2-5 ; i<dds_sample_size/2+5 ; i++)
@@ -1716,7 +1851,7 @@ int main (int argc, char **argv)
 				pna_printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("\r\n");
+			pna_printf("[dds_freq]: %lf, [port]: %d\r\n", dds_freq, channel_num);
 		}
 		else if( strcmp(token, "dbg")==0 )
 		{
@@ -1836,19 +1971,19 @@ void print_error(char *function, int error_code)
 	}
 	else if(!strcmp(function, "awg"))
 	{
-		strcpy(arg_buf, "[sample_size][i/q][port#]");
+		strcpy(arg_buf, "[sample_size][offset][port#]");
 		strcpy(usage, "Arbitrary wave generator with samples, i/q and port arguments.");
 		strcpy(cmd_name, "awg");
 	}
 	else if(!strcmp(function, "sin_iq"))
 	{
-		strcpy(arg_buf, "[i/q][period][amplitude][port#]");
+		strcpy(arg_buf, "[i/q][period][offset][port#]");
 		strcpy(usage, "generates sinous.");
 		strcpy(cmd_name, "sin_iq");
 	}
 	else if(!strcmp(function, "pulse_iq"))
 	{
-		strcpy(arg_buf, "[i/q][period][amplitude][duty cycle][port#]");
+		strcpy(arg_buf, "[i/q][period][duty cycle][offset][port#]");
 		strcpy(usage, "generates pulse.");
 		strcpy(cmd_name, "pulse_iq");
 	}
@@ -1858,17 +1993,17 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Fill FastLock profiles before sweep.");
 		strcpy(cmd_name, "fillpro");
 	}
-	else if(!strcmp(function, "sig rf out"))
-	{
-		strcpy(arg_buf, "[enable]");
-		strcpy(usage, "Enable/Disable RF out at Tx.");
-		strcpy(cmd_name, "sig_rf_out");
-	}
 	else if(!strcmp(function, "vga gain"))
 	{
 		strcpy(arg_buf, "[port#][value]");
 		strcpy(usage, "Read/Write vga_gain with port and value arguments.");
 		strcpy(cmd_name, "vga_gain");
+	}
+	else if(!strcmp(function, "sig pow"))
+	{
+		strcpy(arg_buf, "[port#][value]");
+		strcpy(usage, "Read/Write sig_pow with port and value arguments.");
+		strcpy(cmd_name, "sig_pow");
 	}
 	else if(!strcmp(function, "lna gain"))
 	{
@@ -1909,13 +2044,13 @@ void print_error(char *function, int error_code)
 	else if(!strcmp(function, "DC"))
 	{
 		strcpy(usage, "Generate DC signal.");
-		strcpy(arg_buf, "[amplitude][port#]");
+		strcpy(arg_buf, "[amplitude_i][amplitude_q][port#]");
 		strcpy(cmd_name, "dc");
 	}
 	else if(!strcmp(function, "pulse"))
 	{
 		strcpy(usage, "Generate pulse signal with period, amplitude, duty cycle and port arguments.");
-		strcpy(arg_buf, "[period][amplitude][duty cycle][port#]");
+		strcpy(arg_buf, "[period][duty cycle][amplitude][port#]");
 		strcpy(cmd_name, "pulse");
 	}
 	else if(!strcmp(function, "sin"))
