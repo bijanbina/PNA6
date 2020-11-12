@@ -729,6 +729,103 @@ int main (int argc, char **argv)
 				pna_adc(rx1_buffer, fft_size);
 			}
 		}
+		else if(strcmp(token,"adc_trig") == 0)
+		{
+			int mode;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("trigged adc", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				mode = atoi(token);
+				if(mode < 0 || mode > 3)
+				{
+					print_error("trigged adc", ERROR_ARG);
+					continue;
+				}
+			}
+			int level;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("trigged adc", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				level = atoi(token);
+				if(level < -4096 || level > 4096)
+				{
+					print_error("trigged adc", ERROR_ARG);
+					continue;
+				}
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("trigged adc", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("trigged adc", ERROR_CH);
+					continue;
+				}
+			}
+			bool compression_enable;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				compression_enable = true;
+			}
+			else
+			{
+				compression_enable = atoi(token);
+			}
+#ifdef ETTUS_E310
+			fill_rx_buffer_single(fft_size);
+#else
+			fill_rx_buffer(fft_size);
+#endif
+			int uart_size;
+			int32_t *adc_data;
+			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
+
+			if(channel_num)
+			{
+#ifdef ETTUS_E310
+				adc_data = rx1_buffer;
+#else
+				adc_data = rx2_buffer;
+#endif
+			}
+			else
+			{
+				adc_data = rx1_buffer;
+			}
+
+			adc_data = pna_trig_adc(adc_data, fft_size/2, mode, level);
+
+			if(compression_enable)
+			{
+				uart_size = compress_data_iq(adc_data, uart_tx_buffer, fft_size/2);
+			}
+			else
+			{
+				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size/2);
+				uart_size = fft_size/2;
+			}
+			pna_printf("PLOT");
+			pna_write(uart_tx_buffer, 4*uart_size);
+			pna_printf("\r\n");
+		}
 		else if(strcmp(token,"adc_iq") == 0)
 		{
 			int channel_num;
@@ -1297,7 +1394,7 @@ int main (int argc, char **argv)
 #endif
 				}
 			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			create_dds_buffer(dac_buf, period_num*period_sample_count);
 			pna_printf("[I/Q/SSB]: %d | [period]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
 					sig_iq, period_num, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
@@ -1443,6 +1540,93 @@ int main (int argc, char **argv)
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("[I/Q/SSB]: %d | [period]: %d | [duty-cycle]: %.2lf | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
 								sig_iq, period_num, duty_cycle, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
+		}
+		else if (strcmp(token, "triangle") == 0)
+		{
+			int s_size = iio_device_get_sample_size(iio_dac);
+			int period_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("triangle", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				period_num = atoi(token);
+			}
+			int channel_num;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("triangle", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("triangle", ERROR_CH);
+					continue;
+				}
+			}
+
+			double triangle, triangle_h;
+			int amplitude_int = dac_max/2;
+			int period_samples = dds_sample_size/period_num;
+
+			for (int i=0; i<dds_sample_size; i++)
+			{
+				//// Real Part
+				if(i%period_samples < period_samples/2)
+				{
+					triangle = (float)amplitude_int * 2.0 * (float) (i%(period_samples/2))/period_samples;
+				}
+				else
+				{
+					triangle = (float)amplitude_int * 2.0 * (float)(period_samples/2 - (i%(period_samples/2)))/period_samples;
+				}
+				//// Imaginary Part
+//				triangle_h = 0;
+//				if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
+//				{
+//					for(int j=-2; j<period_num+2; j++)
+//					{
+//						double num = i - j*period_samples;
+//						double denum = i -  j*period_samples - on_pulse_samples;
+//						if(num == 0) // log(0)
+//						{
+//							num = (i-1) - j*period_samples;
+//						}
+//						if(denum == 0) // log(x/0)
+//						{
+//							denum = i-1 -  j*period_samples - on_pulse_samples;
+//						}
+//						p_hilbert += amplitude_int*log(fabs(num/denum))/PI;
+//					}
+//				}
+//				else
+//				{
+//					p_hilbert = 0;
+//				}
+
+				int16_t triangle_int = (int16_t)(triangle);
+
+#ifdef ETTUS_E310
+				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
+				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
+				dac_buf[i*s_size+2] = (int8_t)(p_hilbert_int%256);   // LSB
+				dac_buf[i*s_size+3] = (int8_t)(p_hilbert_int/256);     // MSB
+#else
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(triangle_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(triangle_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = 0;   // LSB
+				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
+#endif
+			}
+			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("[period]: %d | [port]: %d\r\n", period_num, channel_num, sig_pow[channel_num]);
 		}
 		else if(strcmp(token, "awg") == 0)
 		{
@@ -1640,12 +1824,12 @@ int main (int argc, char **argv)
 #else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] =  (int8_t)(pulse_int%256);     // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] =  (int8_t)(pulse_int/256);     // MSB
 #endif
 				}
 			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			create_dds_buffer(dac_buf, period_num*period_sample_count);
 			pna_printf("[period]: %d | [duty-cycle]: %.2lf | [port]: %d | [dig_amp]: %lf\r\n",
 											period_num, duty_cycle, channel_num, dig_amp);
 		}
@@ -1712,12 +1896,12 @@ int main (int argc, char **argv)
 #else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(sin_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(sin_int/256);     // MSB
 #endif
 				}
 			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			create_dds_buffer(dac_buf, period_sample_count*period_num);
 			pna_printf("[amplitude]: %.3lf | [period]: %d | [port]: %d\r\n", dig_amp, period_num, channel_num);
 		}
 		else if (strcmp(token, "dc")==0 )
@@ -1728,7 +1912,7 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				print_error("dc", ERROR_ARG);
+				print_error("DC", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1737,7 +1921,7 @@ int main (int argc, char **argv)
 			}
 			if(token==NULL)
 			{
-				print_error("dc", ERROR_ARG);
+				print_error("DC", ERROR_ARG);
 				continue;
 			}
 			else
@@ -1969,6 +2153,12 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Capture receiver signal from port.");
 		strcpy(cmd_name, "adc_iq");
 	}
+	else if(!strcmp(function, "trigged adc"))
+	{
+		strcpy(arg_buf, "[mode][level][port#][compression enable]");
+		strcpy(usage, "Capture receiver signal from port and trig by level and mode.");
+		strcpy(cmd_name, "adc_trig");
+	}
 	else if(!strcmp(function, "awg"))
 	{
 		strcpy(arg_buf, "[sample_size][offset][port#]");
@@ -2052,6 +2242,12 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Generate pulse signal with period, amplitude, duty cycle and port arguments.");
 		strcpy(arg_buf, "[period][duty cycle][amplitude][port#]");
 		strcpy(cmd_name, "pulse");
+	}
+	else if(!strcmp(function, "triangle"))
+	{
+		strcpy(usage, "Generate triangle signal with period and port arguments.");
+		strcpy(arg_buf, "[period][port#]");
+		strcpy(cmd_name, "triangle");
 	}
 	else if(!strcmp(function, "sin"))
 	{

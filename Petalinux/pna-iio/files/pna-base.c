@@ -33,8 +33,8 @@ struct iio_buffer *dds_buffer;
 struct iio_buffer *capture_buffer = NULL;
 
 const char *rx_freq_name, *tx_freq_name;
-int32_t rx1_buffer [2*MAX_FFT_LENGTH];
-int32_t rx2_buffer [2*MAX_FFT_LENGTH];
+int32_t rx1_buffer [4*MAX_FFT_LENGTH];
+int32_t rx2_buffer [4*MAX_FFT_LENGTH];
 int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
 int rx_indx=0;
 int fd_dma; //file descriptor DMA driver
@@ -43,15 +43,15 @@ unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMo
 {
 	// pna_printf("memcpy len = %d \r\n", byteToMove);
 
-	int write_return = 0;
+//	int write_return;
 	// pna_printf("fft_status#1 = %d\r\n", gpio_fft_status());
-	write_return = write(fd_dma, bufferIn, byteToMove);
+	/*write_return = */write(fd_dma, bufferIn, byteToMove);
 	// pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
 	// pna_printf("write_return=%d \r\n", write_return);
 
 	// pna_printf ("byteToMove = %d \r\n", byteToMove);
-	int read_return = 0;
-	read_return = read(fd_dma, bufferOut, byteToMove);
+//	int read_return = 0;
+	/*read_return = */read(fd_dma, bufferOut, byteToMove);
 	// pna_printf("fft_status#3 = %d\r\n", gpio_fft_status());
 	// pna_printf("read_return=%d \r\n", read_return);
 
@@ -112,12 +112,18 @@ double read_sampling_frequency(const struct iio_device *dev)
 
 		attr = iio_device_find_attr(trigger, "sampling_frequency");
 		if (!attr)
+		{
 			attr = iio_device_find_attr(trigger, "frequency");
+		}
 		if (attr)
+		{
 			ret = iio_device_attr_read(trigger, attr, buf,
 				sizeof(buf));
+		}
 		else
+		{
 			ret = -ENOENT;
+		}
 	}
 
 	if (ret > 0)
@@ -169,11 +175,11 @@ ssize_t demux_sample(const struct iio_channel *chn,
 void init_rx_channel(unsigned int fft_size)
 {
 	unsigned int i, j;
-	double freq;
+//	double freq;
 	struct iio_channel *chn;
 	struct extra_info *info;
 	struct extra_dev_info *dev_info;
-	long long rate;
+//	long long rate;
 
 	int num_devices = iio_context_get_devices_count(ctx);
 	//pna_printf("num_devices = %d \n", num_devices );
@@ -186,7 +192,7 @@ void init_rx_channel(unsigned int fft_size)
 		struct extra_dev_info *dev_info_temp = calloc(1, sizeof(*dev_info_temp));
 		iio_device_set_data(dev_temp, dev_info_temp);
 		dev_info_temp->input_device = is_input_device(dev_temp);
-		unsigned int sample_size_temp = iio_device_get_sample_size(dev_temp);
+//		unsigned int sample_size_temp = iio_device_get_sample_size(dev_temp);
 		// pna_printf("id=%d, sample_size_temp=%d, input_device=%d \n", i,
 				 // sample_size_temp, dev_info_temp->input_device);
 
@@ -201,7 +207,7 @@ void init_rx_channel(unsigned int fft_size)
 	// pna_printf("flag6\r\n");
 
 	dev_info = iio_device_get_data(dev);
-	unsigned int sampling_rate = 5000000;
+//	unsigned int sampling_rate = 5000000;
 	// pna_printf("Debug flag #1 \n");
 	// pna_printf("flag7\r\n");
 
@@ -274,7 +280,7 @@ void fill_rx_buffer(unsigned int fft_size)
 	{
 		// iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
 		rx_indx = 0;
-		int16_t *capture_pointer = (int *)iio_buffer_start(capture_buffer);
+		int16_t *capture_pointer = (int16_t *)iio_buffer_start(capture_buffer);
 		for(int i=0; i<fft_size; i++)
 		{
 			int16_t val_i1 = *(capture_pointer);
@@ -316,7 +322,7 @@ void fill_rx_buffer_single(unsigned int fft_size)
 	{
 		// iio_buffer_foreach_sample(capture_buffer, demux_sample, NULL);
 		rx_indx = 0;
-		int16_t *capture_pointer = (int *)iio_buffer_start(capture_buffer);
+		int16_t *capture_pointer = (int16_t *)iio_buffer_start(capture_buffer);
 		for(int i=0; i<fft_size; i++)
 		{
 			int16_t val_i = *(capture_pointer);
@@ -660,7 +666,7 @@ uint8_t get_gpio_emio(int base, int nchannel)
 	if(nchannel > GPIO_NCHANNEL_EMIO)
 	{
 		pna_printf("Error : base+nchannel is greater than total EMIO-nchannel\r\n");
-		return;
+		return 0;
 	}
 	return get_gpio_value(gpio_base_emio, nchannel);
 }

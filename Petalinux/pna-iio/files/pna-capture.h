@@ -1,11 +1,18 @@
 #ifndef __PNA_CAPTURE_H__
 #define __PNA_CAPTURE_H__
 
+#include <time.h>
+#include "pna-base.h"
+
 #define SWEEP_SPAN 10 // 10 if rxfsampling = 30M | 20 if rxfsampling = 60M
 #define SET_LO_DELAY 200
 
-#include <time.h>
-#include "pna-base.h"
+#define TRIG_POS_I   0
+#define TRIG_NEG_I   1
+#define TRIG_POS_Q  2
+#define TRIG_NEG_Q  3
+
+#define TRIG_HYS_BAND 60
 
 typedef struct _fastlock_profile
 {
@@ -38,6 +45,7 @@ void pna_adc(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq2(int32_t *data_in, unsigned int fft_size);
 void pna_adc_fft(int32_t *data_in, unsigned int fft_size);
+int32_t* pna_trig_adc(int32_t *data_in, unsigned int fft_size, int mode, int level);
 int pna_get_signal(char* awg_data, int samples);
 
 void pna_print_avg();

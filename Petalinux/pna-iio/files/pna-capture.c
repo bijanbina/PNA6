@@ -700,6 +700,58 @@ void calculate_flat_top_coeff(unsigned int fft_size)
 	}
 }
 
+int32_t* pna_trig_adc(int32_t *data_in, unsigned int fft_size, int mode, int level)
+{
+	int16_t buf16_i[2], buf16_q[2];
+	int32_t buf_i[2], buf_q[2];
+	int trigger_armed = 0;
+
+	buf16_i[0] = data_in[0] & 0x0000FFFF;
+	buf_i[0] = buf16_i[0];
+	buf16_q[0] = (data_in[0] >> 16) & 0x0000FFFF;
+	buf_q[0] = buf16_q[0];
+
+	for(int i=0; i<fft_size; i++)
+	{
+		buf16_i[1] = data_in[i+1] & 0x0000FFFF;
+		buf_i[1] = buf16_i[1];
+		buf16_q[1] = (data_in[i+1] >> 16) & 0x0000FFFF;
+		buf_q[1] = buf16_q[1];
+
+		if(!trigger_armed)
+		{
+			if(((mode == TRIG_POS_I) && (buf_i[0] < level - TRIG_HYS_BAND) && (buf_i[1] >= level - TRIG_HYS_BAND)) ||
+				((mode == TRIG_POS_Q) && (buf_q[0] < level - TRIG_HYS_BAND) && (buf_q[1] >= level - TRIG_HYS_BAND)) ||
+				((mode == TRIG_NEG_I) && (buf_i[0] > level + TRIG_HYS_BAND) && (buf_i[1] <= level + TRIG_HYS_BAND)) ||
+				((mode == TRIG_NEG_Q) && (buf_q[0] > level + TRIG_HYS_BAND) && (buf_q[1] <= level + TRIG_HYS_BAND)))
+			{
+				trigger_armed = 1;
+			}
+		}
+		if(trigger_armed)
+		{
+			if(((mode == TRIG_POS_I) && (buf_i[0] < level) && (buf_i[1] >= level)) ||
+				((mode == TRIG_POS_Q) && (buf_q[0] < level) && (buf_q[1] >= level)) ||
+				((mode == TRIG_NEG_I) && (buf_i[0] > level) && (buf_i[1] <= level)) ||
+				((mode == TRIG_NEG_Q) && (buf_q[0] > level) && (buf_q[1] <= level)))
+			{
+				return data_in + i;
+			}
+			if(((mode == TRIG_POS_I) && (buf_i[0] > level - TRIG_HYS_BAND) && (buf_i[1] <= level - TRIG_HYS_BAND)) ||
+				((mode == TRIG_POS_Q) && (buf_q[0] > level - TRIG_HYS_BAND) && (buf_q[1] <= level - TRIG_HYS_BAND)) ||
+				((mode == TRIG_NEG_I) && (buf_i[0] < level + TRIG_HYS_BAND) && (buf_i[1] >= level + TRIG_HYS_BAND)) ||
+				((mode == TRIG_NEG_Q) && (buf_q[0] < level + TRIG_HYS_BAND) && (buf_q[1] >= level + TRIG_HYS_BAND)))
+			{
+				trigger_armed = 0;
+			}
+		}
+
+		buf_i[0] = buf_i[1];
+		buf_q[0] = buf_q[1];
+	}
+	return data_in;
+}
+
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size)
 {
 	int output_size = 1024;
