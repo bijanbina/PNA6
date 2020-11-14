@@ -8,6 +8,5 @@ export META_ADI_PROJECT="/home/user/Projects/ADI/meta-adi"
 export PNA_LINUX_DIR="/home/user/Projects/ADI/pna-linux"
 export GIT_PETALINUX_PROJECT="fft_zc702_linux"
 export GIT_DDRLESS_PROJECT="$ADI_HDL_PROJECT/projects/pna6/ddrless_pna6/ddrless_pna6.sdk/pna6_standalone"
-export LINUX_KERNEL_DIR="/home/user/Projects/ADI/pna-linux"
 export GIT_SDK_PETALINUX_PROJECT="$ADI_HDL_PROJECT/projects/fft/zc702/fft_zc702.sdk/fft_zc702_linux"
 export RUN_PETALINUX_PROJECT=$GIT_PETALINUX_PROJECT

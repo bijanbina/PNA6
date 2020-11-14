@@ -1,5 +1,5 @@
 
-connect -url tcp:192.168.1.122:3122
+connect -url tcp:localhost:3121
 puts stderr "INFO: Reseting the FPGA..."
 targets
 target 2
