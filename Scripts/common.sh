@@ -78,7 +78,7 @@ function pna_modifyMeta()
 	sed -i 's|SRC_URI.*|SRC_URI = "git://'"$PNA_LINUX_DIR"';protocol=file"|' "$KERNEL_BB"
 
 	cd "$CURRENT_DIR"
-	cp "Meta-ADI/pl-delete-nodes-zynq-$1.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
+	cp "Meta-ADI/delete-node/pl-delete-nodes-zynq-$1.dtsi" "$META_ADI_PROJECT/meta-adi-xilinx/recipes-bsp/device-tree/files/"
 #	file "zynq-zc702-adv7511-ad9361-fmcomms2-3.dts" is not necessary
 }
 
@@ -194,8 +194,11 @@ function pna_createPetalinux()
 		fi
 	fi
 	
-	# add support for offline build
+	# set hostname to pna_linux (for terminal prompt)
 	LOCAL_CONF="$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/build/conf/local.conf"
+	echo 'hostname_pn-base-files = "pna_linux"' >> "$LOCAL_CONF"
+	
+	# add support for offline build
 	if [ "$response_offline" = "y" ]; then
 		echo 'DL_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/downloads"' >> "$LOCAL_CONF"
 		echo 'SSTATE_DIR = "'"$PETALINUX_INSTALL_DIR"'/mirror/sstate-cache"' >> "$LOCAL_CONF"
