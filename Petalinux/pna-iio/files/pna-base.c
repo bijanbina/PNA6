@@ -15,6 +15,7 @@ unsigned int dcxo_coarse_num, dcxo_fine_num;
 long long dds_alignment;
 
 char *rx_fastlock_store_name, *rx_fastlock_recall_name, *rx_fastlock_save_name, *rx_fastlock_load_name;
+char *tx_fastlock_store_name, *tx_fastlock_recall_name, *tx_fastlock_save_name, *tx_fastlock_load_name;
 // char *tx_fastlock_store_name, *tx_fastlock_recall_name;
 
 struct iio_context *ctx = NULL;
@@ -38,6 +39,7 @@ int32_t rx2_buffer [4*MAX_FFT_LENGTH];
 int8_t dac_buf[8*MAX_FFT_LENGTH]; // I1-Q1-I2-Q2
 int rx_indx=0;
 int fd_dma; //file descriptor DMA driver
+int board_id=0;
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMove)
 {
@@ -530,6 +532,23 @@ void fmcomms2_init(void)
 	else
 		tx_freq_name = "TX_LO_frequency";
 
+	if (iio_channel_find_attr(tx_alt_dev_ch1, "fastlock_store"))
+		tx_fastlock_store_name = "fastlock_store";
+	else
+		tx_fastlock_store_name = "RX_LO_fastlock_store";
+	if (iio_channel_find_attr(tx_alt_dev_ch1, "fastlock_recall"))
+		tx_fastlock_recall_name = "fastlock_recall";
+	else
+		tx_fastlock_recall_name = "RX_LO_fastlock_recall";
+	if (iio_channel_find_attr(tx_alt_dev_ch1, "fastlock_save"))
+		tx_fastlock_save_name = "fastlock_save";
+	else
+		tx_fastlock_save_name = "RX_LO_fastlock_save";
+	if (iio_channel_find_attr(tx_alt_dev_ch1, "fastlock_load"))
+		tx_fastlock_load_name = "fastlock_load";
+	else
+		tx_fastlock_load_name = "RX_LO_fastlock_load";
+
 	dds_ch0 = iio_device_find_channel(dds, "voltage0", true);
 	if (iio_channel_find_attr(dds_ch0, "sampling_frequency_available"))
 	{
@@ -718,31 +737,70 @@ void init_all_gpio()
 	set_gpio_direction(gpio_base_status, nchannel_status, "in");
 }
 
-ssize_t fastlock_store()
+ssize_t fastlock_store(int direction)
 {
-	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_store_name, 0);
+	if(direction == __RX)
+	{
+		return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_store_name, 0);
+	}
+	else if(direction == __TX)
+	{
+		return iio_channel_attr_write_longlong(tx_alt_dev_ch1, tx_fastlock_store_name, 0);
+	}
+	pna_printf("Error with direction when setting fast-lock store name\r\n");
+	return -1;
 }
 
-ssize_t fastlock_read_cal(char *data)
+ssize_t fastlock_read_cal(int direction, char *data)
 {
 	char data_temp[66]; // 66 came from adi-iio-oscope codes
-	ssize_t ret = iio_channel_attr_read(tx_alt_dev_ch0, rx_fastlock_save_name, data_temp, sizeof(data_temp));
+	ssize_t ret=0;
+	if(direction == __RX)
+	{
+		ret = iio_channel_attr_read(tx_alt_dev_ch0, rx_fastlock_save_name, data_temp, sizeof(data_temp));
+	}
+	else if(direction == __TX)
+	{
+		ret = iio_channel_attr_read(tx_alt_dev_ch1, tx_fastlock_save_name, data_temp, sizeof(data_temp));
+	}
+	else
+	{
+		pna_printf("Error with direction when setting fast-lock read cal\r\n");
+		return -1;
+	}
 	strcpy(data, data_temp);
 	return ret;
 }
 
-ssize_t fastlock_load(char* data)
+ssize_t fastlock_load(int direction, char* data)
 {
 	// pna_printf("fastlock_load function : %s\r\n", data);
-	return iio_channel_attr_write(tx_alt_dev_ch0, rx_fastlock_load_name, data);
+	if(direction == __RX)
+	{
+		return iio_channel_attr_write(tx_alt_dev_ch0, rx_fastlock_load_name, data);
+	}
+	else if(direction == __TX)
+	{
+		return iio_channel_attr_write(tx_alt_dev_ch1, tx_fastlock_load_name, data);
+	}
+	pna_printf("Error with direction when setting fast-lock load name\r\n");
+	return -1;
 }
 
-ssize_t fastlock_recall(int slot)
+ssize_t fastlock_recall(int direction, int slot)
 {
-	return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_recall_name, slot);
+	if(direction == __RX)
+	{
+		return iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_fastlock_recall_name, slot);
+	}
+	else if(direction == __TX)
+	{
+		return iio_channel_attr_write_longlong(tx_alt_dev_ch1, tx_fastlock_recall_name, slot);
+	}
+	pna_printf("Error with direction when setting fast-lock recall\r\n");
+	return -1;
 }
 
-#ifdef ETTUS_E310
 bool get_tx_switches()
 {
 	int8_t tx_switch = get_gpio_emio(60, 2);
@@ -823,7 +881,6 @@ void set_rx_switches(long long freq)
 		set_port(__RX, "A_BALANCED");
 	}
 }
-#endif //ETTUS_E310
 
 void set_bandwidth(int direction, long long bandwidth)
 {
@@ -858,6 +915,41 @@ long long get_bandwidth(int direction)
 		bandwidth = -1;
 	}
 	return bandwidth;
+}
+
+void set_powerdown(int direction, long long value)
+{
+	if(direction == __RX)
+	{
+		iio_channel_attr_write_longlong(tx_alt_dev_ch0, "powerdown", value);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_write_longlong(tx_alt_dev_ch1, "powerdown", value);
+	}
+	else
+	{
+		pna_printf("Error with direction when setting power down\r\n");
+	}
+}
+
+long long get_powerdown(int direction)
+{
+	long long value;
+	if(direction == __RX)
+	{
+		iio_channel_attr_read_longlong(tx_alt_dev_ch0, "powerdown", &value);
+	}
+	else if(direction == __TX)
+	{
+		iio_channel_attr_read_longlong(tx_alt_dev_ch1, "powerdown", &value);
+	}
+	else
+	{
+		pna_printf("Error with direction when reading power down\r\n");
+		value = -1L;
+	}
+	return value;
 }
 
 void set_vga_gain(int channel_num, long long vga_gain)
@@ -999,9 +1091,10 @@ void set_lo_freq(int direction, long long freq)
 	if(direction == __RX)
 	{
 		iio_channel_attr_write_longlong(tx_alt_dev_ch0, rx_freq_name, freq);
-#ifdef ETTUS_E310
-		set_rx_switches(freq);
-#endif
+		if(board_id == ETTUS_E310)
+		{
+			set_rx_switches(freq);
+		}
 	}
 	else if(direction == __TX)
 	{
@@ -1148,4 +1241,36 @@ bool get_quad_track()
 	bool quad_track;
 	iio_channel_attr_read_bool(rx_dev_ch0, "rf_dc_offset_tracking_en", &quad_track);
 	return quad_track;
+}
+
+int get_board_id()
+{
+	return board_id;
+}
+
+void narrow_loop_filter()
+{
+	long long address = 0x29A; // Tx fast lock setup[7:5] - open[4] (0) - Tx fast lock load synth[3] - Tx fast lock profile init[2] - Tx fast lock profile pin select[1] - Tx fast lock mode enable[0]
+	char value[3] = "00";
+	write_reg_ad9361(address, value);
+
+	address = 0x27E; // loop filter C2[7:4] - loop filter C1[3:0]
+	strcpy(value, "00");
+	write_reg_ad9361(address, value);
+
+	address = 0x27F; // loop filter R1[7:4] - loop filter C3[3:0]
+	strcpy(value, "F0");
+	write_reg_ad9361(address, value);
+
+	address = 0x280; // loop filter bypass R3[7] - loop filter bypass R1[6] - loop filter bypass C2[5] - loop filter bypass C1[4] - loop filter R3[3:0]
+	strcpy(value, "B0");
+	write_reg_ad9361(address, value);
+
+	address = 0x279; // init ALC value[7:4] (default value is 8) - VCO varactor[3:0]
+	strcpy(value, "8F");
+	write_reg_ad9361(address, value);
+
+	address = 0x291; // open[7:4] (0) - VCO varactor reference[3:0]
+	strcpy(value, "00");
+	write_reg_ad9361(address, value);
 }

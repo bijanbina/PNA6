@@ -123,7 +123,7 @@ while true; do
 		echo "------------Create Petalinux project---------------"
 		cd "$PETALINUX_INSTALL_DIR"
 		source settings.sh
-		pna_createPetalinux "usrpe31x/usrpe31x.sdk"
+		pna_createPetalinux "usrpe31x/usrpe31x.sdk" "R310"
 		# ettus/e310/ettus_e310.sdk
 	fi
 	

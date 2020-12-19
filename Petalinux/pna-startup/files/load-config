@@ -25,10 +25,14 @@ mkdir -p ${D}
 # mount the sd card
 mount /dev/mmcblk0p1 ${S}
 
+# Load board name file
+mkdir /etc/pna_iio
+printf e310 > /etc/pna_iio/board_name
+
 # Load ip file
 if [ -f ${S}/pna_ip ]; then
     echo "Loading ip from SD"
-    cp -v ${S}/pna_ip /etc/pna_ip
+    cp -v ${S}/pna_ip /etc/pna_iio/pna_ip
 fi
 
 if [ -f ${S}/${C} ]; then
@@ -45,14 +49,14 @@ ifconfig eth0 down
 ifconfig eth0 hw ether 12:13:14:15:16:17
 ifconfig eth0 up
 
-if [ -f /etc/pna_ip ]; then
+if [ -f /etc/pna_iio/pna_ip ]; then
 	echo "pna-startup: applying pna_ip ..."
-	PNA_IP=$(cat /etc/pna_ip)
+	PNA_IP=$(cat /etc/pna_iio/pna_ip)
     sleep 1
     ifconfig eth0 $PNA_IP
 fi
 
-if [ -f /etc/pna_ip ]; then
+if [ -f ${S}/fft_zc702_linux.elf ]; then
 	echo "pna-startup: adding elf file ..."
 	cp -v "${S}/fft_zc702_linux.elf" "/home/root/fft_zc702_linux.elf"
 fi

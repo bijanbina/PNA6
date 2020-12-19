@@ -27,12 +27,15 @@ while true; do
 	if [ "$ARG1" = "p" ] || [ "$ARG1" = "pna6" ] || [ "$ARG1" = "pna" ]; then
 		PROJECT_NAME="pna6"
 		RUN_PETALINUX_PROJECT="fft_zc702_linux"
+		BOARD_NAME="PNA6"
 	elif [ "$ARG1" = "z" ] || [ "$ARG1" = "zc702" ] || [ "$ARG1" = "zc702-fft" ]; then
 		PROJECT_NAME="zc702-fft"
 		RUN_PETALINUX_PROJECT="fft_zc702_linux"
+		BOARD_NAME="ZC702"
 	elif [ "$ARG1" = "e" ] || [ "$ARG1" = "e310" ] || [ "$ARG1" = "ettus" ]; then
 		PROJECT_NAME="e310"
 		RUN_PETALINUX_PROJECT="fft_usrp_linux"
+		BOARD_NAME="R310"
 	else
 		echo "Project Name is not valid, try again."
 		ARG1=""
@@ -44,10 +47,13 @@ while true; do
 	sed -i 's/^KERNEL_DTB = .*/KERNEL_DTB = "zynq-'"$PROJECT_NAME"'"/' "$DEVICE_TREE_BB"
 	KERNEL_BB="$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 	sed -i 's/^KBUILD_DEFCONFIG_zynq = .*/KBUILD_DEFCONFIG_zynq = "zynq_'"$NODASH_NAME"'_defconfig"/' "$KERNEL_BB"
+	STARTUP_SH="$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/files/load-config"
+	sed -i "s|^.*/etc/pna_iio/board_name$|printf $BOARD_NAME > /etc/pna_iio/board_name|" "$STARTUP_SH"
 	break
 done
 
-cd "$RUN_PETALINUX_PROJECT"
+cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
+echo "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 
 while true; do
 	echo "-------------------------------------"
@@ -108,36 +114,38 @@ while true; do
 		xsdb -eval "source zc702.tcl"
 	fi
 	if [[ "$response" == *"7"* ]]; then
+		echo "------------------Make .BIN files for SD-------------------"
 		petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
 		
-		echo "------------------Make .BIN files for SD-------------------"
-		printf "Enter SD location to copy image: "
-		read sd_loc_response
-		
-		if [ -z "$sd_loc_response" ]; then
-			echo "response was empty, image created but not copy to SD"
-			echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
-			echo "copy elf file from SDK/Debug and also copy pna_ip from"
-			echo "github/petalinux/pna-startup/files or from "
-			echo "petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
-		else
-			if [ -d "$sd_loc_response" ]; then
+		sd_loc_response=$(zenity --file-selection --directory --title="Select SD-Card directory")
+		case $? in
+			0)
 				rm "$sd_loc_response/BOOT.BIN"
 				rm "$sd_loc_response/image.ub"
 				rm "$sd_loc_response/pna_ip"
 				rm "$sd_loc_response/fft_zc702_linux.elf"
+				rm "$sd_loc_response/tx_filter.ftr"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/BOOT.BIN" "$sd_loc_response"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/image.ub" "$sd_loc_response"
 				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna_ip" "$sd_loc_response"
-				cp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" "$sd_loc_response"
-			else
-				echo "SD location not found, image created but not copy to SD"
-				echo "Be careful to copy BOOT.BIN & image.ub from petalinux/images,"
-				echo "copy elf file from SDK/Debug and also copy pna_ip from"
-				echo "github/petalinux/pna-startup/files or from "
-				echo "petalinux/project-spec/meta-user/recipes-apps/pna-startup/files"
-			fi
-		fi
+				cp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" "$sd_loc_response"
+				cp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" "$sd_loc_response";;
+			1)
+				echo "response is empty, image created but not copied to SD"
+				echo "Be careful to copy:"
+				echo "- BOOT.BIN & image.ub in petalinux/images,"
+				echo "- elf in SDK/Debug"
+				echo "- tx_filter in github/petalinux/pna-iio/files"
+				echo "- pna_ip in github/petalinux/pna-startup/files";;
+		
+		   -1)
+				echo "An unexpected error has occurred, image created but not copied to SD"
+				echo "Be careful to copy:"
+				echo "- BOOT.BIN & image.ub in petalinux/images,"
+				echo "- elf in SDK/Debug"
+				echo "- tx_filter in github/petalinux/pna-iio/files"
+				echo "- pna_ip in github/petalinux/pna-startup/files";;
+		esac
 	fi
 	if [[ "$response" == *"8"* ]]; then
 		PNA_IP='192.168.1.180'
@@ -146,6 +154,8 @@ while true; do
 		PNA_PASS="root"
 		sshpass -p $PNA_PASS ssh root@$PNA_IP "mount /dev/mmcblk0p1 $PNA_SDCARD"
 		sshpass -p $PNA_PASS scp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" root@$PNA_IP:$PNA_SDCARD
+		sshpass -p $PNA_PASS scp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_SDCARD
+		sshpass -p $PNA_PASS scp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_HOME
 		sshpass -p $PNA_PASS ssh root@$PNA_IP "cp $PNA_SDCARD/fft_zc702_linux.elf $PNA_HOME"
 		sshpass -p $PNA_PASS ssh root@$PNA_IP "umount $PNA_SDCARD"
 	fi

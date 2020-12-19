@@ -32,12 +32,35 @@ int load_dac_max()
 	{
 		return -1;
 	}
-	double dac_max = atof(dac_max_str);
+	int dac_max = atoi(dac_max_str);
 	if(dac_max <= DAC_MAX_VAL && dac_max >= 0 )
 	{
 		return dac_max;
 	}
 	pna_printf("no valid dac_max written in file, default value set to DAC_MAX_VAL\n");
+	return -1;
+}
+
+int load_board_id()
+{
+	char board_name_filename[20];
+	char board_name_str[50];
+
+	sprintf(board_name_filename, "board_name");
+
+	if(load_from_file(board_name_filename, board_name_str) != 0)
+	{
+		return -1;
+	}
+	if(!strcmp(board_name_str, ZC702_NAME))
+	{
+		return XILINX_ZC702;
+	}
+	else if(!strcmp(board_name_str, E310_NAME))
+	{
+		return ETTUS_E310;
+	}
+	pna_printf("no valid board name written in file, default value set to R310\n");
 	return -1;
 }
 
@@ -111,8 +134,7 @@ int load_fir_filter(const char *file_name, struct iio_device *dev1)
 		len = fread(buf, 1, len, f);
 		fclose(f);
 
-		ret = iio_device_attr_write_raw(dev1,
-				"filter_fir_config", buf, len);
+		ret = iio_device_attr_write_raw(dev1, "filter_fir_config", buf, len);
 		free(buf);
 	}
 	else

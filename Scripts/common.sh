@@ -211,8 +211,20 @@ function pna_createPetalinux()
 			cp -R Meta-ADI/jesd-status "$META_ADI_PROJECT/meta-adi-core/recipes-core/"
 		fi
 	fi
+	
+	# remove autoboot wait for key
+	PLATFORM_H="$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-bsp/u-boot/files/platform-top.h"
+	CHECK_PRE=$(grep 'define CONFIG_BOOTDELAY -2' "$PLATFORM_H")
+	if [ -z "$CHECK_PRE" ]; then
+		echo "#define CONFIG_BAUDRATE 921600" >> $PLATFORM_H
+		echo "#define CONFIG_BOOTDELAY -2" >> $PLATFORM_H
+	fi
+	
+	STARTUP_SH="$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/files/load-config"
+	sed -i "s|^.*/etc/pna_iio/pna_board_name$|printf $2 > /etc/pna_iio/board_name|" "$STARTUP_SH"
 
 	cd "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT"
+	
 	petalinux-config --oldconfig
 	petalinux-build
 }

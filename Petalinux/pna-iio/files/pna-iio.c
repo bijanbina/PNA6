@@ -20,6 +20,7 @@ extern int32_t rx2_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully r
 int dds_sample_size;
 extern int8_t dac_buf[8*MAX_FFT_LENGTH];
 extern int fd_dma;
+extern int board_id;
 
 void print_error(char *function, int error_code);
 
@@ -62,6 +63,7 @@ int main (int argc, char **argv)
 	char* token;
 	bool is_profile_empty = true;
 	bool window_en = true;
+	int is_2tx_2rx = 0;
 	double sig_pow[2];
 
 	// calculating sweep time
@@ -70,6 +72,11 @@ int main (int argc, char **argv)
 
 	int fft_size, dac_max; //16bit(I)+16bit(Q) = 32bit data
 
+	board_id = load_board_id();
+	if(board_id < 0)
+	{
+		board_id = ETTUS_E310;
+	}
 	fft_size = load_rx_sample_size();
 	if(fft_size <= 0)
 	{
@@ -139,17 +146,32 @@ int main (int argc, char **argv)
 		return 0;
 	}
 	
+	struct iio_channel *ch1=NULL;
+	ch1 = iio_device_find_channel(dev, "voltage1", true);
+	if(ch1 != NULL)
+	{
+		is_2tx_2rx = 1;
+		pna_printf("2rx-2tx");
+	}
+	else
+	{
+		is_2tx_2rx = 0;
+		pna_printf("1rx-1tx");
+	}
+
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
-#ifdef ETTUS_E310
-	set_rx_switches(rx_freq);
-	// set_tx_switches(false);
-#endif
+	if(board_id == ETTUS_E310)
+	{
+		set_rx_switches(rx_freq);
+	}
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
 
 	unsigned char *awg_data = (unsigned char *)malloc(MAX_FFT_LENGTH * sizeof(unsigned char));
+
+	fastlock_profile tx_default_profile;
 
 	gpio_fft(256);
 	gpio_fft_reset();
@@ -159,17 +181,21 @@ int main (int argc, char **argv)
 	{
 		return -1;
 	}
+
 	sig_pow[0] = load_sig_pow(1);
 	if(sig_pow[0] > 0.0)
 	{
 		sig_pow[0] = get_vga_gain(1);
 		save_sig_pow(sig_pow[0], 1);
 	}
-	sig_pow[1] = load_sig_pow(2);
-	if(sig_pow[1] > 0.0)
+	if(is_2tx_2rx)
 	{
-		sig_pow[1] = get_vga_gain(2);
-		save_sig_pow(sig_pow[1], 2);
+		sig_pow[1] = load_sig_pow(2);
+		if(sig_pow[1] > 0.0)
+		{
+			sig_pow[1] = get_vga_gain(2);
+			save_sig_pow(sig_pow[1], 2);
+		}
 	}
 	pna_printf(START_OF_PACKET "\r\n"); // :D
 	while(1)
@@ -220,23 +246,34 @@ int main (int argc, char **argv)
 				pna_printf("rx_bandwidth: %lld\r\n", bandwidth);
 			}
 		}
+		else if( strcmp(token, "is_dual")==0 )
+		{
+			pna_printf("is_dual: %d\r\n", is_2tx_2rx);
+		}
 		else if( strcmp(token, "sig_rf_out") == 0)
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-#ifdef ETTUS_E310
-				pna_printf("sig_rf_out: %d\r\n", get_tx_switches());
-#else
-				pna_printf("sig_rf_out: 1\r\n");
-#endif
+				long long powerdown_en = get_powerdown(__TX);
+				if(board_id == ETTUS_E310)
+				{
+					bool switch_en = get_tx_switches(board_id);
+					pna_printf("sig_rf_out: %d\r\n", (powerdown_en==0L && switch_en));
+				}
+				else
+				{
+					pna_printf("sig_rf_out: %d\r\n", (powerdown_en==0L));
+				}
 			}
 			else
 			{
 				bool enable = atoi(token);
-#ifdef ETTUS_E310
-				set_tx_switches(enable);
-#endif
+				if(board_id == ETTUS_E310)
+				{
+					set_tx_switches(enable);
+				}
+				set_powerdown(__TX, (long long)(!enable));
 				pna_printf("sig_rf_out: %d\r\n", enable);
 			}
 		}
@@ -391,9 +428,12 @@ int main (int argc, char **argv)
 				continue;
 			}
 			token = strtok(NULL, delim);
-#ifdef ETTUS_E310
-			channel_num = 1;
-#endif
+
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 1;
+			}
+
 			if(token==NULL)
 			{
 				pna_printf("vga_gain: %d, %lld\r\n", channel_num, get_vga_gain(channel_num));
@@ -421,9 +461,12 @@ int main (int argc, char **argv)
 				continue;
 			}
 			token = strtok(NULL, delim);
-#ifdef ETTUS_E310
+
+			if(is_2tx_2rx == 0)
+			{
 				channel_num = 1;
-#endif
+			}
+
 			if(token==NULL)
 			{
 				pna_printf("lna_gain: %d, %lld\r\n", channel_num, get_lna_gain(channel_num));
@@ -453,9 +496,12 @@ int main (int argc, char **argv)
 			}
 			token = strtok(NULL, delim);
 			char buf[1024];
-#ifdef ETTUS_E310
+
+			if(is_2tx_2rx == 0)
+			{
 				channel_num = 1;
-#endif
+			}
+
 			if(token==NULL)
 			{
 				get_gain_control_mode(channel_num, buf);
@@ -789,22 +835,21 @@ int main (int argc, char **argv)
 			{
 				compression_enable = atoi(token);
 			}
-#ifdef ETTUS_E310
-			fill_rx_buffer_single(fft_size);
-#else
-			fill_rx_buffer(fft_size);
-#endif
+			if(is_2tx_2rx == 0)
+			{
+				fill_rx_buffer_single(fft_size);
+			}
+			else
+			{
+				fill_rx_buffer(fft_size);
+			}
 			int uart_size;
 			int32_t *adc_data;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 
-			if(channel_num)
+			if(channel_num && is_2tx_2rx)
 			{
-#ifdef ETTUS_E310
-				adc_data = rx1_buffer;
-#else
 				adc_data = rx2_buffer;
-#endif
 			}
 			else
 			{
@@ -854,22 +899,21 @@ int main (int argc, char **argv)
 			{
 				compression_enable = atoi(token);
 			}
-#ifdef ETTUS_E310
-			fill_rx_buffer_single(fft_size);
-#else
-			fill_rx_buffer(fft_size);
-#endif
+			if(is_2tx_2rx == 0)
+			{
+				fill_rx_buffer_single(fft_size);
+			}
+			else
+			{
+				fill_rx_buffer(fft_size);
+			}
 			int uart_size;
 			int32_t *adc_data;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
 
-			if(channel_num)
+			if(channel_num && is_2tx_2rx)
 			{
-#ifdef ETTUS_E310
-				adc_data = rx1_buffer;
-#else
 				adc_data = rx2_buffer;
-#endif
 			}
 			else
 			{
@@ -912,7 +956,7 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-			if(channel_num)
+			if(channel_num && is_2tx_2rx)
 			{
 				pna_adc_fft(rx2_buffer, fft_size);
 			}
@@ -998,20 +1042,19 @@ int main (int argc, char **argv)
 			// pna_printf("span_num: %d, span_mhz: %lf, rx_sampling_frequency_mhz: %lf\r\n"
 			// 		"span_count: %d, spur_count: %lf\r\n", span_num, span_mhz, 
 			// 		rx_sampling_frequency_mhz, span_count, spur_count);
+			int32_t *adc_data;
+			if(channel_num && is_2tx_2rx)
+			{
+				adc_data = rx2_buffer;
+			}
+			else
+			{
+				adc_data = rx1_buffer;
+			}
 			for(int i=0; i<span_num/2; i++)
 			{
-				if(channel_num)
-				{
-#ifdef ETTUS_E310
-					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i, window_en);
-#else
-					spectrum = pna_fft_dcfixed2(rx2_buffer, fft_size, i, window_en);
-#endif
-				}
-				else
-				{
-					spectrum = pna_fft_dcfixed2(rx1_buffer, fft_size, i, window_en);
-				}
+				spectrum = pna_fft_dcfixed2(adc_data, fft_size, i, window_en);
+
 				if(spectrum == NULL)
 				{
 					free(sweep_buf);
@@ -1193,13 +1236,9 @@ int main (int argc, char **argv)
 
 			gettimeofday(&tv1, NULL);
 
-			if(channel_num)
+			if(channel_num && is_2tx_2rx)
 			{
-#ifdef ETTUS_E310
-				spectrum = pna_fft(rx1_buffer, removed_span, fft_size, window_en);
-#else
 				spectrum = pna_fft(rx2_buffer, removed_span, fft_size, window_en);
-#endif
 			}
 			else
 			{
@@ -1331,6 +1370,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			double dig_pow, dig_amp;
 			if(sig_pow[channel_num] + sig_offset > -70.0)
 			{
@@ -1381,17 +1424,10 @@ int main (int argc, char **argv)
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
 
-#ifdef ETTUS_E310
-					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
-#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
-#endif
 				}
 			}
 			create_dds_buffer(dac_buf, period_num*period_sample_count);
@@ -1461,6 +1497,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			double dig_pow, dig_amp;
 			if(sig_pow[channel_num] + sig_offset > -70.0)
 			{
@@ -1525,17 +1565,10 @@ int main (int argc, char **argv)
 				int16_t pulse_int = (int16_t)(pulse);
 				int16_t p_hilbert_int = (int16_t)(p_hilbert);
 
-#ifdef ETTUS_E310
-				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
-				dac_buf[i*s_size+2] = (int8_t)(p_hilbert_int%256);   // LSB
-				dac_buf[i*s_size+3] = (int8_t)(p_hilbert_int/256);     // MSB
-#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(p_hilbert_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(p_hilbert_int/256);     // MSB
-#endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("[I/Q/SSB]: %d | [period]: %d | [duty-cycle]: %.2lf | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
@@ -1571,8 +1604,11 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
-
-			double triangle, triangle_h;
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
+			double triangle;
 			int amplitude_int = dac_max/2;
 			int period_samples = dds_sample_size/period_num;
 
@@ -1613,17 +1649,10 @@ int main (int argc, char **argv)
 
 				int16_t triangle_int = (int16_t)(triangle);
 
-#ifdef ETTUS_E310
-				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
-				dac_buf[i*s_size+2] = (int8_t)(p_hilbert_int%256);   // LSB
-				dac_buf[i*s_size+3] = (int8_t)(p_hilbert_int/256);     // MSB
-#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(triangle_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(triangle_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = 0;   // LSB
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
-#endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("[period]: %d | [port]: %d\r\n", period_num, channel_num, sig_pow[channel_num]);
@@ -1675,6 +1704,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			double dig_pow, dig_amp;
 			if(sig_pow[channel_num] + sig_offset > -70.0)
 			{
@@ -1706,8 +1739,6 @@ int main (int argc, char **argv)
 				pna_read(awg_data + i, step_receive);
 			}
 
-//			printf("data: %s\r\n", awg_data);
-//			pna_printf("len_awg=%d, total_len=%d, s_size=%d\n" , len_awg, total_len, s_size);
 			for(int i=0; i<len_awg; i++) // 2 for [I/Q]
 			{
 				char number_str[5];
@@ -1726,21 +1757,10 @@ int main (int argc, char **argv)
 				number_float_q = number_float_q*dig_amp;
 				number_q = (int)floor(number_float_q);
 				int16_t number16_q = (int16_t)(number_q*16);
-//				if(i<200 || i>900)
-//				{
-//					pna_printf("%d) I: %4d Q: %4d\n", i, number16_i, number16_q);
-//				}
-#ifdef ETTUS_E310
-				dac_buf[i*s_size] = (int8_t)(number16_i%256);   // LSB
-				dac_buf[i*s_size+1] = (int8_t)(number16_i/256);      // MSB
-				dac_buf[i*s_size+2] = (int8_t)(number16_q%256);   // LSB
-				dac_buf[i*s_size+3] = (int8_t)(number16_q/256);     // MSB
-#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(number16_i%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(number16_i/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(number16_q%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(number16_q/256);     // MSB
-#endif
 			}
 			dds_sample_size = len_awg;
 
@@ -1787,7 +1807,8 @@ int main (int argc, char **argv)
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 0;
+				print_error("pulse", ERROR_ARG);
+				continue;
 			}
 			else
 			{
@@ -1797,6 +1818,10 @@ int main (int argc, char **argv)
 					print_error("pulse", ERROR_CH);
 					continue;
 				}
+			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
 			}
 			int amplitude_int =dig_amp*dac_max/2;
 			int period_sample_count = dds_sample_size/period_num;
@@ -1816,17 +1841,10 @@ int main (int argc, char **argv)
 					}
 					int16_t pulse_int = (int16_t)(pulse);
 
-#ifdef ETTUS_E310
-					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(pulse_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(pulse_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+2] = 0;     // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+3] = 0;     // MSB
-#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] =  (int8_t)(pulse_int%256);     // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] =  (int8_t)(pulse_int/256);     // MSB
-#endif
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
 				}
 			}
 			create_dds_buffer(dac_buf, period_num*period_sample_count);
@@ -1874,6 +1892,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			int amplitude_int = dig_amp*dac_max/2;
 			int period_sample_count = dds_sample_size/period_num;
 
@@ -1888,17 +1910,10 @@ int main (int argc, char **argv)
 					cosinous = cos(x)*amplitude_int;
 					int16_t sin_int = (int16_t)(sinous);
 					int16_t cos_int = (int16_t)(cosinous);
-#ifdef ETTUS_E310
-					dac_buf[(j+i*period_sample_count)*s_size] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+3] = (int8_t)(cos_int/256);     // MSB
-#else
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
 					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(sin_int/256);     // MSB
-#endif
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
+					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
 				}
 			}
 			create_dds_buffer(dac_buf, period_sample_count*period_num);
@@ -1919,6 +1934,7 @@ int main (int argc, char **argv)
 			{
 				amplitude_i = atof(token);
 			}
+			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				print_error("DC", ERROR_ARG);
@@ -1928,9 +1944,11 @@ int main (int argc, char **argv)
 			{
 				amplitude_q = atof(token);
 			}
+			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				channel_num = 0;
+				print_error("DC", ERROR_CH);
+				continue;
 			}
 			else
 			{
@@ -1941,6 +1959,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			int amplitude_i_int = amplitude_i*dac_max/2;
 			int amplitude_q_int = amplitude_q*dac_max/2;
 
@@ -1950,21 +1972,95 @@ int main (int argc, char **argv)
 				int16_t inphase_int = (int16_t)(inphase);
 				double quad = amplitude_q_int;
 				int16_t quad_int = (int16_t)(quad);
-#ifdef ETTUS_E310
-				dac_buf[i*s_size] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+1] = (int8_t)(pulse_int/256);     // MSB
-				dac_buf[i*s_size+2] = 0;     // MSB
-				dac_buf[i*s_size+3] = 0;     // MSB
-#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(inphase_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(inphase_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(quad_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(quad_int/256);     // MSB
-#endif
 			}
 			create_dds_buffer(dac_buf, dds_sample_size);
 			pna_printf("[port]: %d | [amp_i]: %2.2lf | [amp_q]: %2.2lf\r\n",
 																	channel_num, amplitude_i, amplitude_q);
+		}
+		else if (strcmp(token, "sin_dc")==0 )
+		{
+			int s_size = iio_device_get_sample_size(iio_dac);
+			int channel_num;
+			double sig_offset;
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("sin DC", ERROR_ARG);
+				continue;
+			}
+			else
+			{
+				sig_offset = atof(token);
+			}
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("sin DC", ERROR_CH);
+				continue;
+			}
+			else
+			{
+				channel_num = atoi(token) - 1;
+				if(!(channel_num == 1 || channel_num == 0))
+				{
+					print_error("sin DC", ERROR_CH);
+					continue;
+				}
+			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
+
+			double dig_pow, dig_amp;
+			if(sig_pow[channel_num] + sig_offset > -70.0)
+			{
+				long long vga_part = (long long)ceil(sig_pow[channel_num] + sig_offset);
+				if(vga_part < -70)
+				{
+					vga_part = -70;
+					pna_printf("vga set to -70, cannot set values less than -70\n");
+				}
+				else if(vga_part > 0)
+				{
+					pna_printf("vga set to 0, cannot set values more than 0\n");
+					vga_part = 0.0;
+				}
+				set_vga_gain(channel_num+1, vga_part);
+				dig_pow =sig_pow[channel_num] + sig_offset - ceil(sig_pow[channel_num] + sig_offset);
+//				pna_printf("1) vga: %lld , dig: %lf, sig: %lf\n",vga_part, dig_pow, sig_pow[channel_num]);
+			}
+			else
+			{
+				set_vga_gain(channel_num+1, -70);
+				dig_pow = sig_pow[channel_num] + sig_offset + 70.0;
+//				pna_printf("2) vga: -70 , dig: %lf, sig: %lf\n",dig_pow, sig_pow[channel_num]);
+			}
+			dig_amp = pow(10.0, dig_pow / 20.0);
+			token = strtok(NULL, delim);
+			if(token != NULL)
+			{
+				dig_amp = atof(token);
+			}
+
+			int amplitude_int = dig_amp*dac_max/2;
+
+			for (int i=0 ; i<dds_sample_size ; i++)
+			{
+				double inphase = amplitude_int;
+				int16_t inphase_int = (int16_t)(inphase);
+				dac_buf[i*s_size+channel_num*4] = (int8_t)(inphase_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(inphase_int/256);     // MSB
+				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(inphase_int%256);   // LSB
+				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(inphase_int/256);     // MSB
+			}
+			create_dds_buffer(dac_buf, dds_sample_size);
+			pna_printf("[port]: %d | [dig_amp]: %2.2lf | [dig_pow]: %2.2lf\r\n",
+																	channel_num, dig_amp, dig_pow);
 		}
 		else if (strcmp(token, "sinc")==0 )
 		{
@@ -1996,6 +2092,10 @@ int main (int argc, char **argv)
 					continue;
 				}
 			}
+			if(is_2tx_2rx == 0)
+			{
+				channel_num = 0;
+			}
 			for (int i=0 ; i<dds_sample_size ; i++)
 			{
 				double x = i-dds_sample_size/2;
@@ -2009,18 +2109,10 @@ int main (int argc, char **argv)
 					sinc = sin(x/dds_freq)/(x/dds_freq)*dac_max;
 				}
 				int16_t sinc_int = (int16_t)(sinc);
-
-#ifdef ETTUS_E310
-				dac_buf[i*s_size] = (int8_t)(sinc_int%256);   // LSB
-				dac_buf[i*s_size+1] = (int8_t)(sinc_int/256);     // MSB
-				dac_buf[i*s_size+2] = 0;     // MSB
-				dac_buf[i*s_size+3] = 0;     // MSB
-#else
 				dac_buf[i*s_size+channel_num*4] = (int8_t)(sinc_int%256);   // LSB
 				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(sinc_int/256);     // MSB
 				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
 				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
-#endif
 				// pna_printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
 			}
 			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;
@@ -2092,9 +2184,82 @@ int main (int argc, char **argv)
 				
 			}
 		}
+		else if( strcmp(token, "nlf")==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("narrow loop filter", ERROR_ARG);
+				continue;
+			}
+
+			int enable = atoi(token);
+			char buffer_cal[80];
+			char *sz = NULL;
+			long long curr_tx_freq = get_lo_freq(__TX);
+
+			if(!enable)
+			{
+				if(tx_default_profile.frequency == curr_tx_freq)
+				{
+					tx_default_profile.data[0] = '0';
+					ret = fastlock_load(__TX, tx_default_profile.data);
+					if (ret < 0)
+					{
+						pna_printf("error on fastlock load\r\n");
+					}
+
+					ret = fastlock_recall(__TX, 0);
+					if (ret < 0)
+					{
+						pna_printf("error on fastlock recall\r\n");
+					}
+				}
+				pna_printf("nlf: %d\r\n", enable);
+			}
+			else
+			{
+				if(tx_default_profile.frequency != curr_tx_freq)
+				{
+					long long cal_reg_val = 0;
+					read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+					// pna_printf("reg cal: %s\r\n", buffer_cal);
+					cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+					while((cal_reg_val & 0xA0) != 0xA0)
+					{
+						usleep(SET_LO_DELAY);
+						read_reg_ad9361(VCO_CAL_STATUS, buffer_cal);
+						// pna_printf("reg cal: %s\r\n", buffer_cal);
+						cal_reg_val = strtoll(&buffer_cal[2], &sz, 16);
+					}
+
+					tx_default_profile.frequency = curr_tx_freq;
+					tx_default_profile.index = 0;
+					ret = fastlock_store(__TX);
+					if(ret != 0)
+					{
+						pna_printf("error on fastlock store\r\n");
+					}
+					ret = fastlock_read_cal(__TX, tx_default_profile.data);
+					if(ret < 0)
+					{
+						pna_printf("error on fastlock save\r\n");
+					}
+					usleep(SET_LO_DELAY);
+				}
+				narrow_loop_filter();
+				pna_printf("nlf: %d\r\n", enable);
+			}
+		}
 		else if( strcmp(token, "fir_coef")==0 )
 		{
-			load_fir_filter("filter.ftr", dev);
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				print_error("fir_coef", ERROR_ARG);
+				continue;
+			}
+			load_fir_filter(token, dev);
 			pna_printf("\r\n");
 		}
 		else if( strcmp(token, "exit")==0 )
@@ -2105,7 +2270,7 @@ int main (int argc, char **argv)
 		}
 		else
 		{
-			pna_printf("\r\n");
+			pna_printf("command \"%s\" not found!\r\n", token);
 		}
 	}
 	close(fd_dma);
@@ -2215,7 +2380,7 @@ void print_error(char *function, int error_code)
 	}
 	else if(!strcmp(function, "register"))
 	{
-		strcpy(arg_buf, "[address][value]");
+		strcpy(arg_buf, "[address(int)][value(hex)]");
 		strcpy(usage, "Debug mode.");
 		strcpy(cmd_name, "reg");
 	}
@@ -2254,6 +2419,24 @@ void print_error(char *function, int error_code)
 		strcpy(usage, "Generate sinous signal with period, amplitude and port arguments.");
 		strcpy(arg_buf, "[period][amplitude][port#]");
 		strcpy(cmd_name, "sin");
+	}
+	else if(!strcmp(function, "sin DC"))
+	{
+		strcpy(usage, "Generate sinous signal with power offset and channel arguments.");
+		strcpy(arg_buf, "[power offset][port#]");
+		strcpy(cmd_name, "sin_dc");
+	}
+	else if(!strcmp(function, "fir_coef"))
+	{
+		strcpy(usage, "Load filter FIR coefficients file.");
+		strcpy(arg_buf, "[file name]");
+		strcpy(cmd_name, "fir_coef");
+	}
+	else if(!strcmp(function, "narrow loop filter"))
+	{
+		strcpy(usage, "Enable/Disable Tx narrow loop filters.");
+		strcpy(arg_buf, "[enable/disable]");
+		strcpy(cmd_name, "nlf");
 	}
 
 	pna_printf("---------------------------------------------------------------\r\n"

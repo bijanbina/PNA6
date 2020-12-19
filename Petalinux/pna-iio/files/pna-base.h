@@ -11,10 +11,6 @@
 #include "pna-interface.h"
 #include <stdio.h>
 
-// define board name before compiling
-//#define ETTUS_E310
-#define XILINX_ZC702
-
 #define HANNING_ENBW 1.50
 #define FFT_24_BIT 3 // 24bit = 3byte
 // #define FFT_16_BIT
@@ -96,19 +92,19 @@ void gpio_fft_reset();
 void init_all_gpio();
 void gpio_fft_valid();
 
-ssize_t fastlock_store();
-ssize_t fastlock_read_cal(char *data);
-ssize_t fastlock_load(char* data);
-ssize_t fastlock_recall(int slot);
+ssize_t fastlock_store(int direction);
+ssize_t fastlock_read_cal(int direction, char *data);
+ssize_t fastlock_load(int direction, char* data);
+ssize_t fastlock_recall(int direction, int slot);
 
-#ifdef ETTUS_E310
 void set_rx_switches(long long freq);
 void set_tx_switches(bool enable);
 bool get_tx_switches();
-#endif
 
 void set_bandwidth(int direction, long long bandwidth);
 long long get_bandwidth(int direction);
+void set_powerdown(int direction, long long value);
+long long get_powerdown(int direction);
 void set_vga_gain(int channel_num, long long vga_gain);
 long long get_vga_gain(int channel_num);
 void set_lna_gain(int channel_num, long long lna_gain);
@@ -131,5 +127,8 @@ void set_quad_track(bool quad_track);
 bool get_quad_track();
 void read_reg_ad9361(long long address, char *value);
 void write_reg_ad9361(long long address, const char *value);
+
+int get_board_id();
+void narrow_loop_filter();
 
 #endif //__PNA_BASE_H__

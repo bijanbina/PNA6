@@ -211,12 +211,12 @@ void store_profile(int index, long long freq)
 	char *last_byte;
 	ssize_t ret;
 
-	ret = fastlock_store();
+	ret = fastlock_store(__RX);
 	if(ret != 0)
 	{
 		pna_printf("error on fastlock store\r\n");
 	}
-	ret = fastlock_read_cal(profile_list[index].data);
+	ret = fastlock_read_cal(__RX, profile_list[index].data);
 	if(ret < 0)
 	{
 		pna_printf("error on fastlock save\r\n");
@@ -234,8 +234,10 @@ void store_profile(int index, long long freq)
 	}
 	last_byte++;
 	alc = atoi(last_byte);
-	if (abs(alc - prev_alc) < 2)
+	if(abs(alc - prev_alc) < 2)
+	{
 		alc += 2;
+	}
 	prev_alc = alc;
 	sprintf(last_byte, "%d", alc);
 	// pna_printf("cal-%d: %s\r\n", index, profile_list[index].data);
@@ -313,13 +315,13 @@ void load_profile(int index)
 
 	profile_list[index].data[0] = '0' + profile_slot;
 	// pna_printf("%d:freq=%lld profile_data %s\r\n", profile->index, profile->frequency, profile->data);
-	ret = fastlock_load(profile_list[index].data);
+	ret = fastlock_load(__RX, profile_list[index].data);
 	if (ret < 0)
 	{
 		pna_printf("error on fastlock load\r\n");
 	}
 
-	ret = fastlock_recall(profile_slot);
+	ret = fastlock_recall(__RX, profile_slot);
 	if (ret < 0)
 	{
 		pna_printf("error on fastlock recall\r\n");
@@ -528,11 +530,15 @@ int32_t* pna_fft(int32_t *data_in, int removed_span, unsigned int fft_size, bool
 	gettimeofday(&tv1, NULL);
 	for(int i=0; i<5; i++)
 	{
-#ifdef ETTUS_E310
-		fill_rx_buffer_single(fft_size);
-#else
-		fill_rx_buffer(fft_size);
-#endif
+		int board_id = get_board_id();
+		if(board_id == ETTUS_E310)
+		{
+			fill_rx_buffer_single(fft_size);
+		}
+		else
+		{
+			fill_rx_buffer(fft_size);
+		}
 		gettimeofday(&tv2, NULL);
 		sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 		sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
