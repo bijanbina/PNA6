@@ -89,7 +89,7 @@ char received_cmd[30] =
 #ifdef DDR_LESS
 #ifndef CONSOLE_COMMANDS
 #define MAX_AWG_DATA 1024
-char awg_data[4*MAX_AWG_DATA];
+#define START_OF_PACKET  "\r\r\r\r\r"
 char received_cmd[30] =
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0 };
@@ -379,6 +379,7 @@ ID_AD9361,	// dev_sel
 struct ad9361_rf_phy *ad9361_phy;
 #ifdef DDR_LESS
 XGpio gpio_sw;
+XGpio gpio_att;
 #endif
 #ifdef FMCOMMS5
 struct ad9361_rf_phy *ad9361_phy_b;
@@ -893,6 +894,7 @@ int main(void)
 
 	int pna6_channel = 1;
 	pna_init_gpio_sw(&gpio_sw, pna6_channel);
+	initAttenuation(&gpio_att);
 
 	// Turn Off Led
 	int Status = XGpio_Initialize(&gpio_led, GPIO_LED_DEVICE_ID);
@@ -977,17 +979,22 @@ int main(void)
 	const char delim[2] = " ";
 	uint8_t pna_iio = 0;
 	uint16_t value_sw = 0;
-
+	char *awg_data = (char *)malloc(4*MAX_AWG_DATA * sizeof(char));
 	while (1)
 	{
 		if (pna_iio == 0)
 		{
-			printf("root@ddrless:~# ");
+			printf("root@pna_linux:~# ");
 			fflush(stdout);
 			pna_get_command(received_cmd);
-			if (strcmp(received_cmd, "pna-iio") == 0)
+			if (strcmp(received_cmd, "pna-iio console") == 0 || strcmp(received_cmd, "./fft_zc702_linux.elf console") == 0)
 			{
 				pna_iio = 1;
+				printf(START_OF_PACKET"\r\n");
+			}
+			else if(strcmp(received_cmd, "cat /etc/pna_iio/board_name") == 0)
+			{
+				printf("PNA");
 			}
 		}
 		else if (pna_iio == 1)
@@ -995,12 +1002,14 @@ int main(void)
 			printf(">>");
 			fflush(stdout);
 			pna_get_command(received_cmd);
-			char* command = strtok(received_cmd, delim);
-			if (received_cmd[0] == 0)
+			if(strcmp(received_cmd, "")==0)
 			{
 				pna_iio = 0;
+				continue;
 			}
-			else if (strcmp(command, "tx_freq") == 0)
+			printf(START_OF_PACKET);
+			char* command = strtok(received_cmd, delim);
+			if (strcmp(command, "tx_freq") == 0)
 			{
 				char* temp = strtok(NULL, delim);
 				uint64_t lo_freq_hz;
@@ -1066,15 +1075,56 @@ int main(void)
 				{
 					tx_samples = atoi(temp);
 					printf("\n>>");
-					int ret = pna_get_signal(awg_data, tx_samples);
+					fflush(stdout);
+					int ret = pna_get_signal(awg_data, 4*tx_samples); //
 					if(ret<0)
 					{
-						printf("3<========= ridi pesaram!\n");
+						printf("error on last check characters!\n");
 						continue;
 					}
+//					int16_t test = (int16_t) awg_data[4*512+1];
+//					test = test & 0x0F;
+//					test = test << 8;
+//					test = test | awg_data[4*512];
+//					printf("512.lsb: %u, msb: %u, data:%d\r\n", awg_data[4*512], awg_data[4*512+1], test);
 					pna_dac_awg(ad9361_phy, awg_data, tx_samples);
-					printf("\n>>");
 				}
+			}
+			else if (strcmp(command, "rx1") == 0)
+			{
+				pna_rx1_test(ad9361_phy, &gpio_sw, &value_sw);
+				printf("rx1, value = %" PRIu16 "\n", value_sw);
+			}
+			else if (strcmp(command, "rx2") == 0)
+			{
+				pna_rx2_test(ad9361_phy, &gpio_sw, &value_sw);
+				printf("rx2, value = %" PRIu16 "\n", value_sw);
+			}
+			else if (strcmp(command, "spec") == 0)
+			{
+				int32_t value = 30;
+				int32_t result = ad9361_set_rx_rf_gain(ad9361_phy, 0, value);
+				printf(
+						"result= %" PRId32 ", set lna_gain port=%" PRIu8 ", gain_db=%" PRId32 "\n",
+						result, 0, value);
+				pna_rx2_test(ad9361_phy, &gpio_sw, &value_sw);
+				printf("rx2, value = %" PRIu16 "\n", value_sw);
+				ad9361_set_rx_rf_port_input(ad9361_phy, 1);
+				printf("RF Port B enabled\n");
+				value = 60;
+				result = ad9361_set_tx_attenuation(ad9361_phy, 0, value * 1000);
+				printf(
+						"result= %" PRId32 ", vga_gain port=%" PRIu8 ", gain_mdb=%" PRId32 "\n",
+						result, 0, 1000 * value);
+				result = ad9361_set_tx_attenuation(ad9361_phy, 1, value * 1000);
+				printf(
+						"result= %" PRId32 ", vga_gain port=%" PRIu8 ", gain_mdb=%" PRId32 "\n",
+						result, 1, 1000 * value);
+				uint64_t lo_freq_hz = 901*1E6;
+				result = ad9361_set_rx_lo_freq(ad9361_phy, lo_freq_hz);
+				printf(
+						"result=%" PRId32 ", set_rx_lo_freq=%" PRIu64 " KHz\n",
+						result, lo_freq_hz/1000);
 			}
 			else if (strcmp(command, "s11") == 0)
 			{
@@ -1128,6 +1178,56 @@ int main(void)
 				pna_sw_lna_pow5(&gpio_sw, en, &value_sw);
 				printf("lna_pow5  enable = %" PRIu8 ", value = %" PRIu16 "\n",en, value_sw);
 			}
+			else if (strcmp(command, "att") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint8_t ch;
+				if (temp == NULL)
+				{
+					printf("Enter channel number argument\n");
+					continue;
+				}
+				else
+				{
+					int temp_ch = atoi(temp);
+					ch = (uint8_t) temp_ch;
+					ch = ch -1;
+					if (ch > 2 || ch<0)
+					{
+						printf("channel number is wrong\n");
+						continue;
+					}
+				}
+				temp = strtok(NULL, delim);
+				uint8_t att;
+				if (temp == NULL)
+				{
+					printf("Enter attenuation argument\n");
+					continue;
+				}
+				else
+				{
+					int temp_att = atoi(temp);
+					att = (uint8_t) temp_att;
+					if (att > 128 || att<0)
+					{
+						printf("Attenuation value is wrong\n");
+						continue;
+					}
+				}
+				setAttenuation(&gpio_att, ch, att);
+				printf("Attenuation of channel%d set to %d\n", ch, att);
+			}
+			else if (strcmp(command, "rf_port_a") == 0)
+			{
+				ad9361_set_rx_rf_port_input(ad9361_phy, 0);
+				printf("RF Port A enabled\n");
+			}
+			else if (strcmp(command, "rf_port_b") == 0)
+			{
+				ad9361_set_rx_rf_port_input(ad9361_phy, 1);
+				printf("RF Port B enabled\n");
+			}
 			else if(strcmp(command, "adc_vna") == 0)
 			{
 				pna_adc(PNA_MODE_VNA);
@@ -1139,7 +1239,7 @@ int main(void)
 				int32_t value;
 				if (temp == NULL)
 				{
-					channel_num = 0; // rx1
+					channel_num = 1; // rx1
 					value = 10; // 10 db
 				}
 				else
@@ -1175,8 +1275,12 @@ int main(void)
 				int32_t value;
 				if (temp == NULL)
 				{
-					channel_num = 0; // rx1
-					value = 10; // 10 db
+					channel_num = 1; // rx2
+					int32_t result = ad9361_get_rx_rf_gain(ad9361_phy, channel_num, &value);
+					printf(
+							"result= %" PRId32 ", get lna_gain port=%" PRIu8 ", gain_db=%" PRId32 "\n",
+							result, channel_num+1, value);
+					continue;
 				}
 				else
 				{
@@ -1191,7 +1295,11 @@ int main(void)
 					temp = strtok(NULL, delim);
 					if (temp == NULL)
 					{
-						value = 10; // 10 db
+						int32_t result = ad9361_get_rx_rf_gain(ad9361_phy, channel_num, &value);
+						printf(
+								"result= %" PRId32 ", get lna_gain port=%" PRIu8 ", gain_db=%" PRId32 "\n",
+								result, channel_num+1, value);
+						continue;
 					}
 					else
 					{
@@ -1201,8 +1309,8 @@ int main(void)
 				int32_t result = ad9361_set_rx_rf_gain(ad9361_phy, channel_num,
 						value);
 				printf(
-						"result= %" PRId32 ", lna_gain port=%" PRIu8 ", gain_db=%" PRId32 "\n",
-						result, channel_num, value);
+						"result= %" PRId32 ", set lna_gain port=%" PRIu8 ", gain_db=%" PRId32 "\n",
+						result, channel_num+1, value);
 			}
 			else if (strcmp(command, "sin_dac") == 0)
 			{
@@ -1318,6 +1426,26 @@ int main(void)
 				XGpio_DiscreteWrite(&gpio_sw, 1, value_sw);
 				printf("u45, port=%d, value=%d\n", port, value);
 			}
+			else if (strcmp(command, "u22") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint8_t port;
+				if (temp != NULL)
+				{
+					port = (uint8_t) atoi(temp);
+					if (port > 2 || port < 1)
+					{
+						port = 2;
+					}
+				}
+				else
+				{
+					port = 1;
+				}
+				value_sw = pna_sw_p1(value_sw, port);
+				XGpio_DiscreteWrite(&gpio_sw, 1, value_sw);
+				printf("u22, port=%d, value=%d\n", port, value);
+			}
 			else if (strcmp(command, "u25") == 0)
 			{
 				char* temp = strtok(NULL, delim);
@@ -1338,6 +1466,27 @@ int main(void)
 				XGpio_DiscreteWrite(&gpio_sw, 1, value_sw);
 				printf("u25, port=%d, value=%d\n", port, value);
 			}
+			else if (strcmp(command, "u46") == 0)
+			{
+				char* temp = strtok(NULL, delim);
+				uint8_t port;
+				if (temp != NULL)
+				{
+					port = (uint8_t) atoi(temp);
+					if (port > 2 || port < 1)
+					{
+						port = 2;
+					}
+				}
+				else
+				{
+					port = 1;
+				}
+				value_sw = pna_sw_tx_a2(value_sw, port);
+				XGpio_DiscreteWrite(&gpio_sw, 1, value_sw);
+				printf("u46, port=%d, value=%d\n", port, value);
+			}
+
 
 		}
 

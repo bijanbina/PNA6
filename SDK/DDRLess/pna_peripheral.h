@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "xgpio.h"
 #include "ad9361.h"
+#include "ad9361_api.h"
 
 #define GPIO_SW_P1 1<<11
 #define GPIO_SW_CP_P1 1<<10
@@ -51,6 +52,9 @@ int32_t pna_init_gpio_sw(XGpio *GpioOutputSw,int channel);
 void pna_sw_lna_pow12(XGpio *gpio_sw, uint8_t en, uint16_t *value);
 void pna_sw_lna_pow5(XGpio *gpio_sw, uint8_t en, uint16_t *value);
 
+void pna_rx1_test(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
+void pna_rx2_test(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
+
 void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
 void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
 void pna_s21(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value);
@@ -71,8 +75,8 @@ uint16_t pna_sw_config_port(uint16_t value, uint8_t port, uint16_t sw);
 void pna_enb_dis_tx_channel(struct ad9361_rf_phy *phy, uint8_t channel, uint8_t enable);
 
 void pna_get_command(char* command);
-int pna_get_signal(char* command);
-void initAttenuation();
-void setAttenuation();
+int pna_get_signal(char* awg_data, int samples);
+void initAttenuation(XGpio *GpioOutputAtt);
+void setAttenuation(XGpio *GpioOutputAtt, int channel, uint8_t att_int);
 
 #endif

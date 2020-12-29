@@ -55,6 +55,42 @@ void pna_sw_lna_pow5(XGpio *gpio_sw, uint8_t en, uint16_t *value)
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
 }
 
+void pna_rx1_test(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
+{
+	uint16_t temp = *value;
+	temp = pna_sw_cp_p1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_p1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_tx_a2(temp, (uint8_t) PORT_2);
+	temp = pna_sw_tx_b2(temp, (uint8_t) PORT_1);
+	temp = pna_sw_tx_a1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_tx_b1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_p2(temp, (uint8_t) PORT_1);
+	temp = pna_sw_cp_p2(temp, (uint8_t) PORT_1);
+	temp = pna_sw_cpl(temp, (uint8_t) PORT_1);
+	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
+	*value = temp;
+	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
+}
+
+void pna_rx2_test(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
+{
+	uint16_t temp = *value;
+	temp = pna_sw_cp_p1(temp, (uint8_t) PORT_1);
+	temp = pna_sw_p1(temp, (uint8_t) PORT_1);
+	temp = pna_sw_tx_a2(temp, (uint8_t) PORT_2);
+	temp = pna_sw_tx_b2(temp, (uint8_t) PORT_1);
+	temp = pna_sw_tx_a1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_tx_b1(temp, (uint8_t) PORT_2);
+	temp = pna_sw_p2(temp, (uint8_t) PORT_2);
+	temp = pna_sw_cp_p2(temp, (uint8_t) PORT_2);
+	temp = pna_sw_cpl(temp, (uint8_t) PORT_2);
+	temp = pna_sw_lna(temp,(uint8_t) PORT_2);
+	*value = temp;
+	XGpio_DiscreteWrite(gpio_sw, 1, *value);
+	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
+}
+
 void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 {
 	uint16_t temp = *value;
@@ -68,7 +104,7 @@ void pna_s11(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
-	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
+	ad9361_set_rx_rf_port_input(phy, 0);//Rx1_A, Rx2_A balanced
 }
 
 void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -84,7 +120,7 @@ void pna_s12(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
-	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x0C);//Rx1_B, Rx2_B balanced
+	ad9361_set_rx_rf_port_input(phy, 1);//Rx1_B, Rx2_B balanced
 }
 
 void pna_s21(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -100,7 +136,7 @@ void pna_s21(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_p1(temp, (uint8_t) PORT_2);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
-	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x03);//Rx1_A, Rx2_A balanced
+	ad9361_set_rx_rf_port_input(phy, 0);//Rx1_A, Rx2_A balanced
 }
 
 void pna_s22(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
@@ -113,10 +149,10 @@ void pna_s22(struct ad9361_rf_phy *phy, XGpio *gpio_sw, uint16_t *value)
 	temp = pna_sw_p1(temp, (uint8_t) PORT_1);
 	temp = pna_sw_cp_p1(temp, (uint8_t) PORT_1);
 	temp = pna_sw_cpl(temp, (uint8_t) PORT_2);
-	temp = pna_sw_lna(temp,(uint8_t) PORT_1);
+	temp = pna_sw_lna(temp,(uint8_t) PORT_2);
 	*value = temp;
 	XGpio_DiscreteWrite(gpio_sw, 1, *value);
-	ad9361_spi_write(phy->spi, REG_INPUT_SELECT, 0x0C);//Rx1_B, Rx2_B balanced
+	ad9361_set_rx_rf_port_input(phy, 1);//Rx1_B, Rx2_B balanced
 }
 
 uint16_t pna_sw_tx_a1(uint16_t value,uint8_t port)
@@ -217,21 +253,78 @@ void pna_get_command(char* command) {
 	command[char_number] = '\0';
 }
 
-int pna_get_signal(char* command, int samples) {
+int pna_get_signal(char* awg_data, int samples) {
 	char		  received_char	= 0;
 	unsigned int  char_number	= 0;
 	while(char_number < samples) {
 		received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
-		command[char_number++] = received_char;
-		printf("%c",received_char);
-		fflush(stdout);
+		awg_data[char_number++] = received_char;
 //		else if()
 	}
 	received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
-	if(received_char != 0)
+	if(received_char != '<')
 		return -1;
 	received_char=XUartPs_RecvByte(XPS_UART1_BASEADDR);
-	if(received_char != 0)
+	if(received_char != '>')
 		return -1;
+//	int16_t test = (int16_t) awg_data[4*512+1];
+//	test = test & 0x0F;
+//	test = test << 8;
+//	test = test | awg_data[4*512];
+//	printf("512.lsb: %u, msb: %u, data:%d , sample: %d\r\n", awg_data[4*10], awg_data[4*10+1], test, samples);
 	return char_number;
+}
+
+void initAttenuation(XGpio *GpioOutputAtt) {
+	/*
+	 * Initialize the GPIO driver so that it's ready to use,
+	 * specify the device ID that is generated in xparameters.h
+	 */
+	int Status = XGpio_Initialize(GpioOutputAtt, GPIO_ATT_DEVICE_ID);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+	/* Set the direction for all signals to be outputs */
+	XGpio_SetDataDirection(GpioOutputAtt, 1, 0x0);
+
+	XGpio_DiscreteWrite(GpioOutputAtt, 1, 0x00); // default value
+
+}
+
+void setAttenuation(XGpio *GpioOutputAtt, int channel, uint8_t att_int) {
+	uint8_t gpio_spi_buf = 0x00;
+	for (int i = 0; i < 7; i++) {
+		gpio_spi_buf = 0x00;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+		usleep(10);
+		// set serial in
+		uint8_t att_bit = (att_int >> (6 - i)) & 1;
+		// gpio_spi_buf &= 0x0B;
+		gpio_spi_buf |= att_bit << SPI_GPIO_MOSI;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+		usleep(10);
+		// toggle clk
+		gpio_spi_buf ^= 1 << SPI_GPIO_SCK;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+		usleep(10);
+	}
+
+	gpio_spi_buf ^= 1 << SPI_GPIO_SCK;
+	XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+	usleep(10);
+
+	if (channel == 0) {
+		gpio_spi_buf |= 1 << SPI_GPIO_LE1;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+		usleep(10);
+		gpio_spi_buf ^= 1 << SPI_GPIO_LE1;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+	} else {
+		gpio_spi_buf |= 1 << SPI_GPIO_LE2;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+		usleep(10);
+		gpio_spi_buf ^= 1 << SPI_GPIO_LE2;
+		XGpio_DiscreteWrite(GpioOutputAtt, 1, gpio_spi_buf);
+	}
+	usleep(10);
 }

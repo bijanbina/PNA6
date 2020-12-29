@@ -677,10 +677,18 @@ void pna_dac_awg(struct ad9361_rf_phy *phy, char *data, int sample_size)
 	pna_dac_before(phy);
 
 	int index_mem=0;
+	int16_t test;
 	for(int i=0 ; i<sample_size; i++ )
 	{
 		uint8_t data_dac[4];
-
+//		if( i % 512 == 0)
+//		{
+//			test = (int16_t) data[4*i+1];
+//			test = test & 0x0F;
+//			test = test << 8;
+//			test = test | data[4*i];
+//			printf("%d.lsb: %u, msb: %u, data:%d\r\n", i, data[4*i], data[4*i+1], test);
+//		}
 		data_dac[0] = data[4*i];
 		data_dac[1] = data[4*i+1];
 		data_dac[2] = data[4*i+2];
@@ -720,10 +728,10 @@ void pna_dac_sin(struct ad9361_rf_phy *phy, double amp)
 		int16_t cos_lsb = cos_16%256;
 		int16_t cos_msb = cos_16>>8;
 
-		cos_lsb = cos_lsb & 0xFF;
-		cos_msb = cos_msb & 0xFF;
 		sin_lsb = sin_lsb & 0xFF;
 		sin_msb = sin_msb & 0xFF;
+		cos_lsb = cos_lsb & 0xFF;
+		cos_msb = cos_msb & 0xFF;
 
 		data_dac[0] = sin_lsb;
 		data_dac[1] = sin_msb;

@@ -501,6 +501,10 @@ void pna_adc(int mode)
 			uart_tx_buffer[8*i + 6] = third_byte;
 			uart_tx_buffer[8*i + 7] = fourth_byte;
 		}
+		XUartPs_SendByte(XPS_UART1_BASEADDR,'P');
+		XUartPs_SendByte(XPS_UART1_BASEADDR,'L');
+		XUartPs_SendByte(XPS_UART1_BASEADDR,'O');
+		XUartPs_SendByte(XPS_UART1_BASEADDR,'T');
 
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i]);
 		XUartPs_SendByte(XPS_UART1_BASEADDR,uart_tx_buffer[8*i + 1]);
