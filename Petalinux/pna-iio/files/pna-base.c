@@ -1248,29 +1248,42 @@ int get_board_id()
 	return board_id;
 }
 
-void narrow_loop_filter()
+void narrow_loop_filter(int nlf_menu)
 {
 	long long address = 0x29A; // Tx fast lock setup[7:5] - open[4] (0) - Tx fast lock load synth[3] - Tx fast lock profile init[2] - Tx fast lock profile pin select[1] - Tx fast lock mode enable[0]
 	char value[3] = "00";
 	write_reg_ad9361(address, value);
 
-	address = 0x27E; // loop filter C2[7:4] - loop filter C1[3:0]
-	strcpy(value, "00");
-	write_reg_ad9361(address, value);
+	if(nlf_menu == 1)
+	{
+		address = 0x27E; // loop filter C2[7:4] - loop filter C1[3:0]
+		strcpy(value, "00");
+		write_reg_ad9361(address, value);
 
-	address = 0x27F; // loop filter R1[7:4] - loop filter C3[3:0]
-	strcpy(value, "F0");
-	write_reg_ad9361(address, value);
+		address = 0x27F; // loop filter R1[7:4] - loop filter C3[3:0]
+		strcpy(value, "F0");
+		write_reg_ad9361(address, value);
 
-	address = 0x280; // loop filter bypass R3[7] - loop filter bypass R1[6] - loop filter bypass C2[5] - loop filter bypass C1[4] - loop filter R3[3:0]
-	strcpy(value, "B0");
-	write_reg_ad9361(address, value);
+		address = 0x280; // loop filter bypass R3[7] - loop filter bypass R1[6] - loop filter bypass C2[5] - loop filter bypass C1[4] - loop filter R3[3:0]
+		strcpy(value, "B0");
+		write_reg_ad9361(address, value);
 
-	address = 0x279; // init ALC value[7:4] (default value is 8) - VCO varactor[3:0]
-	strcpy(value, "8F");
-	write_reg_ad9361(address, value);
+		address = 0x279; // init ALC value[7:4] (default value is 8) - VCO varactor[3:0]
+		strcpy(value, "8F");
+		write_reg_ad9361(address, value);
 
-	address = 0x291; // open[7:4] (0) - VCO varactor reference[3:0]
-	strcpy(value, "00");
-	write_reg_ad9361(address, value);
+		address = 0x291; // open[7:4] (0) - VCO varactor reference[3:0]
+		strcpy(value, "00");
+		write_reg_ad9361(address, value);
+	}
+	else if(nlf_menu == 2)
+	{
+		address = 0x279; // init ALC value[7:4] (default value is 8) - VCO varactor[3:0]
+		strcpy(value, "80");
+		write_reg_ad9361(address, value);
+
+		address = 0x291; // open[7:4] (0) - VCO varactor reference[3:0]
+		strcpy(value, "0F");
+		write_reg_ad9361(address, value);
+	}
 }

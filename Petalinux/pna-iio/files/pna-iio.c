@@ -938,6 +938,23 @@ int main (int argc, char **argv)
 			pna_write(uart_tx_buffer, 4*uart_size);
 			pna_printf("\r\n");
 		}
+		else if(strcmp(token,"adc_vna") == 0)
+		{
+			if(is_2tx_2rx == 0)
+			{
+				pna_printf("PLOT\r\n");
+				continue;
+			}
+			fill_rx_buffer(fft_size);
+			unsigned char uart_tx_buffer[8*MAX_FFT_LENGTH];
+
+			fill_output_buffer_iq(rx1_buffer, uart_tx_buffer, fft_size);
+			fill_output_buffer_iq(rx2_buffer, uart_tx_buffer + 4*fft_size, fft_size);
+
+			pna_printf("PLOT");
+			pna_write(uart_tx_buffer, 8*fft_size);
+			pna_printf("\r\n");
+		}
 		else if(strcmp(token,"adc_fft") == 0)
 		{
 			int channel_num;
@@ -1737,6 +1754,7 @@ int main (int argc, char **argv)
 			for(int i=0; i<total_len-step_receive; i+=step_receive)
 			{
 				pna_read(awg_data + i, step_receive);
+				pna_printf("got %d from %d is %c%c\n", i + step_receive, total_len, awg_data[i+step_receive-2], awg_data[i+step_receive-1]);
 			}
 
 			for(int i=0; i<len_awg; i++) // 2 for [I/Q]
@@ -2198,7 +2216,7 @@ int main (int argc, char **argv)
 			char *sz = NULL;
 			long long curr_tx_freq = get_lo_freq(__TX);
 
-			if(!enable)
+			if(enable == 0)
 			{
 				if(tx_default_profile.frequency == curr_tx_freq)
 				{
@@ -2247,7 +2265,7 @@ int main (int argc, char **argv)
 					}
 					usleep(SET_LO_DELAY);
 				}
-				narrow_loop_filter();
+				narrow_loop_filter(enable);
 				pna_printf("nlf: %d\r\n", enable);
 			}
 		}

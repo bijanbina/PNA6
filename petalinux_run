@@ -27,15 +27,12 @@ while true; do
 	if [ "$ARG1" = "p" ] || [ "$ARG1" = "pna6" ] || [ "$ARG1" = "pna" ]; then
 		PROJECT_NAME="pna6"
 		RUN_PETALINUX_PROJECT="fft_zc702_linux"
-		BOARD_NAME="PNA6"
 	elif [ "$ARG1" = "z" ] || [ "$ARG1" = "zc702" ] || [ "$ARG1" = "zc702-fft" ]; then
 		PROJECT_NAME="zc702-fft"
 		RUN_PETALINUX_PROJECT="fft_zc702_linux"
-		BOARD_NAME="ZC702"
 	elif [ "$ARG1" = "e" ] || [ "$ARG1" = "e310" ] || [ "$ARG1" = "ettus" ]; then
 		PROJECT_NAME="e310"
 		RUN_PETALINUX_PROJECT="fft_usrp_linux"
-		BOARD_NAME="R310"
 	else
 		echo "Project Name is not valid, try again."
 		ARG1=""
@@ -47,8 +44,6 @@ while true; do
 	sed -i 's/^KERNEL_DTB = .*/KERNEL_DTB = "zynq-'"$PROJECT_NAME"'"/' "$DEVICE_TREE_BB"
 	KERNEL_BB="$META_ADI_PROJECT/meta-adi-xilinx/recipes-kernel/linux/linux-xlnx_%.bbappend"
 	sed -i 's/^KBUILD_DEFCONFIG_zynq = .*/KBUILD_DEFCONFIG_zynq = "zynq_'"$NODASH_NAME"'_defconfig"/' "$KERNEL_BB"
-	STARTUP_SH="$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/files/load-config"
-	sed -i "s|^.*/etc/pna_iio/board_name$|printf $BOARD_NAME > /etc/pna_iio/board_name|" "$STARTUP_SH"
 	break
 done
 

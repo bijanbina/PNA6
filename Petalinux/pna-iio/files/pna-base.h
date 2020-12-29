@@ -129,6 +129,6 @@ void read_reg_ad9361(long long address, char *value);
 void write_reg_ad9361(long long address, const char *value);
 
 int get_board_id();
-void narrow_loop_filter();
+void narrow_loop_filter(int nlf_menu);
 
 #endif //__PNA_BASE_H__
