@@ -318,7 +318,7 @@ void load_profile(int index)
 	ret = fastlock_load(__RX, profile_list[index].data);
 	if (ret < 0)
 	{
-		pna_printf("error on fastlock load\r\n");
+		pna_printf("error on fastlock load, index: %d, load_ret: %d\r\n", index, ret);
 	}
 
 	ret = fastlock_recall(__RX, profile_slot);
@@ -835,6 +835,53 @@ void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned i
 		data_out[4*i+1] = second_byte;
 		data_out[4*i+2] = third_byte;
 		data_out[4*i+3] = fourth_byte;
+	}
+}
+
+void fill_output_buffer_2ch(int32_t *data_ch1, int32_t *data_ch2, unsigned char *data_out, unsigned int data_size)
+{
+	int32_t rx_buffer_i;
+	int32_t rx_buffer_q;
+	uint32_t rx_buffer_iu;
+	uint32_t rx_buffer_qu;
+	int16_t rx_buffer_i_16;
+	int16_t rx_buffer_q_16;
+	char first_byte, second_byte, third_byte, fourth_byte;
+	for(int i=0; i<data_size; i++)
+	{
+		rx_buffer_i_16 = data_ch1[i] & 0x0000FFFF;
+		rx_buffer_i = rx_buffer_i_16;
+		rx_buffer_q_16 = (data_ch1[i] >> 16) & 0x0000FFFF;
+		rx_buffer_q = rx_buffer_q_16;
+		rx_buffer_i = rx_buffer_i & 0x0000FFFF;
+		rx_buffer_iu = (uint32_t)rx_buffer_i;
+		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
+		rx_buffer_qu = (uint32_t)rx_buffer_q;
+		first_byte = rx_buffer_iu%256;
+		second_byte = rx_buffer_iu/256;
+		third_byte = rx_buffer_qu%256;
+		fourth_byte = rx_buffer_qu/256;
+		data_out[8*i] = first_byte;
+		data_out[8*i+1] = second_byte;
+		data_out[8*i+2] = third_byte;
+		data_out[8*i+3] = fourth_byte;
+
+		rx_buffer_i_16 = data_ch2[i] & 0x0000FFFF;
+		rx_buffer_i = rx_buffer_i_16;
+		rx_buffer_q_16 = (data_ch2[i] >> 16) & 0x0000FFFF;
+		rx_buffer_q = rx_buffer_q_16;
+		rx_buffer_i = rx_buffer_i & 0x0000FFFF;
+		rx_buffer_iu = (uint32_t)rx_buffer_i;
+		rx_buffer_q = rx_buffer_q & 0x0000FFFF;
+		rx_buffer_qu = (uint32_t)rx_buffer_q;
+		first_byte = rx_buffer_iu%256;
+		second_byte = rx_buffer_iu/256;
+		third_byte = rx_buffer_qu%256;
+		fourth_byte = rx_buffer_qu/256;
+		data_out[8*i+4] = first_byte;
+		data_out[8*i+5] = second_byte;
+		data_out[8*i+6] = third_byte;
+		data_out[8*i+7] = fourth_byte;
 	}
 }
 

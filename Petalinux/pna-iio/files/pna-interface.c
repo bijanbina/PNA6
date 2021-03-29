@@ -70,20 +70,65 @@ int pna_gets(char *buffer, int max_len)
     
 }
 
-size_t pna_read(unsigned char *data, int len)
+/*
+ * @return: -1 if escape character is seen
+ */
+size_t pna_read(unsigned char *data, int len, int escape_set)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
     	// 1 denote number of bytes in each read
-        return fread(data, 1, len, stdin);
+    	int sum = 0;
+		while(sum < len)
+		{
+//			int ret = fread(data + sum, 1, len - sum, stdin);
+			scanf("%32s[^\n]", data);
+			int ret = strlen(data);
+			sum += ret;
+			if(escape_set)
+			{
+				if(pna_is_escaped(data + sum - 3))
+				{
+					pna_printf("==>");
+					return 1;
+				}
+			}
+		}
     }
     else if(interface_id == PNA_INTERFACE_TCP)
     {
-        int ret = read(connfd, data, len);
-//        printf("==|)- %d\n", ret);
-//        fread(data, 1, len, connfd);
+    	int sum = 0;
+    	while(sum < len)
+        {
+    		int ret = read(connfd, data + sum, len - sum);
+    		sum += ret;
+    		if(escape_set)
+    		{
+    			if(pna_is_escaped(data + sum - 3))
+    			{
+    				return 1;
+    			}
+    		}
+        }
     }
-    return 1;
+    return 0;
+}
+
+int pna_is_escaped(char *data)
+{
+//	pna_printf("***%c%c%c", data[0], data[1], data[2]);
+	if(data[0] == 'k' && data[1] == '\r' && data[2] == '\n')
+	{
+		return 1;
+	}
+	else if(data[1] == 'k' && data[2] == '\n')
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 void pna_write(unsigned char *data, int len)

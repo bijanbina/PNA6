@@ -139,6 +139,11 @@ int main (int argc, char **argv)
 		{
 			pna_init_interface(PNA_INTERFACE_TCP);
 		}
+		else
+		{
+			pna_printf("Error: interface set wrong\r\n");
+			return 0;
+		}
 	}
 	else
 	{
@@ -201,7 +206,7 @@ int main (int argc, char **argv)
 	while(1)
 	{
 		pna_printf(">>");
-		fflush(stdin);
+		fflush(stdout);
 		//scanf("%s\r", buffer);
 		int ret = pna_gets(buffer, 100000);
 		if(ret < 0)
@@ -348,7 +353,7 @@ int main (int argc, char **argv)
 			{
 				rx_freq = get_frequency(token);
 			}
-			double rx_freq_mhz = rx_freq / 1E6;
+			double rx_freq_mhz = (double)rx_freq / 1E6;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
@@ -359,7 +364,7 @@ int main (int argc, char **argv)
 			{
 				sw_span = get_frequency(token);
 			}
-			long long rx_sampling_frequency = 30E6; // 30M for ettus | 60M for others
+			long long rx_sampling_frequency = 60E6; // 30M for ettus | 60M for others
 			set_sample_rate(__RX, rx_sampling_frequency);
 			long long bandwidth = 56E6;
 			set_bandwidth(__RX, bandwidth);
@@ -858,15 +863,8 @@ int main (int argc, char **argv)
 
 			adc_data = pna_trig_adc(adc_data, fft_size/2, mode, level);
 
-			if(compression_enable)
-			{
-				uart_size = compress_data_iq(adc_data, uart_tx_buffer, fft_size/2);
-			}
-			else
-			{
-				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size/2);
-				uart_size = fft_size/2;
-			}
+			fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size/2);
+			uart_size = fft_size/2;
 			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 4*uart_size);
 			pna_printf("\r\n");
@@ -946,10 +944,14 @@ int main (int argc, char **argv)
 				continue;
 			}
 			fill_rx_buffer(fft_size);
+			if(window_en)
+			{
+				flat_top_window(rx1_buffer, fft_size);
+				flat_top_window(rx2_buffer, fft_size);
+			}
 			unsigned char uart_tx_buffer[8*MAX_FFT_LENGTH];
 
-			fill_output_buffer_iq(rx1_buffer, uart_tx_buffer, fft_size);
-			fill_output_buffer_iq(rx2_buffer, uart_tx_buffer + 4*fft_size, fft_size);
+			fill_output_buffer_2ch(rx1_buffer, rx2_buffer, uart_tx_buffer, fft_size);
 
 			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 8*fft_size);
@@ -1012,7 +1014,9 @@ int main (int argc, char **argv)
 				compression_enable = atoi(token);
 			}
 			if(sw_span < 0)
+			{
 				sw_span = 80E6;
+			}
 			double span_mhz = sw_span/1E6;
 
 			if(is_profile_empty)
@@ -1026,7 +1030,7 @@ int main (int argc, char **argv)
 			int32_t *spectrum;
 			int sweep_index = 0;
 			// unsigned char uart_tx_buffer[2*UART_LENGTH];
-			double rx_sampling_frequency_mhz = 30.0; // 30 for Ettus | 60 for others
+			double rx_sampling_frequency_mhz = 60.0; // 30 for Ettus | 60 for others
 			
 			int CHUNK_C = fft_size/6; // 1/6 = SWEEP_SPAN/rx_sampling_frequency_mhz/2
 			int span_num = 2*floor(span_mhz / 2 / SWEEP_SPAN);
@@ -1679,6 +1683,7 @@ int main (int argc, char **argv)
 			int len_awg;
 			const int step_receive = 32;
 			const int num_width = 4;
+			const int packet_len = 256;
 			int s_size = iio_device_get_sample_size(iio_dac);
 
 			token = strtok(NULL, delim);
@@ -1749,12 +1754,63 @@ int main (int argc, char **argv)
 				awg_data[i] = 0;
 			}
 
-			pna_printf("\r\n>>");
+			unsigned char chert[2];
 
-			for(int i=0; i<total_len-step_receive; i+=step_receive)
+			int escape_char_set = 1, escape_char_received = 0;
+			int total_packets = total_len / packet_len;
+			int rem_packet_len = total_len % packet_len;
+			int receives_per_packet = packet_len / step_receive;
+			int awg_data_index = 0;
+
+			pna_printf("Give me data. %d %d %d\n|", total_packets, rem_packet_len, receives_per_packet);
+			fflush(stdout);
+
+			for(int i=0; i<total_packets; i++)
 			{
-				pna_read(awg_data + i, step_receive);
-				pna_printf("got %d from %d is %c%c\n", i + step_receive, total_len, awg_data[i+step_receive-2], awg_data[i+step_receive-1]);
+				for(int j=0; j<receives_per_packet; j++)
+				{
+					awg_data_index = packet_len*i + step_receive*j;
+					escape_char_received = pna_read(awg_data + awg_data_index, step_receive, escape_char_set);
+//					pna_printf("got %d from %d is %c%c%c%c\r\n", awg_data_index + step_receive, total_len,
+//							awg_data[awg_data_index+step_receive-5], awg_data[awg_data_index+step_receive-4],
+//							awg_data[awg_data_index+step_receive-3], awg_data[awg_data_index+step_receive-2]);
+					if(escape_char_received)
+					{
+						break;
+					}
+				}
+				if(escape_char_received)
+				{
+					break;
+				}
+				pna_read(chert, 1, !escape_char_set); // reading \n
+				pna_printf("|");
+			}
+			if(rem_packet_len > 0 && !escape_char_received)
+			{
+				receives_per_packet = rem_packet_len / step_receive;
+				for(int j=0; j<receives_per_packet; j++)
+				{
+					awg_data_index = packet_len*total_packets + step_receive*j;
+					escape_char_received = pna_read(awg_data + awg_data_index, step_receive, escape_char_set);
+//					pna_printf("got %d from %d is %c%c%c%c\r\n", awg_data_index + step_receive, total_len,
+//							awg_data[awg_data_index+step_receive-5], awg_data[awg_data_index+step_receive-4],
+//							awg_data[awg_data_index+step_receive-3], awg_data[awg_data_index+step_receive-2]);
+					if(escape_char_received)
+					{
+						break;
+					}
+				}
+				if(!escape_char_received)
+				{
+					pna_read(chert, 1, !escape_char_set); // reading \n
+					pna_printf("|");
+				}
+			}
+			if(escape_char_received)
+			{
+				pna_printf(START_OF_PACKET"escape char received.\r\n");
+				continue;
 			}
 
 			for(int i=0; i<len_awg; i++) // 2 for [I/Q]
@@ -1783,8 +1839,8 @@ int main (int argc, char **argv)
 			dds_sample_size = len_awg;
 
 			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf(START_OF_PACKET "[len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
-					len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
+//			pna_printf("[total len]: %d | [len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
+//					total_len, len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
 		else if (strcmp(token, "pulse")==0 )
 		{
@@ -2107,6 +2163,7 @@ int main (int argc, char **argv)
 				if(!(channel_num == 1 || channel_num == 0))
 				{
 					print_error("sinc", ERROR_CH);
+					;
 					continue;
 				}
 			}

@@ -4,7 +4,7 @@
 #include <time.h>
 #include "pna-base.h"
 
-#define SWEEP_SPAN 10 // 10 if rxfsampling = 30M | 20 if rxfsampling = 60M
+#define SWEEP_SPAN 20 // 10 if rxfsampling = 30M | 20 if rxfsampling = 60M
 #define SET_LO_DELAY 200
 
 #define TRIG_POS_I   0
@@ -40,6 +40,7 @@ void pna_fft3(int32_t *data_in, unsigned int fft_size);
 void flat_top_window(int32_t *data_in, unsigned int fft_size);
 void calculate_flat_top_coeff(unsigned int fft_size);
 void fill_output_buffer_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size);
+void fill_output_buffer_2ch(int32_t *data_ch1, int32_t *data_ch2, unsigned char *data_out, unsigned int data_size);
 int compress_data_iq(int32_t *data_in, unsigned char *data_out, unsigned int data_size);
 void pna_adc(int32_t *data_in, unsigned int fft_size);
 void pna_adc_iq(int32_t *data_in, unsigned int fft_size);
