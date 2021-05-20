@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "pna-interface.h"
+#include "pna-base.h"
 
 // board name and id
 #define XILINX_ZC702 2
@@ -25,6 +25,7 @@
 int load_fir_filter(const char *file_name, struct iio_device *dev1);
 
 int load_rx_sample_size();
+int save_rx_sample_size(int fft_size);
 int load_dac_max();
 int save_dac_max(int dac_max);
 int load_board_id();

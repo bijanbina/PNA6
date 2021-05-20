@@ -8,19 +8,16 @@ extern int errno;
 extern struct iio_context *ctx;
 extern struct iio_device *dev, *dds, *cap;
 
-extern struct iio_device *iio_dac;
 extern struct iio_buffer *dds_buffer;
 
 extern int32_t rx1_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
 extern int32_t rx2_buffer [MAX_FFT_LENGTH*2]; // FIXME: *2 should be carefully removed
 
-#define ERROR_ARG 0
-#define ERROR_CH 1
-
 int dds_sample_size;
-extern int8_t dac_buf[8*MAX_FFT_LENGTH];
 extern int fd_dma;
 extern int board_id;
+
+unsigned char awg_data[MAX_FFT_LENGTH];
 
 void print_error(char *function, int error_code);
 
@@ -64,7 +61,6 @@ int main (int argc, char **argv)
 	bool is_profile_empty = true;
 	bool window_en = true;
 	int is_2tx_2rx = 0;
-	double sig_pow[2];
 
 	// calculating sweep time
 	struct timeval  tv1, tv2;
@@ -81,6 +77,7 @@ int main (int argc, char **argv)
 	if(fft_size <= 0)
 	{
 		fft_size = 1024;
+		save_rx_sample_size(fft_size);
 	}
 	dac_max = load_dac_max();
 	if(dac_max <= 0)
@@ -164,6 +161,7 @@ int main (int argc, char **argv)
 		pna_printf("1rx-1tx");
 	}
 
+	long long diff_freq_vna;
 	long long rx_freq;
 	rx_freq = get_lo_freq(__RX);
 	if(board_id == ETTUS_E310)
@@ -173,8 +171,6 @@ int main (int argc, char **argv)
 	long long sw_span;
 	///////////////// FIXME: in case of open failure an error should be report
 	fd_dma = open("/dev/dma", O_RDWR);
-
-	unsigned char *awg_data = (unsigned char *)malloc(MAX_FFT_LENGTH * sizeof(unsigned char));
 
 	fastlock_profile tx_default_profile;
 
@@ -187,6 +183,8 @@ int main (int argc, char **argv)
 		return -1;
 	}
 
+	int dc_power_vna;
+	double sig_pow[2];
 	sig_pow[0] = load_sig_pow(1);
 	if(sig_pow[0] > 0.0)
 	{
@@ -223,39 +221,39 @@ int main (int argc, char **argv)
 		}
 		pna_printf(START_OF_PACKET);
 		token = strtok(buffer, delim);
-		if( strcmp(token, "tx_bandwidth")==0 )
+		if( strcmp(token, COMMAND_TXBW)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_bandwidth: %lld\r\n", get_bandwidth(__TX));
+				pna_printf(COMMAND_TXBW": %lld\r\n", get_bandwidth(__TX));
 			}
-			else
+			else if(check_argument(token, COMMAND_TXBW, "value"))
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__TX, bandwidth);
-				pna_printf("tx_bandwidth: %lld\r\n", bandwidth);
+				pna_printf(COMMAND_TXBW": %lld\r\n", bandwidth);
 			}
 		}
-		else if( strcmp(token, "rx_bandwidth")==0 )
+		else if( strcmp(token, COMMAND_RXBW)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("rx_bandwidth: %lld\r\n",  get_bandwidth(__RX));
+				pna_printf(COMMAND_RXBW": %lld\r\n",  get_bandwidth(__RX));
 			}
-			else
+			else if(check_argument(token, COMMAND_RXBW, "value"))
 			{
 				long long bandwidth = get_frequency(token);
 				set_bandwidth(__RX, bandwidth);
-				pna_printf("rx_bandwidth: %lld\r\n", bandwidth);
+				pna_printf(COMMAND_RXBW": %lld\r\n", bandwidth);
 			}
 		}
-		else if( strcmp(token, "is_dual")==0 )
+		else if( strcmp(token, COMMAND_DUALCH)==0 )
 		{
-			pna_printf("is_dual: %d\r\n", is_2tx_2rx);
+			pna_printf(COMMAND_DUALCH": %d\r\n", is_2tx_2rx);
 		}
-		else if( strcmp(token, "sig_rf_out") == 0)
+		else if( strcmp(token, COMMAND_RFOUT) == 0)
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -264,14 +262,14 @@ int main (int argc, char **argv)
 				if(board_id == ETTUS_E310)
 				{
 					bool switch_en = get_tx_switches(board_id);
-					pna_printf("sig_rf_out: %d\r\n", (powerdown_en==0L && switch_en));
+					pna_printf(COMMAND_RFOUT": %d\r\n", (powerdown_en==0L && switch_en));
 				}
 				else
 				{
-					pna_printf("sig_rf_out: %d\r\n", (powerdown_en==0L));
+					pna_printf(COMMAND_RFOUT": %d\r\n", (powerdown_en==0L));
 				}
 			}
-			else
+			else if(check_argument(token, COMMAND_RFOUT, "value"))
 			{
 				bool enable = atoi(token);
 				if(board_id == ETTUS_E310)
@@ -279,91 +277,68 @@ int main (int argc, char **argv)
 					set_tx_switches(enable);
 				}
 				set_powerdown(__TX, (long long)(!enable));
-				pna_printf("sig_rf_out: %d\r\n", enable);
+				pna_printf(COMMAND_RFOUT": %d\r\n", enable);
 			}
 		}
-		else if( strcmp(token, "emio")==0 )
+		else if( strcmp(token, COMMAND_EMIO)==0 )
 		{
-			int emio_base;
-			int emio_nchannel;
-			int emio_value;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_EMIO, "base"))
 			{
-				print_error("emio", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				emio_base = atoi(token);
-			}
+			int emio_base = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_EMIO, "nch"))
 			{
-				print_error("emio", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				emio_nchannel = atoi(token);
-			}
+			int emio_nchannel = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_EMIO, "value"))
 			{
-				print_error("emio", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				emio_value = atoi(token);
-			}
+			int emio_value = atoi(token);
 			set_gpio_emio(emio_base, emio_nchannel, emio_value);
-			pna_printf("emio[%d:%d]=%d\r\n", emio_base + emio_nchannel - 1, emio_base, emio_value);
+			pna_printf(COMMAND_EMIO"[%d:%d]=%d\r\n", emio_base + emio_nchannel - 1, emio_base, emio_value);
 		}
-		else if( strcmp(token, "sweep_time")==0 ) // sweep time
+		else if( strcmp(token, COMMAND_SWEEPTIME)==0 ) // sweep time
 		{
-			pna_printf("sweep_time: %lf \r\n",  sweep_time);
+			pna_printf(COMMAND_SWEEPTIME": %lf \r\n",  sweep_time);
 		}
-		else if( strcmp(token, "avg_window")==0 ) // sweep time
+		else if( strcmp(token, COMMAND_AVGWIN)==0 ) // sweep time
 		{
 			pna_print_avg();
 		}
-		else if( strcmp(token, "flat_top")==0 )
+		else if( strcmp(token, COMMAND_WINENABLE)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("flat_top: %d \r\n", window_en);
+				pna_printf(COMMAND_WINENABLE": %d \r\n", window_en);
 			}
-			else
+			else if(check_argument(token, COMMAND_WINENABLE, "value"))
 			{
 				window_en = atoi(token);
-				pna_printf("flat_top: %d \r\n", window_en);
+				pna_printf(COMMAND_WINENABLE": %d \r\n", window_en);
 			}
 		}
-		else if( strcmp(token, "fillpro")==0 )
+		else if( strcmp(token, COMMAND_FILLPRO)==0 )
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_FILLPRO, "freq"))
 			{
-				print_error("fill profile", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				rx_freq = get_frequency(token);
-			}
+			rx_freq = get_frequency(token);
 			double rx_freq_mhz = (double)rx_freq / 1E6;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_FILLPRO, "span"))
 			{
-				print_error("fill profile", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sw_span = get_frequency(token);
-			}
+			sw_span = get_frequency(token);
 			long long rx_sampling_frequency = 60E6; // 30M for ettus | 60M for others
 			set_sample_rate(__RX, rx_sampling_frequency);
 			long long bandwidth = 56E6;
@@ -387,51 +362,39 @@ int main (int argc, char **argv)
 			fill_profiles(lo_start_freq, span_mhz);
 			pna_printf("\r\n");
 		}
-		else if( strcmp(token, "loadpro")==0 ) // sweep time
+		else if( strcmp(token, COMMAND_LOADPRO)==0 ) // sweep time
 		{
 			load_profile(0);
 			pna_printf("\r\n");
 		}
-		else if( strcmp(token, "sig_pow") == 0)
+		else if( strcmp(token, COMMAND_SIGPOW) == 0)
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_SIGPOW, "channel"))
 			{
-				print_error("sig pow", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
-			if(!(channel_num == 2 || channel_num == 1))
-			{
-				print_error("sig pow", ERROR_CH);
-				continue;
-			}
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("sig_pow: %d, %lf\r\n", channel_num, load_sig_pow(channel_num));
+				pna_printf(COMMAND_SIGPOW": %d, %lf\r\n", channel_num, load_sig_pow(channel_num));
 			}
-			else
+			else if(check_argument(token, COMMAND_SIGPOW, "value"))
 			{
 				sig_pow[channel_num-1] = atof(token);
 				save_sig_pow(sig_pow[channel_num-1], channel_num);
-				pna_printf("sig_pow: %d, %lf\r\n", channel_num, sig_pow[channel_num-1]);
+				pna_printf(COMMAND_SIGPOW": %d, %lf\r\n", channel_num, sig_pow[channel_num-1]);
 			}
 		}
-		else if( strcmp(token, "vga_gain")==0 )
+		else if( strcmp(token, COMMAND_VGA)==0 )
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_VGA, "channel"))
 			{
-				print_error("vga gain", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
-			if(!(channel_num == 2 || channel_num == 1))
-			{
-				print_error("vga gain", ERROR_CH);
-				continue;
-			}
 			token = strtok(NULL, delim);
 
 			if(is_2tx_2rx == 0)
@@ -441,30 +404,24 @@ int main (int argc, char **argv)
 
 			if(token==NULL)
 			{
-				pna_printf("vga_gain: %d, %lld\r\n", channel_num, get_vga_gain(channel_num));
+				pna_printf(COMMAND_VGA": %d, %lld\r\n", channel_num, get_vga_gain(channel_num));
 			}
-			else
+			else if(check_argument(token, COMMAND_VGA, "value"))
 			{
 				char *sz = NULL;
 				long long vga_gain = -strtoll(token, &sz, 10);
 				set_vga_gain(channel_num, vga_gain);
-				pna_printf("vga_gain: %d, %lld\r\n", channel_num, vga_gain);
+				pna_printf(COMMAND_VGA": %d, %lld\r\n", channel_num, vga_gain);
 			}
 		}
-		else if( strcmp(token, "lna_gain")==0 )
+		else if( strcmp(token, COMMAND_LNA)==0 )
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_LNA, "channel"))
 			{
-				print_error("lna gain", ERROR_ARG);
 				continue;
 			}
 			int channel_num = atoi(token);
-			if(!(channel_num == 2 || channel_num == 1))
-			{
-				print_error("lna gain", ERROR_CH);
-				continue;
-			}
 			token = strtok(NULL, delim);
 
 			if(is_2tx_2rx == 0)
@@ -474,31 +431,25 @@ int main (int argc, char **argv)
 
 			if(token==NULL)
 			{
-				pna_printf("lna_gain: %d, %lld\r\n", channel_num, get_lna_gain(channel_num));
+				pna_printf(COMMAND_LNA": %d, %lld\r\n", channel_num, get_lna_gain(channel_num));
 			}
-			else
+			else if(check_argument(token, COMMAND_LNA, "value"))
 			{
 				char *sz = NULL;
 				long long lna_gain = strtoll(token, &sz, 10);
 				set_lna_gain(channel_num, lna_gain);
-				pna_printf("lna_gain: %d, %lld\r\n", channel_num, lna_gain);
+				pna_printf(COMMAND_LNA": %d, %lld\r\n", channel_num, lna_gain);
 			}
 		}
-		else if( strcmp(token, "agc")==0 )
+		else if( strcmp(token, COMMAND_AGC)==0 )
 		{
 			token = strtok(NULL, delim);
 			int channel_num;
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_AGC, "channel"))
 			{
-				print_error("agc", ERROR_ARG);
 				continue;
 			}
 			channel_num = atoi(token);
-			if(!(channel_num == 2 || channel_num == 1))
-			{
-				print_error("agc", ERROR_CH);
-				continue;
-			}
 			token = strtok(NULL, delim);
 			char buf[1024];
 
@@ -510,52 +461,78 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				get_gain_control_mode(channel_num, buf);
-				pna_printf("agc: %d, %s\r\n", channel_num,  buf);
+				pna_printf(COMMAND_AGC": %d, %s\r\n", channel_num,  buf);
 			}
-			else
+			else if(check_argument(token, COMMAND_AGC, "value"))
 			{
 				set_gain_control_mode(channel_num, token);
-				pna_printf("agc: %d ,%.*s\r\n", channel_num, 3, token);
+				pna_printf(COMMAND_AGC": %d ,%.*s\r\n", channel_num, 3, token);
 			}
 		}
-		else if( strcmp(token, "tx_sample_rate")==0 )
+		else if( strcmp(token, COMMAND_VNAFREQ)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_sample_rate: %lld\r\n", get_sample_rate(__TX));
+				pna_printf(COMMAND_VNAFREQ": %lld\r\n", diff_freq_vna);
 			}
-			else
+			else if(check_argument(token, COMMAND_VNAFREQ, "value"))
+			{
+				diff_freq_vna = get_frequency(token);
+				pna_printf(COMMAND_VNAFREQ": %lld\r\n", diff_freq_vna);
+			}
+		}
+		else if( strcmp(token, COMMAND_VNAPOW)==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf(COMMAND_VNAPOW": %d\r\n", dc_power_vna);
+			}
+			else if(check_argument(token, COMMAND_VNAPOW, "value"))
+			{
+				dc_power_vna = atoi(token);
+				pna_printf(COMMAND_VNAPOW": %d\r\n", dc_power_vna);
+			}
+		}
+		else if( strcmp(token, COMMAND_TXRATE)==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				pna_printf(COMMAND_TXRATE": %lld\r\n", get_sample_rate(__TX));
+			}
+			else if(check_argument(token, COMMAND_TXRATE, "value"))
 			{
 				long long sampling_frequency = get_frequency(token);
 				set_sample_rate(__TX, sampling_frequency);
-				pna_printf("tx_sample_rate: %lld\r\n", sampling_frequency);
+				pna_printf(COMMAND_TXRATE": %lld\r\n", sampling_frequency);
 			}
 		}
-		else if( strcmp(token, "rx_sample_rate")==0 )
+		else if( strcmp(token, COMMAND_RXRATE)==0 )
 		{
 			long long rx_sampling_frequency;
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				rx_sampling_frequency = get_sample_rate(__RX);
-				pna_printf("rx_sample_rate: %lld\r\n", rx_sampling_frequency);
+				pna_printf(COMMAND_RXRATE": %lld\r\n", rx_sampling_frequency);
 			}
-			else
+			else if(check_argument(token, COMMAND_RXRATE, "value"))
 			{
 				rx_sampling_frequency = get_frequency(token);
 				set_sample_rate(__RX, rx_sampling_frequency);
-				pna_printf("rx_sample_rate: %lld\r\n", rx_sampling_frequency);
+				pna_printf(COMMAND_RXRATE": %lld\r\n", rx_sampling_frequency);
 			}
 		}
-		else if( strcmp(token, "rx_sample_size")==0 )
+		else if( strcmp(token, COMMAND_RXSS)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("rx_sample_size: %d\r\n", fft_size);
+				pna_printf(COMMAND_RXSS": %d\r\n", fft_size);
 			}
-			else
+			else if(check_argument(token, COMMAND_RXSS, "value"))
 			{
 				fft_size = atoi(token);
 				gpio_fft(fft_size);
@@ -566,87 +543,87 @@ int main (int argc, char **argv)
 				{
 					return -1;
 				}
-				pna_printf("rx_sample_size: %d\r\n", fft_size);
+				pna_printf(COMMAND_RXSS": %d\r\n", fft_size);
 			}
 		}
-		else if( strcmp(token, "tx_sample_size")==0 )
+		else if( strcmp(token, COMMAND_TXSS)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_sample_size: %d\r\n", dds_sample_size);
+				pna_printf(COMMAND_TXSS": %d\r\n", dds_sample_size);
 			}
-			else
+			else if(check_argument(token, COMMAND_TXSS, "value"))
 			{
 				dds_sample_size = atoi(token);
-				pna_printf("tx_sample_size: %d\r\n", dds_sample_size);
+				pna_printf(COMMAND_TXSS": %d\r\n", dds_sample_size);
 			}
 		}
-		else if( strcmp(token, "tx_freq")==0 )
+		else if( strcmp(token, COMMAND_TXFREQ)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_freq: %lld\r\n", get_lo_freq(__TX));
+				pna_printf(COMMAND_TXFREQ": %lld\r\n", get_lo_freq(__TX));
 			}
-			else
+			else if(check_argument(token, COMMAND_TXFREQ, "value"))
 			{
 				long long freq = get_frequency(token);
 				set_lo_freq(__TX, freq);
-				pna_printf("tx_freq: %lld\r\n", freq);
+				pna_printf(COMMAND_TXFREQ": %lld\r\n", freq);
 			}
 		}
-		else if( strcmp(token, "rx_freq")==0 )
+		else if( strcmp(token, COMMAND_RXFREQ)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				rx_freq = get_lo_freq(__RX);
-				pna_printf("rx_freq: %lld\r\n", rx_freq);
+				pna_printf(COMMAND_RXFREQ": %lld\r\n", rx_freq);
 			}
-			else
+			else if(check_argument(token, COMMAND_RXFREQ, "value"))
 			{
 				rx_freq = get_frequency(token);
 				set_lo_freq(__RX, rx_freq);
-				pna_printf("rx_freq: %lld\r\n", rx_freq);
+				pna_printf(COMMAND_RXFREQ": %lld\r\n", rx_freq);
 			}
 		}
-		else if( strcmp(token, "rx_port")==0 )
+		else if( strcmp(token, COMMAND_RXPORT)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				char rx_port[100];
 				get_port(__RX, rx_port);
-				pna_printf("rx_port: %s\r\n", rx_port);
+				pna_printf(COMMAND_RXPORT": %s\r\n", rx_port);
 			}
 			else
 			{
 				set_port(__RX, token);
-				pna_printf("rx_port: %s \r\n", token);
+				pna_printf(COMMAND_RXPORT": %s \r\n", token);
 			}
 		}
-		else if( strcmp(token, "tx_port")==0 )
+		else if( strcmp(token, COMMAND_TXPORT)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				char tx_port[100];
 				get_port(__TX, tx_port);
-				pna_printf("tx_port: %s \r\n", tx_port);
+				pna_printf(COMMAND_TXPORT": %s \r\n", tx_port);
 			}
 			else
 			{
 				set_port(__TX, token);
-				pna_printf("tx_port: %s \r\n", token);
+				pna_printf(COMMAND_TXPORT": %s \r\n", token);
 			}
 		}
-		else if( strcmp(token, "sample_size")==0 )
+		else if( strcmp(token, COMMAND_SAMSZ)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				int sample_size = iio_device_get_sample_size(iio_dac);
+				int sample_size = get_sample_size();
 				pna_printf("sample_size: %d \r\n", sample_size);
 			}
 			else
@@ -654,77 +631,77 @@ int main (int argc, char **argv)
 				pna_printf("\r\n");
 			}
 		}
-		else if( strcmp(token, "rx_fir_en")==0 )
+		else if( strcmp(token, COMMAND_RXFIR)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("rx_fir_en: %d \r\n", get_fir_en(__RX));
+				pna_printf(COMMAND_RXFIR": %d \r\n", get_fir_en(__RX));
 			}
-			else
+			else if(check_argument(token, COMMAND_RXFIR, "value"))
 			{
 				bool fir_en = atoi(token);
 				set_fir_en(__RX, fir_en);
-				pna_printf("rx_fir_en: %d \r\n", fir_en);
+				pna_printf(COMMAND_RXFIR": %d \r\n", fir_en);
 			}
 		}
-		else if( strcmp(token, "tx_fir_en")==0 )
+		else if( strcmp(token, COMMAND_TXFIR)==0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("tx_fir_en: %d \r\n", get_fir_en(__TX));
+				pna_printf(COMMAND_TXFIR": %d \r\n", get_fir_en(__TX));
 			}
-			else
+			else if(check_argument(token, COMMAND_TXFIR, "value"))
 			{
 				bool fir_en = atoi(token);
 				set_fir_en(__TX, fir_en);
-				pna_printf("tx_fir_en: %d \r\n", fir_en);
+				pna_printf(COMMAND_TXFIR": %d \r\n", fir_en);
 			}
 		}
-		else if( strcmp(token, "bbdc") == 0 )
+		else if( strcmp(token, COMMAND_BBDC) == 0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("bb_dc_enable: %d \r\n", get_bb_dc());
+				pna_printf(COMMAND_BBDC": %d \r\n", get_bb_dc());
 			}
-			else
+			else if(check_argument(token, COMMAND_BBDC, "value"))
 			{
 				bool bb_dc_en = atoi(token);
 				set_bb_dc(bb_dc_en);
-				pna_printf("bb_dc_enable: %d \r\n", bb_dc_en);
+				pna_printf(COMMAND_BBDC": %d \r\n", bb_dc_en);
 			}
 		}
-		else if( strcmp(token, "rfdc") == 0 )
+		else if( strcmp(token, COMMAND_RFDC) == 0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
 				pna_printf("rf_dc_enable: %d \r\n", get_rf_dc());
 			}
-			else
+			else if(check_argument(token, COMMAND_RFDC, "value"))
 			{
 				bool rf_dc_en = atoi(token);
 				set_rf_dc(rf_dc_en);
-				pna_printf("rf_dc_enable: %d \r\n", rf_dc_en);
+				pna_printf(COMMAND_RFDC": %d \r\n", rf_dc_en);
 			}
 		}
-		else if( strcmp(token, "quad") == 0 )
+		else if( strcmp(token, COMMAND_QUAD) == 0 )
 		{
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("quad_enable: %d \r\n", get_quad_track());
+				pna_printf(COMMAND_QUAD": %d \r\n", get_quad_track());
 			}
-			else
+			else if(check_argument(token, COMMAND_QUAD, "value"))
 			{
 				bool quad_en = atoi(token);
 				set_quad_track(quad_en);
-				pna_printf("quad_enable: %d \r\n", quad_en);
+				pna_printf(COMMAND_QUAD": %d \r\n", quad_en);
 			}
 		}
-		else if(strcmp(token,"test") == 0)
+		else if(strcmp(token, COMMAND_TEST) == 0)
 		{
 			for( int i=0; i<fft_size; i++ )
 			{
@@ -734,43 +711,33 @@ int main (int argc, char **argv)
 			}
 			pna_printf("\r\n");
 		}
-        else if(strcmp(token,"freset") == 0)
+        else if(strcmp(token, COMMAND_FRESET) == 0)
 		{
 			gpio_fft_reset();
 			pna_printf("\r\n");
 		}
-        else if(strcmp(token,"dac_max") == 0)
+        else if(strcmp(token, COMMAND_DACMAX) == 0)
 		{
         	token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				pna_printf("dac_max: %d \r\n", load_dac_max());
+				pna_printf(COMMAND_DACMAX": %d \r\n", load_dac_max());
 			}
-			else
+			else if(!check_argument(token, COMMAND_DACMAX, "value"))
 			{
 				int dac_max = atoi(token);
 				save_dac_max(dac_max);
-				pna_printf("dac_max: %d \r\n", dac_max);
+				pna_printf(COMMAND_DACMAX": %d \r\n", dac_max);
 			}
 		}
-		else if(strcmp(token,"adc") == 0)
+		else if(strcmp(token, PLOT_ADC) == 0)
 		{
-			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADC, "channel"))
 			{
-				print_error("adc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("adc", ERROR_CH);
-					continue;
-				}
-			}
+			int channel_num = atoi(token) - 1;
 			if(channel_num)
 			{
 				pna_adc(rx2_buffer, fft_size);
@@ -780,66 +747,32 @@ int main (int argc, char **argv)
 				pna_adc(rx1_buffer, fft_size);
 			}
 		}
-		else if(strcmp(token,"adc_trig") == 0)
+		else if(strcmp(token, PLOT_ADCTRIG) == 0)
 		{
-			int mode;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCTRIG, "mode"))
 			{
-				print_error("trigged adc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				mode = atoi(token);
-				if(mode < 0 || mode > 3)
-				{
-					print_error("trigged adc", ERROR_ARG);
-					continue;
-				}
-			}
-			int level;
+			int mode = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCTRIG, "level"))
 			{
-				print_error("trigged adc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				level = atoi(token);
-				if(level < -4096 || level > 4096)
-				{
-					print_error("trigged adc", ERROR_ARG);
-					continue;
-				}
-			}
-			int channel_num;
+			int level = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCTRIG, "channel"))
 			{
-				print_error("trigged adc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("trigged adc", ERROR_CH);
-					continue;
-				}
-			}
-			bool compression_enable;
+			int channel_num = atoi(token) - 1;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCTRIG, "zip"))
 			{
-				compression_enable = true;
+				continue;
 			}
-			else
-			{
-				compression_enable = atoi(token);
-			}
+			bool compression_enable = atoi(token);
 			if(is_2tx_2rx == 0)
 			{
 				fill_rx_buffer_single(fft_size);
@@ -869,34 +802,20 @@ int main (int argc, char **argv)
 			pna_write(uart_tx_buffer, 4*uart_size);
 			pna_printf("\r\n");
 		}
-		else if(strcmp(token,"adc_iq") == 0)
+		else if(strcmp(token, PLOT_ADCIQ) == 0)
 		{
-			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCIQ, "channel"))
 			{
-				print_error("adc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("adc", ERROR_CH);
-					continue;
-				}
-			}
-			bool compression_enable;
+			int channel_num = atoi(token) - 1;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCIQ, "zip"))
 			{
-				compression_enable = true;
+				continue;
 			}
-			else
-			{
-				compression_enable = atoi(token);
-			}
+			bool compression_enable = atoi(token);
 			if(is_2tx_2rx == 0)
 			{
 				fill_rx_buffer_single(fft_size);
@@ -918,25 +837,25 @@ int main (int argc, char **argv)
 				adc_data = rx1_buffer;
 			}
 
-			if(window_en)
-			{
-				flat_top_window(adc_data, fft_size);
-			}
+//			if(window_en)
+//			{
+//				flat_top_window(adc_data, fft_size);
+//			}
 
-			if(compression_enable)
-			{
-				uart_size = compress_data_iq(adc_data, uart_tx_buffer, fft_size);
-			}
-			else
-			{
+//			if(compression_enable)
+//			{
+//				uart_size = compress_data_iq(adc_data, uart_tx_buffer, fft_size);
+//			}
+//			else
+//			{
 				fill_output_buffer_iq(adc_data, uart_tx_buffer, fft_size);
 				uart_size = fft_size;
-			}
+//			}
 			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 4*uart_size);
 			pna_printf("\r\n");
 		}
-		else if(strcmp(token,"adc_vna") == 0)
+		else if(strcmp(token, PLOT_ADCVNA) == 0)
 		{
 			if(is_2tx_2rx == 0)
 			{
@@ -957,24 +876,55 @@ int main (int argc, char **argv)
 			pna_write(uart_tx_buffer, 8*fft_size);
 			pna_printf("\r\n");
 		}
-		else if(strcmp(token,"adc_fft") == 0)
+		else if(strcmp(token, PLOT_ADCCAL) == 0)
 		{
-			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_ADCCAL, "len"))
 			{
-				print_error("adc", ERROR_ARG);
 				continue;
+			}
+			int cal_data_size = atoi(token);
+			token = strtok(NULL, delim);
+			if(!check_argument(token, PLOT_ADCCAL, "channel"))
+			{
+				continue;
+			}
+			int channel_rx_cal = atoi(token) - 1;
+			if(is_2tx_2rx == 0)
+			{
+				fill_rx_buffer_single(cal_data_size);
 			}
 			else
 			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("adc", ERROR_CH);
-					continue;
-				}
+				fill_rx_buffer(cal_data_size);
 			}
+//			if(window_en)
+//			{
+//				flat_top_window(rx1_buffer, fft_size);
+//				flat_top_window(rx2_buffer, fft_size);
+//			}
+			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
+			if(channel_rx_cal && is_2tx_2rx)
+			{
+				fill_output_buffer_iq(rx2_buffer, uart_tx_buffer, cal_data_size);
+			}
+			else
+			{
+				fill_output_buffer_iq(rx1_buffer, uart_tx_buffer, cal_data_size);
+			}
+
+			pna_printf("PLOT");
+			pna_write(uart_tx_buffer, 4*cal_data_size);
+			pna_printf("\r\n");
+		}
+		else if(strcmp(token, PLOT_ADCFFT) == 0)
+		{
+			token = strtok(NULL, delim);
+			if(!check_argument(token, PLOT_ADCFFT, "channel"))
+			{
+				continue;
+			}
+			int channel_num = atoi(token) - 1;
 			if(channel_num && is_2tx_2rx)
 			{
 				pna_adc_fft(rx2_buffer, fft_size);
@@ -984,35 +934,20 @@ int main (int argc, char **argv)
 				pna_adc_fft(rx1_buffer, fft_size);
 			}
 		}
-		else if(strcmp(token,"sweep2") == 0)
+		else if(strcmp(token, PLOT_SWEEP2) == 0)
 		{
-			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_SWEEP2, "channel"))
 			{
-				print_error("sweep", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sweep", ERROR_CH);
-					continue;
-				}
-			}
-			int compression_enable;
+			int channel_num = atoi(token) - 1;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_SWEEP2, "zip"))
 			{
-				print_error("sweep", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				compression_enable = atoi(token);
-			}
+			int compression_enable = atoi(token);
 			if(sw_span < 0)
 			{
 				sw_span = 80E6;
@@ -1111,36 +1046,21 @@ int main (int argc, char **argv)
 			free(sweep_buf);
 			free(uart_tx_buffer);
 		}
-		else if(strcmp(token,"sweep") == 0)
+		else if(strcmp(token, PLOT_SWEEP) == 0)
 		{
-			int channel_num;
 			token = strtok(NULL, delim);
 			// long long span_sweep;
-			if(token==NULL)
+			if(!check_argument(token, PLOT_SWEEP, "channel"))
 			{
-				print_error("sweep", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sweep", ERROR_CH);
-					continue;
-				}
-			}
-			long long sw_span;
+			int channel_num = atoi(token) - 1;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_SWEEP, "span"))
 			{
-				print_error("sweep", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sw_span = get_frequency(token);
-			}
+			long long sw_span = get_frequency(token);
 			// pna_printf("sw_span : %lld\r\n", sw_span);
 
 			int32_t *spectrum;
@@ -1206,45 +1126,26 @@ int main (int argc, char **argv)
 			free(sweep_buf);
 			// free(uart_tx_buffer);
 		}
-		else if(strcmp(token,"fft_span") == 0)
+		else if(strcmp(token, PLOT_FFTSPAN) == 0)
 		{
-			double span_ratio;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_FFTSPAN, "span"))
 			{
-				print_error("fft", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				span_ratio = atof(token);
-			}
-			int channel_num;
+			double span_ratio = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_FFTSPAN, "channel"))
 			{
-				print_error("fft", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("fft", ERROR_CH);
-					continue;
-				}
-			}
-			bool compression_enable;
+			int channel_num = atoi(token) - 1;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_FFTSPAN, "zip"))
 			{
-				compression_enable = true;
+				continue;
 			}
-			else
-			{
-				compression_enable = atoi(token);
-			}
+			bool compression_enable = atoi(token);
 
 			int32_t *spectrum;
 			unsigned char uart_tx_buffer[4*MAX_FFT_LENGTH];
@@ -1286,7 +1187,7 @@ int main (int argc, char **argv)
 			pna_printf("\r\n"); // \r\n%d  , 2*uart_size
 			free(spectrum);
 		}
-		else if(strcmp(token,"fft") == 0)
+		else if(strcmp(token, PLOT_FFT) == 0)
 		{
 			int32_t *spectrum = pna_fft(rx1_buffer, 0, fft_size, window_en);
 			unsigned char uart_tx_buffer[4*UART_LENGTH];
@@ -1296,101 +1197,214 @@ int main (int argc, char **argv)
 			pna_printf("\r\n");
 			free(spectrum);
 		}
-		else if(strcmp(token,"fft2") == 0)
+		else if(strcmp(token, PLOT_FFT2) == 0)
 		{
 			pna_fft2(rx1_buffer, fft_size);
 		}
-		else if(strcmp(token,"fft3") == 0)
+		else if(strcmp(token, PLOT_FFT3) == 0)
 		{
 			pna_fft3(rx1_buffer, fft_size);
 		}
-		else if(strcmp(token,"fft4") == 0)
+		else if(strcmp(token, PLOT_FFT4) == 0)
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_FFT4, "rw"))
 			{
-				print_error("fft4", ERROR_ARG);
 				continue;
 			}
 			int rwfunc = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, PLOT_FFT4, "len"))
 			{
-				print_error("fft4", ERROR_ARG);
 				continue;
 			}
 			int num_bytes = atoi(token);
 			uint32_t uart_tx_buffer[MAX_FFT_LENGTH*2];
-			for(int k=0; k<MAX_FFT_LENGTH*2; k++)
-			{
-				uart_tx_buffer[k] = k;
-			}
 			pna_printf("fft_status#1 = %d\r\n", gpio_fft_status());
 			if(rwfunc)
 			{
-				pna_printf("write %ld bytes to dma.\r\n", write_DMA(
-							(char *)uart_tx_buffer, num_bytes));
+				for(int k=0; k<num_bytes; k++)
+				{
+					uart_tx_buffer[k] = k % 256;
+				}
+				long dma_ret = write_DMA((unsigned char *)uart_tx_buffer, num_bytes);
+				pna_printf("write %ld bytes to dma.\r\n", dma_ret);
 			}
 			else
 			{
-				pna_printf("read %ld bytes from dma.\r\n", read_DMA(
-							(char *)uart_tx_buffer, num_bytes));
+				long dma_ret = read_DMA((unsigned char *)uart_tx_buffer, num_bytes);
+				pna_printf("read %ld bytes from dma.\r\n", dma_ret);
 			}
 			pna_printf("fft_status#2 = %d\r\n", gpio_fft_status());
 			pna_printf("\r\n");
 		}
-		else if (strcmp(token, "sin_iq") == 0)
+		else if(strcmp(token, COMMAND_ACC) == 0)
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
+			token = strtok(NULL, delim);
+			int input_a = atoi(token);
+			token = strtok(NULL, delim);
+			int input_b = atoi(token);
+
+			char c_input[64];
+
+			for(int i=0; i<8; i++)
+			{
+				c_input[8*i] = 0;
+				c_input[8*i+1] = 0;
+				c_input[8*i+2] = (input_a & 0x000000ff);
+				c_input[8*i+3] = 1;
+
+				c_input[8*i+4] = 0;
+				c_input[8*i+5] = 0;
+				c_input[8*i+6] = (input_b & 0x000000ff);
+				c_input[8*i+7] = 1;
+			}
+
+			write_DMA((char *)c_input, 64);
+			pna_printf("############");
+			read_DMA((char *)c_input, 64);
+		}
+		else if(strcmp(token, COMMAND_SCAL) == 0)
+		{
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "freq"))
+			{
+				continue;
+			}
+			long long rx_freq_cal = get_frequency(token);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "point"))
+			{
+				continue;
+			}
+			int point_cal = atoi(token);
+
+			int channel_rx_cal, channel_tx_cal;
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "channel"))
+			{
+				continue;
+			}
+			channel_rx_cal = atoi(token)-1;
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "channel"))
+			{
+				continue;
+			}
+			channel_tx_cal = atoi(token)-1;
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "lna gain"))
+			{
+				continue;
+			}
+			char *size_null = NULL;
+			long long lna_gain_cal = strtoll(token, &size_null, 10);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SCAL, "vga gain"))
+			{
+				continue;
+			}
+			char *sz = NULL;
+			long long power = -strtoll(token, &sz, 10);
+
+			if(is_2tx_2rx == 0)
+			{
+				channel_rx_cal = 0;
+				channel_tx_cal = 0;
+			}
+
+			double freq_mhz = 61.44*((double)point_cal/PNT_NUM_CAL - 0.5);
+			long long tx_freq_cal = rx_freq_cal + (long long)(freq_mhz * 1e6);
+			set_lo_freq(__RX, rx_freq_cal);
+			set_lo_freq(__TX, tx_freq_cal);
+			set_lna_gain(channel_rx_cal+1, lna_gain_cal);
+			set_vga_gain(channel_tx_cal+1, power);
+
+			send_dc_signal(dds_sample_size, dc_power_vna, channel_tx_cal);
+			pna_printf(COMMAND_SCAL": Done!\r\n");
+		}
+		else if(strcmp(token, COMMAND_SVNA) == 0)
+		{
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SVNA, "freq"))
+			{
+				continue;
+			}
+			long long vna_freq = get_frequency(token);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SVNA, "lna gain"))
+			{
+				continue;
+			}
+			char *size_null = NULL;
+			long long lna_gain1 = strtoll(token, &size_null, 10);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SVNA, "lna gain"))
+			{
+				continue;
+			}
+			long long lna_gain2 = strtoll(token, &size_null, 10);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SVNA, "vga gain"))
+			{
+				continue;
+			}
+			long long vga_gain1 = strtoll(token, &size_null, 10);
+
+			token = strtok(NULL, delim);
+			if(!check_argument(token, COMMAND_SVNA, "vga gain"))
+			{
+				continue;
+			}
+			long long vga_gain2 = strtoll(token, &size_null, 10);
+
+			set_lo_freq(__RX, vna_freq);
+			set_lo_freq(__TX, vna_freq + diff_freq_vna);
+
+			set_vga_gain(1, vga_gain1);
+			set_vga_gain(2, vga_gain2);
+			set_lna_gain(1, lna_gain1);
+			set_lna_gain(2, lna_gain2);
+
+			send_dc_signal(dds_sample_size, dc_power_vna, 0);
+			pna_printf(COMMAND_SVNA": Done!\r\n");
+		}
+		else if(strcmp(token, WAVE_SINIQ) == 0)
+		{
 			int sig_iq;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINIQ, "sig_iq"))
 			{
-				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_iq = atoi(token);
-			}
+			sig_iq = atoi(token);
 			int period_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINIQ, "period"))
 			{
-				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				period_num = atoi(token);
-			}
+			period_num = atoi(token);
 			double sig_offset;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINIQ, "offset"))
 			{
-				print_error("sin_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_offset = atof(token);
-			}
+			sig_offset = atof(token);
 			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINIQ, "channel"))
 			{
-				print_error("sin_iq", ERROR_CH);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sin_iq", ERROR_CH);
-					continue;
-				}
-			}
+			channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
@@ -1409,115 +1423,47 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(token != NULL)
+			if(!check_argument(token, WAVE_SINIQ, "dig_amp"))
 			{
 				dig_amp = atof(token);
 			}
 			int amplitude_int = dig_amp*dac_max/2;
-
-//			double dc_offset = period_num*2 +140;
-//			period_num = 1;
-
-			int period_sample_count = dds_sample_size/period_num;
-			for (int i=0 ; i<period_num ; i++)
-			{
-				double sinous, cosinous;
-				for(int j=0; j<period_sample_count; j++)
-				{
-					double x = j*2*PI;
-					x = x/period_sample_count;
-					if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
-					{
-						sinous = sin(x)*amplitude_int;// - dc_offset;
-					}
-					else
-					{
-						sinous = 0;
-					}
-					if(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
-					{
-						cosinous = cos(x)*amplitude_int;// - dc_offset;
-					}
-					else
-					{
-						cosinous = 0;
-					}
-					int16_t sin_int = (int16_t)(sinous);
-					int16_t cos_int = (int16_t)(cosinous);
-
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
-				}
-			}
-			create_dds_buffer(dac_buf, period_num*period_sample_count);
+			send_sin_signal(dds_sample_size, amplitude_int, period_num, sig_iq,  channel_num);
 			pna_printf("[I/Q/SSB]: %d | [period]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
 					sig_iq, period_num, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
-		else if (strcmp(token, "pulse_iq") == 0)
+		else if(strcmp(token, WAVE_PULSEIQ) == 0)
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
-			int sig_iq;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSEIQ, "sig_iq"))
 			{
-				print_error("pulse_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_iq = atoi(token);
-			}
-			int period_num;
+			int sig_iq = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSEIQ, "period"))
 			{
-				print_error("pulse_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				period_num = atoi(token);
-			}
-			float duty_cycle;
+			int period_num = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSEIQ, "duty_cycle"))
 			{
-				print_error("pulse_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				duty_cycle = atof(token);
-			}
-			double sig_offset;
+			float duty_cycle = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSEIQ, "offset"))
 			{
-				print_error("pulse_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_offset = atof(token);
-			}
-			int channel_num;
+			double sig_offset = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSEIQ, "channel"))
 			{
-				print_error("pulse_iq", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("pulse_iq", ERROR_CH);
-					continue;
-				}
-			}
+			int channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
@@ -1536,196 +1482,66 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(token != NULL)
+			if(check_argument(token, WAVE_PULSEIQ, "dig_amp"))
 			{
 				dig_amp = atof(token);
 			}
 
-			double pulse, p_hilbert;
 			int amplitude_int = dig_amp*dac_max/2;
-			int period_samples = dds_sample_size/period_num;
-			int on_pulse_samples = duty_cycle*period_samples;
-
-			for (int i=0; i<dds_sample_size; i++)
-			{
-				//// Real Part
-				if(i%period_samples < on_pulse_samples &&
-						(sig_iq == SIGNAL_INPHASE_ENABLED || sig_iq == SIGNAL_IQ_ENABLED))
-				{
-					pulse = amplitude_int;
-				}
-				else
-				{
-					pulse = 0;
-				}
-
-				//// Imaginary Part
-				p_hilbert = 0;
-				if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
-				{
-					for(int j=-2; j<period_num+2; j++)
-					{
-						double num = i - j*period_samples;
-						double denum = i -  j*period_samples - on_pulse_samples;
-						if(num == 0) // log(0)
-						{
-							num = (i-1) - j*period_samples;
-						}
-						if(denum == 0) // log(x/0)
-						{
-							denum = i-1 -  j*period_samples - on_pulse_samples;
-						}
-						p_hilbert += amplitude_int*log(fabs(num/denum))/PI;
-					}
-				}
-				else
-				{
-					p_hilbert = 0;
-				}
-
-				int16_t pulse_int = (int16_t)(pulse);
-				int16_t p_hilbert_int = (int16_t)(p_hilbert);
-
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(p_hilbert_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(p_hilbert_int/256);     // MSB
-			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			send_pulse_signal(dds_sample_size, amplitude_int, period_num, duty_cycle, sig_iq, channel_num);
 			pna_printf("[I/Q/SSB]: %d | [period]: %d | [duty-cycle]: %.2lf | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
 								sig_iq, period_num, duty_cycle, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
-		else if (strcmp(token, "triangle") == 0)
+		else if(strcmp(token, WAVE_TRIANGLE) == 0)
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
-			int period_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_TRIANGLE, "period"))
 			{
-				print_error("triangle", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				period_num = atoi(token);
-			}
-			int channel_num;
+			int period_num = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_TRIANGLE, "channel"))
 			{
-				print_error("triangle", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("triangle", ERROR_CH);
-					continue;
-				}
-			}
+			int channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
 			}
-			double triangle;
+
 			int amplitude_int = dac_max/2;
-			int period_samples = dds_sample_size/period_num;
-
-			for (int i=0; i<dds_sample_size; i++)
-			{
-				//// Real Part
-				if(i%period_samples < period_samples/2)
-				{
-					triangle = (float)amplitude_int * 2.0 * (float) (i%(period_samples/2))/period_samples;
-				}
-				else
-				{
-					triangle = (float)amplitude_int * 2.0 * (float)(period_samples/2 - (i%(period_samples/2)))/period_samples;
-				}
-				//// Imaginary Part
-//				triangle_h = 0;
-//				if(sig_iq == SIGNAL_QUAD_ENABLED || sig_iq == SIGNAL_IQ_ENABLED)
-//				{
-//					for(int j=-2; j<period_num+2; j++)
-//					{
-//						double num = i - j*period_samples;
-//						double denum = i -  j*period_samples - on_pulse_samples;
-//						if(num == 0) // log(0)
-//						{
-//							num = (i-1) - j*period_samples;
-//						}
-//						if(denum == 0) // log(x/0)
-//						{
-//							denum = i-1 -  j*period_samples - on_pulse_samples;
-//						}
-//						p_hilbert += amplitude_int*log(fabs(num/denum))/PI;
-//					}
-//				}
-//				else
-//				{
-//					p_hilbert = 0;
-//				}
-
-				int16_t triangle_int = (int16_t)(triangle);
-
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(triangle_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(triangle_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = 0;   // LSB
-				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
-			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			send_triangle_signal(dds_sample_size, amplitude_int, period_num, channel_num);
 			pna_printf("[period]: %d | [port]: %d\r\n", period_num, channel_num, sig_pow[channel_num]);
 		}
-		else if(strcmp(token, "awg") == 0)
+		else if(strcmp(token, WAVE_AWG) == 0)
 		{
 			int len_awg;
 			const int step_receive = 32;
-			const int num_width = 4;
 			const int packet_len = 256;
-			int s_size = iio_device_get_sample_size(iio_dac);
 
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_AWG, "len"))
 			{
-				print_error("awg", ERROR_ARG);
 				continue;
 			}
 			len_awg = atoi(token);
-			int total_len = num_width * len_awg * 2; // 2 for [I/Q]
-			if(len_awg < 4 || len_awg > 8192)
-			{
-				print_error("awg", ERROR_ARG);
-				continue;
-			}
+			int total_len = AWG_NUM_WIDTH * len_awg * 2; // 2 for [I/Q]
 			double sig_offset;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_AWG, "offset"))
 			{
-				print_error("awg", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_offset = atof(token);
-			}
+			sig_offset = atof(token);
 			int channel_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_AWG, "channel"))
 			{
-				print_error("awg", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("awg", ERROR_CH);
-					continue;
-				}
-			}
+			channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
@@ -1812,191 +1628,93 @@ int main (int argc, char **argv)
 				pna_printf(START_OF_PACKET"escape char received.\r\n");
 				continue;
 			}
-
-			for(int i=0; i<len_awg; i++) // 2 for [I/Q]
-			{
-				char number_str[5];
-				memcpy(number_str, awg_data+2*i*num_width, num_width);
-				number_str[4] = 0;
-				int number_i = atoi(number_str) - 2048;
-				double number_float_i = (double)number_i;
-				number_float_i = number_float_i*dig_amp;
-				number_i = (int)floor(number_float_i);
-				int16_t number16_i = (int16_t)(number_i*16);
-
-				memcpy(number_str, awg_data + (2*i+1)*num_width, num_width);
-				number_str[4] = 0;
-				int number_q = atoi(number_str) - 2048;
-				double number_float_q = (double)number_q;
-				number_float_q = number_float_q*dig_amp;
-				number_q = (int)floor(number_float_q);
-				int16_t number16_q = (int16_t)(number_q*16);
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(number16_i%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(number16_i/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(number16_q%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(number16_q/256);     // MSB
-			}
+			send_awg_signal(len_awg, dig_amp, channel_num);
 			dds_sample_size = len_awg;
-
-			create_dds_buffer(dac_buf, dds_sample_size);
 //			pna_printf("[total len]: %d | [len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
 //					total_len, len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
-		else if (strcmp(token, "pulse")==0 )
+		else if(strcmp(token, WAVE_PULSE)==0 )
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
-			int period_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSE, "channel"))
 			{
-				print_error("pulse", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				period_num = atoi(token);
-			}
-			float duty_cycle;
+			int period_num = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSE, "channel"))
 			{
-				duty_cycle = 0.5;
-			}
-			else
-			{
-				duty_cycle = atof(token);
-			}
-			double dig_amp;
-			token = strtok(NULL, delim);
-			if(token==NULL)
-			{
-				print_error("pulse", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				dig_amp = atof(token);
-			}
-			int channel_num;
+			float duty_cycle = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_PULSE, "channel"))
 			{
-				print_error("pulse", ERROR_ARG);
 				continue;
 			}
-			else
+			double dig_amp = atof(token);
+			token = strtok(NULL, delim);
+			if(!check_argument(token, WAVE_PULSE, "channel"))
 			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("pulse", ERROR_CH);
-					continue;
-				}
+				continue;
 			}
+			int channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
 			}
 			int amplitude_int =dig_amp*dac_max/2;
-			int period_sample_count = dds_sample_size/period_num;
-
-			for (int i=0 ; i<period_num ; i++)
-			{
-				double pulse;
-				for(int j=0; j<period_sample_count; j++)
-				{
-					if ( j<period_sample_count*duty_cycle )
-					{
-						pulse = amplitude_int;
-					}
-					else
-					{
-						pulse = 0;
-					}
-					int16_t pulse_int = (int16_t)(pulse);
-
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(pulse_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(pulse_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = 0;     // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = 0;     // MSB
-				}
-			}
-			create_dds_buffer(dac_buf, period_num*period_sample_count);
+			send_pulse_signal(dds_sample_size, amplitude_int, period_num, duty_cycle,
+											SIGNAL_INPHASE_ENABLED, channel_num);
 			pna_printf("[period]: %d | [duty-cycle]: %.2lf | [port]: %d | [dig_amp]: %lf\r\n",
 											period_num, duty_cycle, channel_num, dig_amp);
 		}
-		else if (strcmp(token, "sin")==0 )
+		else if(strcmp(token, WAVE_SIN)==0 )
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
-			int period_num;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SIN, "period"))
 			{
-				print_error("sin", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				period_num = atoi(token);
-			}
-			double dig_amp;
+			int period_num = atoi(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SIN, "dig_amp"))
 			{
-				print_error("sin", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				dig_amp = atof(token);
-			}
-			int channel_num;
+			double dig_amp = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SIN, "channel"))
 			{
-				print_error("sin", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sin", ERROR_CH);
-					continue;
-				}
-			}
+			int channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
 			}
 			int amplitude_int = dig_amp*dac_max/2;
-			int period_sample_count = dds_sample_size/period_num;
-
-			for (int i=0 ; i<period_num ; i++)
-			{
-				double sinous, cosinous;
-				for(int j=0; j<period_sample_count; j++)
-				{
-					double x = j*2*PI;
-					x = x/period_sample_count;
-					sinous = sin(x)*amplitude_int;
-					cosinous = cos(x)*amplitude_int;
-					int16_t sin_int = (int16_t)(sinous);
-					int16_t cos_int = (int16_t)(cosinous);
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4] = (int8_t)(sin_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+1] = (int8_t)(sin_int/256);     // MSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+2] = (int8_t)(cos_int%256);   // LSB
-					dac_buf[(j+i*period_sample_count)*s_size+channel_num*4+3] = (int8_t)(cos_int/256);     // MSB
-				}
-			}
-			create_dds_buffer(dac_buf, period_sample_count*period_num);
+			send_sin_signal(dds_sample_size, amplitude_int, period_num, SIGNAL_IQ_ENABLED, channel_num);
 			pna_printf("[amplitude]: %.3lf | [period]: %d | [port]: %d\r\n", dig_amp, period_num, channel_num);
 		}
-		else if (strcmp(token, "dc")==0 )
+		else if(strcmp(token, WAVE_DC)==0 )
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
-			float amplitude_i, amplitude_q;
+			token = strtok(NULL, delim);
+			if(!check_argument(token, WAVE_DC, "vga_gain"))
+			{
+				continue;
+			}
+			char *sz = NULL;
+			long long power = -strtoll(token, &sz, 10);
+			token = strtok(NULL, delim);
+			if(!check_argument(token, WAVE_DC, "vga_gain"))
+			{
+				continue;
+			}
+			int channel_num = atoi(token) - 1;
+			set_vga_gain(channel_num+1, power);
+			send_dc_signal(dds_sample_size, dc_power_vna, channel_num);
+			/*float amplitude_i, amplitude_q;
 			int channel_num;
 			token = strtok(NULL, delim);
 			if(token==NULL)
@@ -2037,54 +1755,26 @@ int main (int argc, char **argv)
 			{
 				channel_num = 0;
 			}
-			int amplitude_i_int = amplitude_i*dac_max/2;
-			int amplitude_q_int = amplitude_q*dac_max/2;
-
-			for (int i=0 ; i<dds_sample_size ; i++)
-			{
-				double inphase = amplitude_i_int;
-				int16_t inphase_int = (int16_t)(inphase);
-				double quad = amplitude_q_int;
-				int16_t quad_int = (int16_t)(quad);
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(inphase_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(inphase_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(quad_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(quad_int/256);     // MSB
-			}
-			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("[port]: %d | [amp_i]: %2.2lf | [amp_q]: %2.2lf\r\n",
-																	channel_num, amplitude_i, amplitude_q);
+			send_dc_signal(dds_sample_size, amplitude_i, amplitude_q, channel_num);
+			*/
+			pna_printf("[port]: %d | [vga_pow]: %lld\r\n", channel_num, power);
 		}
-		else if (strcmp(token, "sin_dc")==0 )
+		else if(strcmp(token, WAVE_SINDC)==0 )
 		{
-			int s_size = iio_device_get_sample_size(iio_dac);
 			int channel_num;
 			double sig_offset;
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINDC, "offset"))
 			{
-				print_error("sin DC", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				sig_offset = atof(token);
-			}
+			sig_offset = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINDC, "channel"))
 			{
-				print_error("sin DC", ERROR_CH);
 				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sin DC", ERROR_CH);
-					continue;
-				}
-			}
+			channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
@@ -2116,109 +1806,53 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(token != NULL)
+			if(check_argument(token, WAVE_SINDC, "dig_amp"))
 			{
 				dig_amp = atof(token);
 			}
 
 			int amplitude_int = dig_amp*dac_max/2;
 
-			for (int i=0 ; i<dds_sample_size ; i++)
-			{
-				double inphase = amplitude_int;
-				int16_t inphase_int = (int16_t)(inphase);
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(inphase_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(inphase_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = (int8_t)(inphase_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+3] = (int8_t)(inphase_int/256);     // MSB
-			}
-			create_dds_buffer(dac_buf, dds_sample_size);
+			send_dc_signal(dds_sample_size, amplitude_int, channel_num);
 			pna_printf("[port]: %d | [dig_amp]: %2.2lf | [dig_pow]: %2.2lf\r\n",
 																	channel_num, dig_amp, dig_pow);
 		}
-		else if (strcmp(token, "sinc")==0 )
-		{
-			//sinc 1 0.9 1               sinc 1 5 1
-			int s_size = iio_device_get_sample_size(iio_dac);
-			double dds_freq;
+		else if(strcmp(token, WAVE_SINC)==0 )
+		{//sinc 1 0.9 1               sinc 1 5 1
+			int s_size = get_sample_size();
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINC, "dds_freq"))
 			{
-				print_error("sinc", ERROR_ARG);
 				continue;
 			}
-			else
-			{
-				dds_freq = atof(token);
-			}
-			int channel_num;
+			double dds_freq = atof(token);
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, WAVE_SINC, "channel"))
 			{
-				channel_num = 0;
+				continue;
 			}
-			else
-			{
-				channel_num = atoi(token) - 1;
-				if(!(channel_num == 1 || channel_num == 0))
-				{
-					print_error("sinc", ERROR_CH);
-					;
-					continue;
-				}
-			}
+			int channel_num = atoi(token) - 1;
 			if(is_2tx_2rx == 0)
 			{
 				channel_num = 0;
 			}
-			for (int i=0 ; i<dds_sample_size ; i++)
-			{
-				double x = i-dds_sample_size/2;
-				double sinc;
-				if ( x==0 )
-				{
-					sinc = dac_max;
-				}
-				else
-				{
-					sinc = sin(x/dds_freq)/(x/dds_freq)*dac_max;
-				}
-				int16_t sinc_int = (int16_t)(sinc);
-				dac_buf[i*s_size+channel_num*4] = (int8_t)(sinc_int%256);   // LSB
-				dac_buf[i*s_size+channel_num*4+1] = (int8_t)(sinc_int/256);     // MSB
-				dac_buf[i*s_size+channel_num*4+2] = 0;     // MSB
-				dac_buf[i*s_size+channel_num*4+3] = 0;     // MSB
-				// pna_printf("DAC Buffer[%d]= %d ,\tx= %f\t sinc=%f, \t sinc_int=%d\r\n", i*s_size+channel_num*2+1, dac_buf[i*s_size+channel_num*2+1], x, sinc, sinc_int );
-			}
-			//dac_buf[sample_count/2*s_size + channel_num*2+1] = 127;
-			//dac_buf[sample_count/2*s_size + channel_num*2] = 240;
-
-//			pna_printf("Channel Num = %d\r\n", channel_num );
-//			pna_printf("DDS Freq = %f\r\n", dds_freq);
-			pna_printf("Sample Count= %d\r\n", dds_sample_size);
-			pna_printf("Sample Size = %d\r\n", s_size );
-			for ( int i=dds_sample_size/2-5 ; i<dds_sample_size/2+5 ; i++)
-			{
-				pna_printf("DAC Buffer[%d]= %d ,%d , x= %d\r\n", i*s_size+channel_num*2+1, (uint8_t) dac_buf[i*s_size+channel_num*2+1], (uint8_t)dac_buf[i*s_size+channel_num*2],i-dds_sample_size/2);
-			}
-			create_dds_buffer(dac_buf, dds_sample_size);
-			pna_printf("[dds_freq]: %lf, [port]: %d\r\n", dds_freq, channel_num);
+			send_sinc_signal(dds_sample_size, dac_max, dds_freq, channel_num);
+			pna_printf("[sample count]: %d, [sample size]: %d, [dds_freq]: %lf, [port]: %d\r\n", dds_sample_size, s_size, dds_freq, channel_num);
 		}
-		else if( strcmp(token, "dbg")==0 )
+		else if( strcmp(token, COMMAND_DBG)==0 )
 		{
-			char str[80], buffer_dbg[80];
+			char attr[80], buffer_dbg[80];
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_DBG, "attribute"))
 			{
-				print_error("debug", ERROR_ARG);
 				continue;
 			}
-			strcpy(str, token);
+			strcpy(attr, token);
 			token = strtok(NULL, delim);
 			if(token==NULL)
 			{
-				iio_device_debug_attr_read(dev, str, buffer_dbg, 80);
-				pna_printf("%s: %s \r\n", str, buffer_dbg);
+				iio_device_debug_attr_read(dev, attr, buffer_dbg, 80);
+				pna_printf("%s: %s \r\n", attr, buffer_dbg);
 			}
 			else
 			{
@@ -2227,21 +1861,22 @@ int main (int argc, char **argv)
 				{
 					token = strtok(NULL, delim);
 					if(token == NULL)
+					{
 						break;
+					}
 					strcat(buffer_dbg, " ");
 					strcat(buffer_dbg, token);
 				}
-				iio_device_debug_attr_write(dev, str, buffer_dbg);
-				pna_printf("%s: %s \r\n", str, buffer_dbg);
+				iio_device_debug_attr_write(dev, attr, buffer_dbg);
+				pna_printf("%s: %s \r\n", attr, buffer_dbg);
 			}
 		}
-		else if( strcmp(token, "reg")==0 )
+		else if( strcmp(token, COMMAND_REGISTER)==0 )
 		{
 			char value[80];
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_REGISTER, "address"))
 			{
-				print_error("register", ERROR_ARG);
 				continue;
 			}
 			char *sz = NULL;
@@ -2250,21 +1885,20 @@ int main (int argc, char **argv)
 			if(token==NULL)
 			{
 				read_reg_ad9361(address, value);
-				pna_printf("reg %llx: %s \r\n", address, value);
+				pna_printf(COMMAND_REGISTER" %llx: %s \r\n", address, value);
 			}
-			else
+			else if(!check_argument(token, COMMAND_REGISTER, "value"))
 			{
 				write_reg_ad9361(address, token);
-				pna_printf("write to %llx: %s \r\n", address, token);
+				pna_printf(COMMAND_REGISTER", write to %llx: %s \r\n", address, token);
 				
 			}
 		}
-		else if( strcmp(token, "nlf")==0 )
+		else if( strcmp(token, COMMAND_NLF)==0 )
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_NLF, "value"))
 			{
-				print_error("narrow loop filter", ERROR_ARG);
 				continue;
 			}
 
@@ -2290,7 +1924,7 @@ int main (int argc, char **argv)
 						pna_printf("error on fastlock recall\r\n");
 					}
 				}
-				pna_printf("nlf: %d\r\n", enable);
+				pna_printf(COMMAND_NLF": %d\r\n", enable);
 			}
 			else
 			{
@@ -2323,21 +1957,20 @@ int main (int argc, char **argv)
 					usleep(SET_LO_DELAY);
 				}
 				narrow_loop_filter(enable);
-				pna_printf("nlf: %d\r\n", enable);
+				pna_printf(COMMAND_NLF": %d\r\n", enable);
 			}
 		}
-		else if( strcmp(token, "fir_coef")==0 )
+		else if( strcmp(token, COMMAND_FIR_COEF)==0 )
 		{
 			token = strtok(NULL, delim);
-			if(token==NULL)
+			if(!check_argument(token, COMMAND_FIR_COEF, "value"))
 			{
-				print_error("fir_coef", ERROR_ARG);
 				continue;
 			}
 			load_fir_filter(token, dev);
 			pna_printf("\r\n");
 		}
-		else if( strcmp(token, "exit")==0 )
+		else if( strcmp(token, COMMAND_EXIT)==0 )
 		{
 			close(fd_dma);
 			pna_close_interface();
@@ -2351,171 +1984,4 @@ int main (int argc, char **argv)
 	close(fd_dma);
 	pna_close_interface();
 	return 0;
-}
-
-void print_error(char *function, int error_code)
-{
-	char arg_buf[200];
-	char err_massage[200];
-	char usage[200];
-	char cmd_name[20];
-
-	if(error_code == ERROR_ARG)
-	{
-		strcpy(err_massage, "arguments are not enough.");
-	}
-	else if(error_code == ERROR_CH)
-	{
-		strcpy(err_massage, "Channel number should be 1 or 2.");
-	}
-
-	if(!strcmp(function, "sweep"))
-	{
-		strcpy(arg_buf, "[port#][compression enable]");
-		strcpy(usage, "Capture spectrum of signal while sweeping.");
-		strcpy(cmd_name, "sweep");
-	}
-	else if(!strcmp(function, "fft"))
-	{
-		strcpy(arg_buf, "[port#][compression enable]");
-		strcpy(usage, "Capture spectrum of signal.");
-		strcpy(cmd_name, "fft_span");
-	}
-	else if(!strcmp(function, "fft4"))
-	{
-		strcpy(arg_buf, "[r0/w1][bytes]");
-		strcpy(usage, "FFT module read/write test.");
-		strcpy(cmd_name, "fft4");
-	}
-	else if(!strcmp(function, "adc"))
-	{
-		strcpy(arg_buf, "[port#][compression enable]");
-		strcpy(usage, "Capture receiver signal from port.");
-		strcpy(cmd_name, "adc_iq");
-	}
-	else if(!strcmp(function, "trigged adc"))
-	{
-		strcpy(arg_buf, "[mode][level][port#][compression enable]");
-		strcpy(usage, "Capture receiver signal from port and trig by level and mode.");
-		strcpy(cmd_name, "adc_trig");
-	}
-	else if(!strcmp(function, "awg"))
-	{
-		strcpy(arg_buf, "[sample_size][offset][port#]");
-		strcpy(usage, "Arbitrary wave generator with samples, i/q and port arguments.");
-		strcpy(cmd_name, "awg");
-	}
-	else if(!strcmp(function, "sin_iq"))
-	{
-		strcpy(arg_buf, "[i/q][period][offset][port#]");
-		strcpy(usage, "generates sinous.");
-		strcpy(cmd_name, "sin_iq");
-	}
-	else if(!strcmp(function, "pulse_iq"))
-	{
-		strcpy(arg_buf, "[i/q][period][duty cycle][offset][port#]");
-		strcpy(usage, "generates pulse.");
-		strcpy(cmd_name, "pulse_iq");
-	}
-	else if(!strcmp(function, "fill profile"))
-	{
-		strcpy(arg_buf, "[rx_freq][span]");
-		strcpy(usage, "Fill FastLock profiles before sweep.");
-		strcpy(cmd_name, "fillpro");
-	}
-	else if(!strcmp(function, "vga gain"))
-	{
-		strcpy(arg_buf, "[port#][value]");
-		strcpy(usage, "Read/Write vga_gain with port and value arguments.");
-		strcpy(cmd_name, "vga_gain");
-	}
-	else if(!strcmp(function, "sig pow"))
-	{
-		strcpy(arg_buf, "[port#][value]");
-		strcpy(usage, "Read/Write sig_pow with port and value arguments.");
-		strcpy(cmd_name, "sig_pow");
-	}
-	else if(!strcmp(function, "lna gain"))
-	{
-		strcpy(arg_buf, "[port#][value]");
-		strcpy(usage, "Read/Write lna gain with port and value arguments.");
-		strcpy(cmd_name, "lna_gain");
-	}
-	else if(!strcmp(function, "agc"))
-	{
-		strcpy(arg_buf, "[port#][value]");
-		strcpy(usage, "Read/Write agc with port and value arguments.");
-		strcpy(cmd_name, "agc");
-	}
-	else if(!strcmp(function, "emio"))
-	{
-		strcpy(arg_buf, "[base][nchannel][value]");
-		strcpy(usage, "Write emio with base, nchannel and value arguments.");
-		strcpy(cmd_name, "emio");
-	}
-	else if(!strcmp(function, "register"))
-	{
-		strcpy(arg_buf, "[address(int)][value(hex)]");
-		strcpy(usage, "Debug mode.");
-		strcpy(cmd_name, "reg");
-	}
-	else if(!strcmp(function, "debug"))
-	{
-		strcpy(arg_buf, "[attribute][value]");
-		strcpy(usage, "Debug mode.");
-		strcpy(cmd_name, "dbg");
-	}
-	else if(!strcmp(function, "sinc"))
-	{
-		strcpy(usage, "Generate sinc signal.");
-		strcpy(arg_buf, "[frequency][port#]");
-		strcpy(cmd_name, "sinc");
-	}
-	else if(!strcmp(function, "DC"))
-	{
-		strcpy(usage, "Generate DC signal.");
-		strcpy(arg_buf, "[amplitude_i][amplitude_q][port#]");
-		strcpy(cmd_name, "dc");
-	}
-	else if(!strcmp(function, "pulse"))
-	{
-		strcpy(usage, "Generate pulse signal with period, amplitude, duty cycle and port arguments.");
-		strcpy(arg_buf, "[period][duty cycle][amplitude][port#]");
-		strcpy(cmd_name, "pulse");
-	}
-	else if(!strcmp(function, "triangle"))
-	{
-		strcpy(usage, "Generate triangle signal with period and port arguments.");
-		strcpy(arg_buf, "[period][port#]");
-		strcpy(cmd_name, "triangle");
-	}
-	else if(!strcmp(function, "sin"))
-	{
-		strcpy(usage, "Generate sinous signal with period, amplitude and port arguments.");
-		strcpy(arg_buf, "[period][amplitude][port#]");
-		strcpy(cmd_name, "sin");
-	}
-	else if(!strcmp(function, "sin DC"))
-	{
-		strcpy(usage, "Generate sinous signal with power offset and channel arguments.");
-		strcpy(arg_buf, "[power offset][port#]");
-		strcpy(cmd_name, "sin_dc");
-	}
-	else if(!strcmp(function, "fir_coef"))
-	{
-		strcpy(usage, "Load filter FIR coefficients file.");
-		strcpy(arg_buf, "[file name]");
-		strcpy(cmd_name, "fir_coef");
-	}
-	else if(!strcmp(function, "narrow loop filter"))
-	{
-		strcpy(usage, "Enable/Disable Tx narrow loop filters.");
-		strcpy(arg_buf, "[enable/disable]");
-		strcpy(cmd_name, "nlf");
-	}
-
-	pna_printf("---------------------------------------------------------------\r\n"
-						"%s: %s\r\n%s\r\nUsage:\r\n    %s %s\r\n"
-						"---------------------------------------------------------------\r\n" ,
-						function, err_massage, usage, cmd_name, arg_buf);
 }

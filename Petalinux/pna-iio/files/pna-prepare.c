@@ -2,7 +2,7 @@
 
 int load_rx_sample_size()
 {
-	const char rx_sample_size_filename[] = "rx_sample_size";
+	const char rx_sample_size_filename[] = COMMAND_RXSS;
 	char rx_sample_size_str[10];
 
 	if(load_from_file(rx_sample_size_filename, rx_sample_size_str) != 0)
@@ -19,6 +19,22 @@ int load_rx_sample_size()
 	}
 	pna_printf("no valid fft_size written in file, default value set to 1024\n");
 	return -1;
+}
+
+int save_rx_sample_size(int fft_size)
+{
+	char rx_sample_size_filename[20];
+	char rx_sample_size_str[10];
+
+	sprintf(rx_sample_size_filename, COMMAND_RXSS);
+
+	sprintf(rx_sample_size_str, "%d", fft_size);
+
+	if(save_to_file(rx_sample_size_filename, rx_sample_size_str) != 0)
+	{
+		return -1;
+	}
+	return 0;
 }
 
 int load_dac_max()
@@ -85,7 +101,7 @@ double load_sig_pow(int channel_num)
 	char sig_pow_filename[20];
 	char sig_pow_str[50];
 
-	sprintf(sig_pow_filename, "sig_pow%d", channel_num);
+	sprintf(sig_pow_filename, COMMAND_SIGPOW"%d", channel_num);
 
 	if(load_from_file(sig_pow_filename, sig_pow_str) != 0)
 	{
@@ -96,7 +112,7 @@ double load_sig_pow(int channel_num)
 	{
 		return sig_pow;
 	}
-	pna_printf("no valid sig_pow written in file, default value set to vga_gain\n");
+	pna_printf("no valid "COMMAND_SIGPOW" written in file, default value set to vga_gain\n");
 	return 100;
 }
 
@@ -105,7 +121,7 @@ int save_sig_pow(double sig_pow, int channel_num)
 	char sig_pow_filename[20];
 	char sig_pow_str[50];
 
-	sprintf(sig_pow_filename, "sig_pow%d", channel_num);
+	sprintf(sig_pow_filename, COMMAND_SIGPOW"%d", channel_num);
 
 	sprintf(sig_pow_str, "%lf", sig_pow);
 
@@ -144,11 +160,11 @@ int load_fir_filter(const char *file_name, struct iio_device *dev1)
 
 	if (ret < 0)
 	{
-		pna_printf("FIR filter config failed: %s\n", file_name);
+		pna_printf("FIR filter config failed: %s", file_name);
 	}
 	else
 	{
-		pna_printf("Filter loaded: %s (ret = %i)\n", file_name, ret);
+		pna_printf("Filter loaded: %s (ret = %i)", file_name, ret);
 	}
 	return ret;
 }

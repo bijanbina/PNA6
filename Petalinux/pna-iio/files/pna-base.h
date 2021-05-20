@@ -9,6 +9,8 @@
 #include "pna-capture.h"
 #include "pna-prepare.h"
 #include "pna-interface.h"
+#include "pna-siggen.h"
+#include "pna-help.h"
 #include <stdio.h>
 
 #define HANNING_ENBW 1.50
@@ -33,6 +35,8 @@
 #define SIGNAL_IQ_ENABLED             3
 
 #define START_OF_PACKET "\r\r\r\r\r"
+
+#define PNT_NUM_CAL 101
 
 struct extra_dev_info
 {
@@ -64,8 +68,8 @@ struct extra_info
 
 unsigned long memCpy_DMA(char *bufferIn, char *bufferOut,
 												 unsigned long byteToMove);
-unsigned long write_DMA(char *bufferIn, size_t size);
-unsigned long read_DMA(char *bufferOut, size_t size);
+unsigned long write_DMA(unsigned char *bufferIn, size_t size);
+unsigned long read_DMA(unsigned char *bufferOut, size_t size);
 double read_sampling_frequency(const struct iio_device *dev);
 ssize_t demux_sample(const struct iio_channel *chn,
 					 void *sample, size_t size, void *d);
@@ -101,6 +105,7 @@ void set_rx_switches(long long freq);
 void set_tx_switches(bool enable);
 bool get_tx_switches();
 
+int get_sample_size();
 void set_bandwidth(int direction, long long bandwidth);
 long long get_bandwidth(int direction);
 void set_powerdown(int direction, long long value);

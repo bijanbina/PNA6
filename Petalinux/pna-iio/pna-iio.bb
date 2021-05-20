@@ -18,6 +18,10 @@ SRC_URI = "file://pna-iio.c \
            file://pna-prepare.h \
            file://pna-interface.c \
            file://pna-interface.h \
+           file://pna-help.c \
+           file://pna-help.h \
+           file://pna-siggen.c \
+           file://pna-siggen.h \
            file://Makefile \
            file://filter.ftr \
         "

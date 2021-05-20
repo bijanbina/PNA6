@@ -2,6 +2,9 @@
 
 source setup_variables.sh
 
+PNA_IP='192.168.1.180'
+PNA_PASS="root"
+
 CURRENT_DIR=$(pwd)
 # printf "Change dir to petalinux & Source setting.sh?[y/N]: "
 # read response
@@ -60,6 +63,7 @@ while true; do
 	echo "6 - Remote Package and boot"
 	echo "7 - Make .BIN files for SD"
 	echo "8 - Send elf to SD"
+	echo "9 - Program Online"
 	echo "0 - Exit"
 	echo "-------------------------------------"
 	read response
@@ -67,6 +71,7 @@ while true; do
 		echo "----------------------Config PetaLinux---------------------"
 		printf "Configure Hardware?[y/N]: "
 		read config_response
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		if [ "$config_response" = "y" ]; then
 			#petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/fft_fast_sqrt/zc702/fft_zc702.sdk"
 			petalinux-config --oldconfig --get-hw-description="$ADI_HDL_PROJECT/projects/ettus/e310/ettus_e310.sdk"
@@ -76,16 +81,19 @@ while true; do
 	fi
 	if [[ "$response" == *"2"* ]]; then
 		echo "-----------------Build $RUN_PETALINUX_PROJECT-----------------"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		petalinux-build
 	fi
 	if [[ "$response" == *"3"* ]]; then
 		echo "------------------Package & boot on board------------------"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force 
 		petalinux-boot --jtag --prebuilt 3 -v
 		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
 	if [[ "$response" == *"4"* ]]; then
 		echo "-------------Reboot if bitfile program failed--------------"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		petalinux-boot --jtag --fpga --bitstream images/linux/system.bit
 	fi
 	if [[ "$response" == *"5"* ]]; then
@@ -101,6 +109,7 @@ while true; do
 	fi
 	if [[ "$response" == *"6"* ]]; then
 		echo "------------------Remote Package and boot------------------"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		petalinux-package --prebuilt --fpga images/linux/system.bit --force;
 		cd "$CURRENT_DIR"
 		cp Petalinux/zc702.tcl "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/"
@@ -110,6 +119,7 @@ while true; do
 	fi
 	if [[ "$response" == *"7"* ]]; then
 		echo "------------------Make .BIN files for SD-------------------"
+		cd "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT"
 		petalinux-package --boot --fsbl images/linux/zynq_fsbl.elf --fpga images/linux/system.bit --u-boot --force
 		
 		sd_loc_response=$(zenity --file-selection --directory --title="Select SD-Card directory")
@@ -143,16 +153,54 @@ while true; do
 		esac
 	fi
 	if [[ "$response" == *"8"* ]]; then
-		PNA_IP='192.168.1.180'
+		echo "----------------------Send elf to SD-----------------------"
 		PNA_SDCARD=/mnt/sdcard
 		PNA_HOME=/home/root
-		PNA_PASS="root"
-		sshpass -p $PNA_PASS ssh root@$PNA_IP "mount /dev/mmcblk0p1 $PNA_SDCARD"
-		sshpass -p $PNA_PASS scp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" root@$PNA_IP:$PNA_SDCARD
-		sshpass -p $PNA_PASS scp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_SDCARD
-		sshpass -p $PNA_PASS scp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_HOME
-		sshpass -p $PNA_PASS ssh root@$PNA_IP "cp $PNA_SDCARD/fft_zc702_linux.elf $PNA_HOME"
-		sshpass -p $PNA_PASS ssh root@$PNA_IP "umount $PNA_SDCARD"
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "mount /dev/mmcblk0p1 $PNA_SDCARD"
+		sshpass -p $PNA_PASS fscp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" root@$PNA_IP:$PNA_SDCARD
+		sshpass -p $PNA_PASS fscp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_SDCARD
+		sshpass -p $PNA_PASS fscp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" root@$PNA_IP:$PNA_HOME
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "cp $PNA_SDCARD/fft_zc702_linux.elf $PNA_HOME"
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "umount $PNA_SDCARD"
+	fi
+	if [[ "$response" == *"9"* ]]; then
+		echo "----------------------Program Online-----------------------"
+		PNA_FIRMWARE_DIR="/lib/firmware"
+		PNA_FPGA_MAN="/sys/class/fpga_manager/fpga0"
+		DATE_DIR=`date +"%y%m%d"`
+		if [ ! -d "$BITSTREAM_DIR" ]; then
+			mkdir "$VERSION_CONTROL_DIR"
+			mkdir "$BITSTREAM_DIR"
+		fi
+		
+		printf "Enter name of HDL project?[fft_fast_sqrt]: "
+		read hdl_response
+		
+		if [ -z "$hdl_response" ]; then
+			hdl_response="fft_fast_sqrt"
+		fi
+		
+		BITFILE="$ADI_HDL_PROJECT/projects/$hdl_response/zc702/fft_zc702.runs/impl_1/system_top.bit"
+		
+		if [ ! -f "$BITFILE" ]; then
+			echo "bitfile not found, path $BITFILE not exist"
+			continue
+		fi
+		
+		BIT_DIR_NEW="$BITSTREAM_DIR/$DATE_DIR""_""$hdl_response"
+		
+		mkdir "$BIT_DIR_NEW"
+		cp "$CURRENT_DIR/Petalinux/system_top.bif" "$BIT_DIR_NEW"
+		cp "$BITFILE" "$BIT_DIR_NEW"
+		cd "$BIT_DIR_NEW"
+		
+		bootgen -image system_top.bif -arch zynq -o system_top.bin -w
+		
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "mkdir $PNA_FIRMWARE_DIR"
+		sshpass -p $PNA_PASS fscp "system_top.bin" root@$PNA_IP:"$PNA_FIRMWARE_DIR"
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "echo 0 > $PNA_FPGA_MAN/flags"
+		sshpass -p $PNA_PASS fssh root@$PNA_IP "echo system_top.bin > $PNA_FPGA_MAN/firmware"
+		
 	fi
 	if [[ "$response" == *"0"* ]]; then
 		break

@@ -61,10 +61,10 @@ unsigned long memCpy_DMA(char *bufferIn, char *bufferOut, unsigned long byteToMo
 	return byteToMove;
 }
 
-unsigned long write_DMA(char *bufferIn, size_t size)
+unsigned long write_DMA(unsigned char *bufferIn, size_t size)
 {
 	pna_printf("write_DMA called!\r\n");
-	for(int i=0; i<10; i++)
+	for(int i=0; i<20; i++)
 	{
 		pna_printf("write_dma[%d]: %d\r\n", i, bufferIn[i]);
 	}
@@ -73,11 +73,11 @@ unsigned long write_DMA(char *bufferIn, size_t size)
 	return write_bytes;
 }
 
-unsigned long read_DMA(char *bufferOut, size_t size)
+unsigned long read_DMA(unsigned char *bufferOut, size_t size)
 {
 	pna_printf("read_DMA called!\r\n");
 	int read_bytes = read(fd_dma, bufferOut, size);
-	for(int i=0; i<10; i++)
+	for(int i=0; i<20; i++)
 	{
 		pna_printf("read_dma[%d]: %d\r\n", i, bufferOut[i]);
 	}
@@ -882,6 +882,11 @@ void set_rx_switches(long long freq)
 	}
 }
 
+int get_sample_size()
+{
+	return iio_device_get_sample_size(iio_dac);
+}
+
 void set_bandwidth(int direction, long long bandwidth)
 {
 	if(direction == __RX)
@@ -955,15 +960,19 @@ long long get_powerdown(int direction)
 void set_vga_gain(int channel_num, long long vga_gain)
 {
 	if(channel_num == 2)
+	{
 		iio_channel_attr_write_longlong(tx_dev_ch1, "hardwaregain", vga_gain);
+	}
 	else if(channel_num == 1)
+	{
 		iio_channel_attr_write_longlong(tx_dev_ch0, "hardwaregain", vga_gain);
+	}
 	else
 	{
 		pna_printf( "---------------------------------------------------------------\r\n"
-				"vga_gain: arguments are not valid.\r\n"
-				"Read/Write vga_gain with port and value arguments.\r\n"
-				"Usage:\r\n    vga_gain [port#] [value]\r\n");
+				COMMAND_VGA": arguments are not valid.\r\n"
+				"Read/Write "COMMAND_VGA" with port and value arguments.\r\n"
+				"Usage:\r\n    "COMMAND_VGA" [port#] [value]\r\n");
 	}
 }
 
@@ -971,15 +980,19 @@ long long get_vga_gain(int channel_num)
 {
 	long long vga_gain;
 	if(channel_num == 2)
+	{
 		iio_channel_attr_read_longlong(tx_dev_ch1, "hardwaregain", &vga_gain);
+	}
 	else if(channel_num == 1)
+	{
 		iio_channel_attr_read_longlong(tx_dev_ch0, "hardwaregain", &vga_gain);
+	}
 	else
 	{
 		pna_printf( "---------------------------------------------------------------\r\n"
-				"vga_gain: arguments are not valid.\r\n"
-				"Read/Write vga_gain with port and value arguments.\r\n"
-				"Usage:\r\n    vga_gain [port#] [value]\r\n");
+				COMMAND_VGA": arguments are not valid.\r\n"
+				"Read/Write "COMMAND_VGA" with port and value arguments.\r\n"
+				"Usage:\r\n    "COMMAND_VGA" [port#] [value]\r\n");
 	}
 	return vga_gain;
 }
@@ -998,9 +1011,9 @@ void set_lna_gain(int channel_num, long long lna_gain)
 	else
 	{
 		pna_printf( "---------------------------------------------------------------\r\n"
-				"lna_gain: arguments are not valid.\r\n"
-				"Read/Write lna_gain with port and value arguments.\r\n"
-				"Usage:\r\n    lna_gain [port#] [value]\r\n");
+				COMMAND_LNA": arguments are not valid.\r\n"
+				"Read/Write "COMMAND_LNA" with port and value arguments.\r\n"
+				"Usage:\r\n    "COMMAND_LNA" [port#] [value]\r\n");
 	}
 }
 
@@ -1014,9 +1027,9 @@ long long get_lna_gain(int channel_num)
 	else
 	{
 		pna_printf( "---------------------------------------------------------------\r\n"
-				"lna_gain: arguments are not valid.\r\n"
-				"Read/Write lna_gain with port and value arguments.\r\n"
-				"Usage:\r\n    lna_gain [port#] [value]\r\n");
+				COMMAND_LNA": arguments are not valid.\r\n"
+				"Read/Write "COMMAND_LNA" with port and value arguments.\r\n"
+				"Usage:\r\n    "COMMAND_LNA" [port#] [value]\r\n");
 	}
 	return lna_gain;
 }

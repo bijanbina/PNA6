@@ -139,8 +139,10 @@ static int dmaSynchMM2S(struct pnadmc_device *obj_dev)
 			counter2++;
 			if( counter2>20 )
 			{
+				unsigned int mm2s_cr = ioread32(obj_dev->virt_bus_addr + MM2S_DMACR);
 				printk(KERN_ERR "<%s> MM2S_Status = 0x%x virt_bus_addr = 0x%x \n",
 				               MODULE_NAME, mm2s_status, obj_dev->virt_bus_addr);
+				printk(KERN_ERR "<%s> MM2S_CR = 0x%x \n", MODULE_NAME, mm2s_cr);
 				counter2 = 0;
 				return 1;
 			}
@@ -176,8 +178,10 @@ static int dmaSynchS2MM(struct pnadmc_device *obj_dev)
 			counter2++;
 			if( counter2>20 )
 			{
+				unsigned int s2mm_cr = ioread32(obj_dev->virt_bus_addr + S2MM_DMACR);
 				printk(KERN_ERR "<%s> S2MM_Status = 0x%x virt_bus_addr = 0x%x \n",
 				               MODULE_NAME, s2mm_status, obj_dev->virt_bus_addr);
+				printk(KERN_ERR "<%s> S2MM_CR = 0x%x \n", MODULE_NAME, s2mm_cr);
 				counter2 = 0;
 				return 1;
 			}
@@ -233,17 +237,18 @@ static ssize_t pnadmc_read(struct file *f, char __user * buf, size_t
 	iowrite32(obj_dev->pnadmc_handle_read, obj_dev->virt_bus_addr + S2MM_DA);
 	// printk(KERN_ERR "<%s> file #44 READ \n", MODULE_NAME);
 	iowrite32(len, obj_dev->virt_bus_addr + S2MM_LENGTH);
+	iowrite32(len, obj_dev->virt_bus_addr + MM2S_LENGTH);
 	// printk(KERN_ERR "<%s> file #55 READ DMA_LEN=%d\n",
 	// 			MODULE_NAME, len);
-	// printk(KERN_INFO "file #88 READ mm2s_len %d\n", ioread32(obj_dev->virt_bus_addr + MM2S_LENGTH));
-	// printk(KERN_INFO "file #88 READ s2mm_len %d\n", ioread32(obj_dev->virt_bus_addr + S2MM_LENGTH));
+	printk(KERN_INFO "file #88 READ mm2s_len %d\n", ioread32(obj_dev->virt_bus_addr + MM2S_LENGTH));
+	printk(KERN_INFO "file #88 READ s2mm_len %d\n", ioread32(obj_dev->virt_bus_addr + S2MM_LENGTH));
 	//dmaSynchS2MM(obj_dev);
 	if(dmaSynchS2MM(obj_dev)==0)
 	{
 		// printk(KERN_ERR "<%s> file #66 READ \n", MODULE_NAME);
 		copy_to_user(buf, obj_dev->pnadmc_addr_read, len);
 	}
-	// printk(KERN_ERR "<%s> file #77 READ \n", MODULE_NAME);
+	printk(KERN_ERR "<%s> file #77 READ \n", MODULE_NAME);
 //	memcpy(buf, obj_dev->pnadmc_addr_read, len);
 	return len;
 }
@@ -288,8 +293,8 @@ static ssize_t pnadmc_write(struct file *f, const char __user * buf,
 	// printk(KERN_ERR "<%s> file #33 READ \n", MODULE_NAME);
 	// printk(KERN_ERR "<%s> file #44 READ \n", MODULE_NAME);
 
-	// printk(KERN_INFO "mm2s_len %d\n", ioread32(obj_dev->virt_bus_addr + MM2S_LENGTH));
-	// printk(KERN_INFO "s2mm_len %d\n", ioread32(obj_dev->virt_bus_addr + S2MM_LENGTH));
+	printk(KERN_INFO "mm2s_len %d\n", ioread32(obj_dev->virt_bus_addr + MM2S_LENGTH));
+	printk(KERN_INFO "s2mm_len %d\n", ioread32(obj_dev->virt_bus_addr + S2MM_LENGTH));
 
 	dmaSynchMM2S(obj_dev);
 	// printk(KERN_ERR "<%s> file #6: write()\n", MODULE_NAME);
