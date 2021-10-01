@@ -102,7 +102,7 @@ ssize_t fastlock_load(int direction, char* data);
 ssize_t fastlock_recall(int direction, int slot);
 
 void set_rx_switches(long long freq);
-void set_tx_switches(bool enable);
+void set_tx_switches(bool enable, long long freq);
 bool get_tx_switches();
 
 int get_sample_size();

@@ -274,7 +274,8 @@ int main (int argc, char **argv)
 				bool enable = atoi(token);
 				if(board_id == ETTUS_E310)
 				{
-					set_tx_switches(enable);
+					long long tx_freq = get_lo_freq(__TX);
+					set_tx_switches(enable, tx_freq);
 				}
 				set_powerdown(__TX, (long long)(!enable));
 				pna_printf(COMMAND_RFOUT": %d\r\n", enable);
@@ -360,7 +361,7 @@ int main (int argc, char **argv)
 			double span_mhz = sw_span/1E6;
 			double lo_start_freq = rx_freq_mhz - span_mhz/2;
 			fill_profiles(lo_start_freq, span_mhz);
-			pna_printf("\r\n");
+			pna_printf("Fillpro: Done!\r\n");
 		}
 		else if( strcmp(token, COMMAND_LOADPRO)==0 ) // sweep time
 		{
@@ -1303,13 +1304,11 @@ int main (int argc, char **argv)
 			long long lna_gain_cal = strtoll(token, &size_null, 10);
 
 			token = strtok(NULL, delim);
-			if(!check_argument(token, COMMAND_SCAL, "vga gain"))
+			if(!check_argument(token, COMMAND_SCAL, "power"))
 			{
 				continue;
 			}
-			char *sz = NULL;
-			long long power = -strtoll(token, &sz, 10);
-
+			double power = atof(token);
 			if(is_2tx_2rx == 0)
 			{
 				channel_rx_cal = 0;
@@ -1321,9 +1320,35 @@ int main (int argc, char **argv)
 			set_lo_freq(__RX, rx_freq_cal);
 			set_lo_freq(__TX, tx_freq_cal);
 			set_lna_gain(channel_rx_cal+1, lna_gain_cal);
-			set_vga_gain(channel_tx_cal+1, power);
 
-			send_dc_signal(dds_sample_size, dc_power_vna, channel_tx_cal);
+			double dig_pow, dig_amp;
+			if(power > -70.0)
+			{
+				long long vga_part = (long long)ceil(power);
+				if(vga_part < -70)
+				{
+					vga_part = -70;
+					pna_printf("vga set to -70, cannot set values less than -70\n");
+				}
+				else if(vga_part > 0)
+				{
+					pna_printf("vga set to 0, cannot set values more than 0\n");
+					vga_part = 0.0;
+				}
+				set_vga_gain(channel_tx_cal+1, vga_part);
+				dig_pow = power - ceil(power);
+			}
+			else
+			{
+				set_vga_gain(channel_tx_cal+1, -70);
+				dig_pow = power + 70.0;
+			}
+			dig_amp = pow(10.0, dig_pow / 20.0);
+
+			int amplitude_int = dig_amp*dac_max/2;
+
+			send_dc_signal(dds_sample_size, amplitude_int, channel_tx_cal);
+
 			pna_printf(COMMAND_SCAL": Done!\r\n");
 		}
 		else if(strcmp(token, COMMAND_SVNA) == 0)
@@ -1423,9 +1448,12 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(!check_argument(token, WAVE_SINIQ, "dig_amp"))
+			if(token != NULL)
 			{
-				dig_amp = atof(token);
+				if(!check_argument(token, WAVE_SINIQ, "dig_amp"))
+				{
+					dig_amp = atof(token);
+				}
 			}
 			int amplitude_int = dig_amp*dac_max/2;
 			send_sin_signal(dds_sample_size, amplitude_int, period_num, sig_iq,  channel_num);
@@ -1482,9 +1510,12 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(check_argument(token, WAVE_PULSEIQ, "dig_amp"))
+			if(token != NULL)
 			{
-				dig_amp = atof(token);
+				if(check_argument(token, WAVE_PULSEIQ, "dig_amp"))
+				{
+					dig_amp = atof(token);
+				}
 			}
 
 			int amplitude_int = dig_amp*dac_max/2;
@@ -1759,6 +1790,18 @@ int main (int argc, char **argv)
 			*/
 			pna_printf("[port]: %d | [vga_pow]: %lld\r\n", channel_num, power);
 		}
+		else if(strcmp(token, "dac_dc")==0 )
+		{
+			int channel_num = 0;
+			token = strtok(NULL, delim);
+			if(token == NULL)
+			{
+				continue;
+			}
+			int dc_dac_amp = atoi(token);
+			send_dc_signal(dds_sample_size, dc_dac_amp, channel_num);
+			pna_printf("\r\n");
+		}
 		else if(strcmp(token, WAVE_SINDC)==0 )
 		{
 			int channel_num;
@@ -1806,9 +1849,12 @@ int main (int argc, char **argv)
 			}
 			dig_amp = pow(10.0, dig_pow / 20.0);
 			token = strtok(NULL, delim);
-			if(check_argument(token, WAVE_SINDC, "dig_amp"))
+			if(token!=NULL)
 			{
-				dig_amp = atof(token);
+				if(check_argument(token, WAVE_SINDC, "dig_amp"))
+				{
+					dig_amp = atof(token);
+				}
 			}
 
 			int amplitude_int = dig_amp*dac_max/2;

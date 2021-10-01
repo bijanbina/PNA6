@@ -803,10 +803,16 @@ ssize_t fastlock_recall(int direction, int slot)
 
 bool get_tx_switches()
 {
+	char rx_port[100];
 	int8_t tx_switch = get_gpio_emio(60, 2);
-	int8_t tx_amp = get_gpio_emio(30, 1);
+	int8_t tx_bandsel = get_gpio_emio(24, 3);
+	int8_t tx_amp1 = get_gpio_emio(30, 1);
+	int8_t tx_amp2 = get_gpio_emio(28, 1);
+	get_port(__RX, rx_port);
+	int is_port_a = !strcmp(rx_port, "A");
+	int is_port_b = !strcmp(rx_port, "B");
 
-	if(tx_switch == 3 && tx_amp == 1)
+	if((tx_switch == 3 && tx_amp1 == 1 && is_port_a) || (tx_switch == 2 && tx_amp2 == 1 && tx_bandsel == 1 && is_port_b))
 	{
 		return true;
 	}
@@ -816,15 +822,25 @@ bool get_tx_switches()
 	}
 }
 
-void set_tx_switches(bool enable)
+void set_tx_switches(bool enable, long long freq)
 {
-	if(enable)
+	int freq_MHz = freq / 1E6;
+	if(enable && freq_MHz <= 1000)
+	{
+		set_gpio_emio(60, 2, 2);
+		set_gpio_emio(28, 1, 1);
+		set_gpio_emio(24, 3, 1);
+		set_port(__TX, "B");
+	}
+	else if(enable && freq_MHz <= 6000)
 	{
 		set_gpio_emio(60, 2, 3);
 		set_gpio_emio(30, 1, 1);
+		set_port(__TX, "A");
 	}
 	else
 	{
+		set_gpio_emio(28, 1, 0);
 		set_gpio_emio(60, 2, 0);
 		set_gpio_emio(30, 1, 0);
 	}
@@ -1112,6 +1128,10 @@ void set_lo_freq(int direction, long long freq)
 	else if(direction == __TX)
 	{
 		iio_channel_attr_write_longlong(tx_alt_dev_ch1, tx_freq_name, freq);
+		if(board_id == ETTUS_E310)
+		{
+			set_tx_switches(true, freq);
+		}
 	}
 	else
 	{

@@ -348,11 +348,10 @@ int check_argument(char *token, char *function, char *argument)
 				return 0;
 			}
 		}
-		else if(!strcmp(argument, "vga gain"))
+		else if(!strcmp(argument, "power"))
 		{
-			char *sz = NULL;
-			long long vga_gain = -strtoll(input, &sz, 10);
-			if(vga_gain>=VGA_MIN && vga_gain<=VGA_MAX)
+			double power = atof(input);
+			if(power>=SIGPOW_MIN && power<=SIGPOW_MAX)
 			{
 				return 1;
 			}
@@ -505,7 +504,8 @@ int check_argument(char *token, char *function, char *argument)
 				return 1;
 			}
 			else
-			{// not a necessary input
+			{
+				print_help(function, argument);
 				return 0;
 			}
 		}
@@ -551,7 +551,8 @@ int check_argument(char *token, char *function, char *argument)
 				return 1;
 			}
 			else
-			{// not a necessary input
+			{
+				print_help(function, argument);
 				return 0;
 			}
 		}
@@ -585,7 +586,7 @@ int check_argument(char *token, char *function, char *argument)
 		else if(!strcmp(argument, "period"))
 		{
 			int pn = atoi(token);
-			if(pn>=PERIOD_MIN && pn==PERIOD_MAX)
+			if(pn>=PERIOD_MIN && pn<=PERIOD_MAX)
 			{
 				return 1;
 			}
@@ -637,7 +638,8 @@ int check_argument(char *token, char *function, char *argument)
 				return 1;
 			}
 			else
-			{// not a necessary input
+			{
+				print_help(function, argument);
 				return 0;
 			}
 		}
@@ -658,7 +660,7 @@ int check_argument(char *token, char *function, char *argument)
 		else if(!strcmp(argument, "period"))
 		{
 			int pn = atoi(token);
-			if(pn>=PERIOD_MIN && pn==PERIOD_MAX)
+			if(pn>=PERIOD_MIN && pn<=PERIOD_MAX)
 			{
 				return 1;
 			}
@@ -718,7 +720,7 @@ int check_argument(char *token, char *function, char *argument)
 		else if(!strcmp(argument, "period"))
 		{
 			int pn = atoi(token);
-			if(pn>=PERIOD_MIN && pn==PERIOD_MAX)
+			if(pn>=PERIOD_MIN && pn<=PERIOD_MAX)
 			{
 				return 1;
 			}
@@ -778,7 +780,7 @@ int check_argument(char *token, char *function, char *argument)
 		else if(!strcmp(argument, "period"))
 		{
 			int pn = atoi(token);
-			if(pn>=PERIOD_MIN && pn==PERIOD_MAX)
+			if(pn>=PERIOD_MIN && pn<=PERIOD_MAX)
 			{
 				return 1;
 			}
@@ -1350,9 +1352,9 @@ void print_help(char *function, char *argument)
 	else if(!strcmp(function, COMMAND_SCAL))
 	{
 		sprintf(arg_buf, "[freq <%lld:%lld>][point <%d:%d>][port-rx <1,2>]"
-				"[port-tx <1,2>][lna <%d:%d>][vga <%d:%d>]",
+				"[port-tx <1,2>][lna <%d:%d>][power <%d:%d>]",
 				(long long)FRQ_MIN, (long long)FRQ_MAX, CALPNT_MIN, CALPNT_MAX,
-				LNA_MIN, LNA_MAX, VGA_MIN, VGA_MAX);
+				LNA_MIN, LNA_MAX, SIGPOW_MIN, SIGPOW_MAX);
 	}
 	else if(!strcmp(function, COMMAND_FILLPRO))
 	{
