@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -22,7 +23,7 @@
 #define MAX_SIG_POW          0.0
 #define DAC_MAX_VAL          2047*16
 
-int load_fir_filter(const char *file_name, struct iio_device *dev1);
+int load_fir_filter(const char *file_name, struct iio_device *dev);
 
 int load_rx_sample_size();
 int save_rx_sample_size(int fft_size);

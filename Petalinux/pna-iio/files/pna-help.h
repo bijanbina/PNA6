@@ -15,6 +15,8 @@
 #define COMMAND_RXRATE      "rx_sample_rate"
 #define COMMAND_TXSS        "tx_sample_size"
 #define COMMAND_RXSS        "rx_sample_size"
+#define COMMAND_CALIB       "calib"
+#define COMMAND_TXFREQ_CAL "tx_freq_cal"
 #define COMMAND_TXFREQ      "tx_freq"
 #define COMMAND_RXFREQ      "rx_freq"
 #define COMMAND_TXFIR       "tx_fir_en"

@@ -132,7 +132,7 @@ int save_sig_pow(double sig_pow, int channel_num)
 	return 0;
 }
 
-int load_fir_filter(const char *file_name, struct iio_device *dev1)
+int load_fir_filter(const char *file_name, struct iio_device *dev)
 {
 	int ret = -10;
 	FILE *f;
@@ -150,7 +150,7 @@ int load_fir_filter(const char *file_name, struct iio_device *dev1)
 		len = fread(buf, 1, len, f);
 		fclose(f);
 
-		ret = iio_device_attr_write_raw(dev1, "filter_fir_config", buf, len);
+		ret = iio_device_attr_write_raw(dev, "filter_fir_config", buf, len);
 		free(buf);
 	}
 	else

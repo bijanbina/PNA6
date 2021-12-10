@@ -803,16 +803,18 @@ ssize_t fastlock_recall(int direction, int slot)
 
 bool get_tx_switches()
 {
-	char rx_port[100];
+	char tx_port[100];
 	int8_t tx_switch = get_gpio_emio(60, 2);
 	int8_t tx_bandsel = get_gpio_emio(24, 3);
 	int8_t tx_amp1 = get_gpio_emio(30, 1);
 	int8_t tx_amp2 = get_gpio_emio(28, 1);
-	get_port(__RX, rx_port);
-	int is_port_a = !strcmp(rx_port, "A");
-	int is_port_b = !strcmp(rx_port, "B");
+	get_port(__TX, tx_port);
+	int is_port_a = !strcmp(tx_port, "A");
+	int is_port_b = !strcmp(tx_port, "B");
 
-	if((tx_switch == 3 && tx_amp1 == 1 && is_port_a) || (tx_switch == 2 && tx_amp2 == 1 && tx_bandsel == 1 && is_port_b))
+	if( (tx_amp1 == 1 && tx_switch == 3 && is_port_a) ||
+		 (tx_amp2 == 1 && tx_switch == 2 && is_port_b &&
+				 (tx_bandsel == 0 || tx_bandsel == 1)))
 	{
 		return true;
 	}
@@ -825,11 +827,18 @@ bool get_tx_switches()
 void set_tx_switches(bool enable, long long freq)
 {
 	int freq_MHz = freq / 1E6;
-	if(enable && freq_MHz <= 1000)
+	if(enable && freq_MHz <= 2000)
 	{
 		set_gpio_emio(60, 2, 2);
 		set_gpio_emio(28, 1, 1);
 		set_gpio_emio(24, 3, 1);
+		set_port(__TX, "B");
+	}
+	else if(enable && freq_MHz <= 3000)
+	{
+		set_gpio_emio(60, 2, 2);
+		set_gpio_emio(28, 1, 1);
+		set_gpio_emio(24, 3, 0);
 		set_port(__TX, "B");
 	}
 	else if(enable && freq_MHz <= 6000)
@@ -1158,6 +1167,51 @@ long long get_lo_freq(int direction)
 	return freq;
 }
 
+int calibrate_tx(long long last_freq)
+{
+	char qcs[10];
+	char *size_null = NULL;
+	long qcs_l;
+	uint8_t qcs8 = 0;
+	int cnt = 0;
+
+	// FIXME: if cnt > 100 this will make problem
+	while( qcs8==0 )
+	{
+		iio_device_attr_write(dev, "calib_mode", "tx_quad");
+		usleep(10000);
+		read_reg_ad9361(0xA8, qcs);  // Quad Cal Status TX2
+		qcs_l = strtol(qcs+2, &size_null, 16); // +2 for skipping 0x
+		qcs8 = (uint8_t)qcs_l;
+		qcs8 = qcs8 & 0x01; // only convergence flag
+		long long cal_freq = last_freq + cnt*1E6;
+
+		if( qcs8 ) // if converged
+		{
+			pna_printf("calibrated on: %lld\r\n", cal_freq);
+			break;
+		}
+		else
+		{
+			cnt++;
+			if((last_freq<=2E9 && (last_freq + cnt*1E6) > 2E9) || //FIXME: switch frequency edges, should be defined
+			   (last_freq<=3E9 && (last_freq + cnt*1E6) > 3E9) ||
+			   (last_freq<=6E9 && (last_freq + cnt*1E6) > 6E9) || cnt>99)
+			{
+				set_lo_freq(__TX, last_freq);
+				return 0;
+			}
+			pna_printf("cannot converge on: %lld\r\n", cal_freq);
+			cal_freq = last_freq + cnt*1E6;
+			set_lo_freq(__TX, cal_freq);
+			usleep(10000);
+		}
+	}
+
+	set_lo_freq(__TX, last_freq);
+	return 1;
+}
+
 void set_port(int direction, char* port)
 {
 	if(direction == __RX)
@@ -1229,7 +1283,7 @@ bool get_fir_en(int direction)
 void write_reg_ad9361(long long address, const char *value)
 {
 	char buffer[80];
-	sprintf(buffer, "0x%llx 0x%s", address, value);
+	sprintf(buffer, "0x%llx %s", address, value);
 	iio_device_debug_attr_write(dev, "direct_reg_access", buffer);
 }
 

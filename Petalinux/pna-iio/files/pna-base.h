@@ -120,6 +120,7 @@ void set_sample_rate(int direction, long long sampling_frequency);
 long long get_sample_rate(int direction);
 void set_lo_freq(int direction, long long freq);
 long long get_lo_freq(int direction);
+int calibrate_tx(long long last_freq);
 void set_port(int direction, char* port);
 void get_port(int direction, char *port);
 void set_fir_en(int direction, bool fir_en);

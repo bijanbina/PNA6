@@ -46,7 +46,7 @@ fi
 #!/bin/sh
 
 ifconfig eth0 down
-ifconfig eth0 hw ether 12:13:14:15:16:17
+ifconfig eth0 hw ether 12:13:14:15:16:18
 ifconfig eth0 up
 
 if [ -f /etc/pna_iio/pna_ip ]; then

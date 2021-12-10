@@ -132,9 +132,16 @@ while true; do
 				rm "$sd_loc_response/tx_filter.ftr"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/BOOT.BIN" "$sd_loc_response"
 				cp "$PETALINUX_INSTALL_DIR/$RUN_PETALINUX_PROJECT/images/linux/image.ub" "$sd_loc_response"
-				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna_ip" "$sd_loc_response"
+#				cp "$CURRENT_DIR/Petalinux/pna-startup/files/pna_ip" "$sd_loc_response"
 				cp "$CURRENT_DIR/Petalinux/pna-iio/files/tx_filter.ftr" "$sd_loc_response"
-				cp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" "$sd_loc_response";;
+				cp "$GIT_SDK_PETALINUX_PROJECT/Debug/fft_zc702_linux.elf" "$sd_loc_response"
+				if [ "$PROJECT_NAME" = "pna6" ]; then
+					printf "192.168.1.120" > "$sd_loc_response/pna_ip"
+				elif [ "$PROJECT_NAME" = "zc702-fft" ]; then
+					printf "192.168.1.150" > "$sd_loc_response/pna_ip"
+				elif [ "$PROJECT_NAME" = "e310" ]; then
+					printf "192.168.1.180" > "$sd_loc_response/pna_ip"
+				fi;;
 			1)
 				echo "response is empty, image created but not copied to SD"
 				echo "Be careful to copy:"

@@ -71,7 +71,7 @@ while true; do
 		echo "------------Create Petalinux project---------------"
 		cd "$PETALINUX_INSTALL_DIR"
 		source settings.sh
-		pna_createPetalinux "fmcomms2/zc702/fmcomms2_zc702.sdk" "pna6"
+		pna_createPetalinux "fmcomms2/zc702/fmcomms2_zc702.sdk" "pna6" "18"
 	fi
 	
 	if [[ "$response_main" == *"0"* ]]; then

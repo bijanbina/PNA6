@@ -221,7 +221,8 @@ function pna_createPetalinux()
 	fi
 	
 	STARTUP_SH="$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT/project-spec/meta-user/recipes-apps/pna-startup/files/load-config"
-	sed -i "s|^.*/etc/pna_iio/pna_board_name$|printf $2 > /etc/pna_iio/board_name|" "$STARTUP_SH"
+	sed -i "s|^.*/etc/pna_iio/board_name$|printf $2 > /etc/pna_iio/board_name|" "$STARTUP_SH"
+	sed -i "s|ifconfig eth0 hw ether.*$|ifconfig eth0 hw ether 12:13:14:15:16:$3|" "$STARTUP_SH"
 
 	cd "$PETALINUX_INSTALL_DIR/$PETALINUX_PROJECT"
 	

@@ -67,7 +67,7 @@ while true; do
 		echo "------------Create Petalinux project---------------"
 		cd "$PETALINUX_INSTALL_DIR"
 		source settings.sh
-		pna_createPetalinux "fft/zc702/fft_zc702.sdk" "ZC702"
+		pna_createPetalinux "fft/zc702/fft_zc702.sdk" "ZC702" "19"
 		# fft_fast_sqrt/zc702/fft_zc702.sdk
 	fi
 	

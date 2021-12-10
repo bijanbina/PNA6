@@ -560,6 +560,55 @@ int main (int argc, char **argv)
 				pna_printf(COMMAND_TXSS": %d\r\n", dds_sample_size);
 			}
 		}
+		else if( strcmp(token, COMMAND_CALIB)==0 )
+		{
+			token = strtok(NULL, delim);
+			char cal_mode[100];
+			if(token==NULL)
+			{
+				iio_device_attr_read(dev, "calib_mode", cal_mode, 100);
+				pna_printf(COMMAND_CALIB": %s\r\n", cal_mode);
+			}
+			else if(check_argument(token, COMMAND_CALIB, "value"))
+			{
+//				char qcn[10];
+				char qcs[10];
+				char *size_null = NULL;
+
+				iio_device_attr_write(dev, "calib_mode", token);
+				usleep(10000);
+//				read_reg_ad9361(160, qcn); // Quad Cal NCO Freq and Phase Offset | 0xA0
+				read_reg_ad9361(168, qcs);  // Quad Cal Status TX2 | 0xA8
+				long qcs_l = strtol(qcs+2, &size_null, 16);
+//				long qcn_l = strtol(qcn+2, &size_null, 16);
+				uint8_t qcs8 = (uint8_t)qcs_l;
+//				uint8_t qcn8 = (uint8_t)qcn_l;
+				uint8_t conv = qcs8 & 0x01;
+//				uint8_t conv_cnt = qcs8 & 0xFC;
+//				conv_cnt = conv_cnt >> 2;
+//				qcn8 = qcn8 & 0x1F;
+//				pna_printf("NCO phase: %d | conv: %d | conv_count: %d\r\n", qcn8, conv, conv_cnt);
+				pna_printf(COMMAND_CALIB": %s, %d\r\n", token, conv);
+			}
+		}
+		else if( strcmp(token, COMMAND_TXFREQ_CAL)==0 )
+		{
+			token = strtok(NULL, delim);
+			if(token==NULL)
+			{
+				long long freq = get_lo_freq(__TX);
+				int cal_success = calibrate_tx(freq);
+				pna_printf(COMMAND_TXFREQ_CAL": %lld, %d\r\n", freq, cal_success);
+			}
+			else if(check_argument(token, COMMAND_TXFREQ_CAL, "value"))
+			{
+				long long freq = get_frequency(token);
+				set_lo_freq(__TX, freq);
+				usleep(10000);
+				int cal_success = calibrate_tx(freq);
+				pna_printf(COMMAND_TXFREQ_CAL": %lld, %d\r\n", freq, cal_success);
+			}
+		}
 		else if( strcmp(token, COMMAND_TXFREQ)==0 )
 		{
 			token = strtok(NULL, delim);
@@ -704,12 +753,91 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token, COMMAND_TEST) == 0)
 		{
-			for( int i=0; i<fft_size; i++ )
+			pid_t pid;
+			int len = 10, ind = 0, kill_bache = 0;
+			int *sum;
+			int shmid1,shmid2;
+			int *shm_ptr1;
+			char *shm_ptr2;
+			key_t key=1234;
+			char *data;
+
+			shmid1=shmget(key, sizeof(int), 0666 | IPC_CREAT);
+			shmid2=shmget(key+1, 1024*sizeof(char), 0666 | IPC_CREAT);
+			if( shmid1<0 || shmid2<0)
 			{
-				char first_byte = i%256;
-				char second_byte = i/256;
-				pna_printf("%d %d\r\n",first_byte, second_byte);
+				pna_printf("shared memory get 1, error: %d\r\n", errno);
+				continue;
 			}
+
+			shm_ptr1=(int *)shmat(shmid1,(void *)0,0);
+			shm_ptr2=(char *)shmat(shmid2,(void *)0,0);
+			if( shm_ptr1==(int *)(-1) || shm_ptr2==(char *)(-1) )
+			{
+				pna_printf("shared memory attach error: %d\r\n", errno);
+				continue;
+			}
+
+			sum = shm_ptr1;
+			data = shm_ptr2;
+
+			for( int i=0; i<1; i++ )
+			{
+				if( kill_bache )
+				{
+					break;
+				}
+				*sum = 0;
+				pid = fork();
+
+				if( pid==0 ) // child process : get data
+				{
+					while(*sum < len)
+					{
+//						int ret = fread(data + *sum, 1, len - *sum, stdin); fread adds \0 to the end of string
+						int ret = read(STDIN_FILENO, data + *sum, len - *sum);
+						*sum += ret;
+					}
+					exit(0);
+				}
+				else // parent process : child watch-dog
+				{
+					while(1)
+					{
+						int last_sum = *sum;
+						usleep(9E5);
+						usleep(9E5);
+
+						if( last_sum>=len )
+						{
+							pna_printf("\r\nJOB IS DONE! data:%10s", data);
+							ind += len;
+							break;
+						}
+						else if( last_sum==*sum )
+						{
+							pna_printf("\r\nKILLED BACHE!");
+							kill(pid, SIGKILL);
+							kill_bache = 1;
+
+							break;
+						}
+					}
+				}
+			}
+
+			fflush(stdin);
+			// u should memmove() shm_ptr
+			shmdt(shm_ptr1);
+			shmdt(shm_ptr2);
+			shmctl(shmid1, IPC_RMID, 0);
+			shmctl(shmid2, IPC_RMID, 0);
+//			for( int i=0; i<fft_size; i++ )
+//			{
+//				char first_byte = i%256;
+//				char second_byte = i/256;
+//				pna_printf("%d %d\r\n",first_byte, second_byte);
+//			}
 			pna_printf("\r\n");
 		}
         else if(strcmp(token, COMMAND_FRESET) == 0)
@@ -858,7 +986,7 @@ int main (int argc, char **argv)
 		}
 		else if(strcmp(token, PLOT_ADCVNA) == 0)
 		{
-			if(is_2tx_2rx == 0)
+			if(!is_2tx_2rx)
 			{
 				pna_printf("PLOT\r\n");
 				continue;
@@ -1183,6 +1311,12 @@ int main (int argc, char **argv)
 			gettimeofday(&tv2, NULL);
 			sweep_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000;
 			sweep_time += (double) (tv2.tv_sec - tv1.tv_sec);
+			/////////////////////// DELETE ME
+//			for(int i=0;i<2*uart_size; i++)
+//			{
+//				uart_tx_buffer[i]=0;
+//			}
+			/////////////////////////////////////////
 			pna_printf("PLOT");
 			pna_write(uart_tx_buffer, 2*uart_size);
 			pna_printf("\r\n"); // \r\n%d  , 2*uart_size
@@ -1387,6 +1521,11 @@ int main (int argc, char **argv)
 			{
 				continue;
 			}
+			if(!is_2tx_2rx)
+			{
+				pna_printf("Board has only one channel and cannot run VNA commands.\r\n");
+				continue;
+			}
 			long long vga_gain2 = strtoll(token, &size_null, 10);
 
 			set_lo_freq(__RX, vna_freq);
@@ -1551,6 +1690,8 @@ int main (int argc, char **argv)
 			int len_awg;
 			const int step_receive = 32;
 			const int packet_len = 256;
+			char progress_bar[33];
+			strcpy(progress_bar, "|------------------------------|");
 
 			token = strtok(NULL, delim);
 			if(!check_argument(token, WAVE_AWG, "len"))
@@ -1609,10 +1750,11 @@ int main (int argc, char **argv)
 			int receives_per_packet = packet_len / step_receive;
 			int awg_data_index = 0;
 
-			pna_printf("Give me data. %d %d %d\n|", total_packets, rem_packet_len, receives_per_packet);
+			pna_printf("Packets:%d Rem:%d RPP:%d\r\n>>", total_packets, rem_packet_len, receives_per_packet);
 			fflush(stdout);
 
-			for(int i=0; i<total_packets; i++)
+			int i;
+			for(i=0; i<total_packets; i++)
 			{
 				for(int j=0; j<receives_per_packet; j++)
 				{
@@ -1631,7 +1773,8 @@ int main (int argc, char **argv)
 					break;
 				}
 				pna_read(chert, 1, !escape_char_set); // reading \n
-				pna_printf("|");
+				progress_bar[i*30/total_packets+1] = '#';
+				pna_printf("%s %d\r\n|",progress_bar,(i+1)*100/total_packets);
 			}
 			if(rem_packet_len > 0 && !escape_char_received)
 			{
@@ -1651,7 +1794,7 @@ int main (int argc, char **argv)
 				if(!escape_char_received)
 				{
 					pna_read(chert, 1, !escape_char_set); // reading \n
-					pna_printf("|");
+					pna_printf("%s%d\r\n|",progress_bar,i*100/total_packets);
 				}
 			}
 			if(escape_char_received)
@@ -1659,10 +1802,18 @@ int main (int argc, char **argv)
 				pna_printf(START_OF_PACKET"escape char received.\r\n");
 				continue;
 			}
+
 			send_awg_signal(len_awg, dig_amp, channel_num);
 			dds_sample_size = len_awg;
-//			pna_printf("[total len]: %d | [len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
-//					total_len, len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
+			// get last done
+			int ret = pna_gets(buffer, 100000);
+			if(ret < 0)
+			{
+				pna_printf("Error while trying to read from console/tcp\r\n");
+				return -1;
+			}
+			pna_printf(START_OF_PACKET"[total len]: %d | [len_awg]: %d | [port]: %d | [sigpow]: %2.2lf | [dig_pow]: %2.2lf | [dig_amp]: %1.3lf\r\n",
+					total_len, len_awg, channel_num, sig_pow[channel_num]+sig_offset, dig_pow, dig_amp);
 		}
 		else if(strcmp(token, WAVE_PULSE)==0 )
 		{
@@ -1933,7 +2084,7 @@ int main (int argc, char **argv)
 				read_reg_ad9361(address, value);
 				pna_printf(COMMAND_REGISTER" %llx: %s \r\n", address, value);
 			}
-			else if(!check_argument(token, COMMAND_REGISTER, "value"))
+			else if(check_argument(token, COMMAND_REGISTER, "value"))
 			{
 				write_reg_ad9361(address, token);
 				pna_printf(COMMAND_REGISTER", write to %llx: %s \r\n", address, token);

@@ -73,32 +73,31 @@ int pna_gets(char *buffer, int max_len)
 /*
  * @return: -1 if escape character is seen
  */
+// FIXME: should be implemented with timer not escape char
 size_t pna_read(unsigned char *data, int len, int escape_set)
 {
     if(interface_id == PNA_INTERFACE_CONSOLE)
     {
     	// 1 denote number of bytes in each read
     	int sum = 0;
-		while(sum < len)
+		while( sum<len )
 		{
 //			int ret = fread(data + sum, 1, len - sum, stdin);
-			scanf("%32s[^\n]", data);
-			int ret = strlen(data);
+			int ret = read(STDIN_FILENO, data + sum, len - sum);
 			sum += ret;
-			if(escape_set)
+			if( escape_set )
 			{
-				if(pna_is_escaped(data + sum - 3))
+				if( pna_is_escaped(data + sum - 3) )
 				{
-					pna_printf("==>");
 					return 1;
 				}
 			}
 		}
     }
-    else if(interface_id == PNA_INTERFACE_TCP)
+    else if( interface_id==PNA_INTERFACE_TCP )
     {
     	int sum = 0;
-    	while(sum < len)
+    	while( sum<len )
         {
     		int ret = read(connfd, data + sum, len - sum);
     		sum += ret;
@@ -114,7 +113,7 @@ size_t pna_read(unsigned char *data, int len, int escape_set)
     return 0;
 }
 
-int pna_is_escaped(char *data)
+int pna_is_escaped(unsigned char *data)
 {
 //	pna_printf("***%c%c%c", data[0], data[1], data[2]);
 	if(data[0] == 'k' && data[1] == '\r' && data[2] == '\n')

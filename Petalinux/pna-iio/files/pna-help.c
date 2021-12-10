@@ -155,7 +155,21 @@ int check_argument(char *token, char *function, char *argument)
 			return 0;
 		}
 	}
-	else if(!strcmp(function, COMMAND_TXFREQ) || !strcmp(function, COMMAND_RXFREQ))
+	else if(!strcmp(function, COMMAND_CALIB))
+	{
+		if(!strcmp(input, "auto") || !strcmp(input, "manual") || !strcmp(input, "manual_tx_quad") ||
+			!strcmp(input, "tx_quad") || !strcmp(input, "rf_dc_offs") || !strcmp(input, "rssi_gain_step"))
+		{
+			return 1;
+		}
+		else
+		{
+			print_help(function, argument);
+			return 0;
+		}
+	}
+	else if(!strcmp(function, COMMAND_TXFREQ) || !strcmp(function, COMMAND_RXFREQ)
+			|| !strcmp(function, COMMAND_TXFREQ_CAL))
 	{
 		long long freq = get_frequency(input);
 		if(freq>=FRQ_MIN && freq<=FRQ_MAX)
@@ -1317,7 +1331,12 @@ void print_help(char *function, char *argument)
 	{
 		sprintf(arg_buf, "[sample size 2^n, n in range <4:13>]");
 	}
-	else if(!strcmp(function, COMMAND_TXFREQ) || !strcmp(function, COMMAND_RXFREQ))
+	else if(!strcmp(function, COMMAND_CALIB))
+	{
+		sprintf(arg_buf, "[auto manual manual_tx_quad tx_quad rf_dc_offs rssi_gain_step]");
+	}
+	else if(!strcmp(function, COMMAND_TXFREQ) || !strcmp(function, COMMAND_RXFREQ)
+			|| !strcmp(function, COMMAND_TXFREQ_CAL))
 	{
 		sprintf(arg_buf, "[LO frequency <%lld:%lld>]", (long long)FRQ_MIN, (long long)FRQ_MAX);
 	}
@@ -1364,7 +1383,7 @@ void print_help(char *function, char *argument)
 	}
 	else if(!strcmp(function, COMMAND_REGISTER))
 	{
-		sprintf(arg_buf, "[address <0:?>][value 0x<0:?>]");
+		sprintf(arg_buf, "[address <hex>][value 0x<hex>]\r\n    example: reg a0 0x12");
 	}
 	else if(!strcmp(function, COMMAND_FIR_COEF))
 	{
